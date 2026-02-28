@@ -1,20 +1,23 @@
 <?php
 
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 
 use App\Livewire\Vendor\Dashboard\VendorDashboardPage;
 use App\Livewire\Vendor\Offerings\ManageOfferings;
+use App\Livewire\Vendor\Offerings\ManageOfferingsTabs;
 use App\Livewire\Admin\Vendors\VendorCreatePage;
-
 use App\Livewire\Admin\Dashboard\AdminDashboardPage;
 use App\Livewire\Admin\Vendors\VendorEditPage;
-
+use Illuminate\Support\Facades\Storage;
 
 
 Route::get('/', function () {
     return view('welcome');
 })->name('home');
+
 
 Route::middleware([
     'auth:sanctum',
@@ -42,7 +45,7 @@ Route::middleware([
         ->name('vendor.')
         ->group(function () {
             Route::get('/dashboard', VendorDashboardPage::class)->name('dashboard');
-            Route::get('/offerings', ManageOfferings::class)->name('offerings');
+            Route::get('/offerings', ManageOfferingsTabs::class)->name('offerings');
     });
 
     // Admin area

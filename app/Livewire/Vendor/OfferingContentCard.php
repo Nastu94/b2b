@@ -2,31 +2,77 @@
 
 namespace App\Livewire\Vendor;
 
-use Livewire\Component;
-use Livewire\WithFileUploads;
+use App\Models\Offering;
+use App\Models\VendorOfferingImage;
+use App\Models\VendorOfferingProfile;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use App\Models\Offering;
-use App\Models\VendorOfferingProfile;
-use App\Models\VendorOfferingImage;
+use Livewire\Component;
+use Livewire\WithFileUploads;
 
+/**
+ * Componente per gestione contenuti (testi + immagini) per una singola offering.
+ *
+ * Nota: tipizzare le proprietà aiuta Livewire a idratare correttamente lo stato,
+ * specialmente quando il componente è annidato in tab o altri componenti.
+ */
 class OfferingContentCard extends Component
 {
     use WithFileUploads;
     use AuthorizesRequests;
 
+    /**
+     * ID dell'offering gestita dal componente.
+     *
+     * @var int
+     */
     public int $offeringId;
 
-    public $offering;
-    public $profile;
+    /**
+     * Modello Offering (caricato in mount).
+     *
+     * @var \App\Models\Offering
+     */
+    public Offering $offering;
 
-    public $title;
-    public $short_description;
-    public $description;
+    /**
+     * Profilo vendor-offering (caricato/creato in mount).
+     *
+     * @var \App\Models\VendorOfferingProfile
+     */
+    public VendorOfferingProfile $profile;
 
-    public $cover;          // upload singolo
-    public $gallery = [];   // upload multiplo
+    /**
+     * Campi testo (editabili).
+     *
+     * @var string|null
+     */
+    public ?string $title = null;
+
+    /**
+     * @var string|null
+     */
+    public ?string $short_description = null;
+
+    /**
+     * @var string|null
+     */
+    public ?string $description = null;
+
+    /**
+     * Upload cover (singolo file).
+     *
+     * @var mixed
+     */
+    public $cover = null;
+
+    /**
+     * Upload gallery (multiplo).
+     *
+     * @var array<int, mixed>
+     */
+    public array $gallery = [];
 
     /**
      * Mount: carica dati e verifica autorizzazioni
