@@ -45,7 +45,7 @@
             @if($profile->cover_image_path)
                 <img
                     class="mt-3 rounded-lg border"
-                    src="{{ asset('storage/'.$profile->cover_image_path) }}"
+                    src="{{ route('media.public', ['path' => $profile->cover_image_path]) }}"
                     alt="Cover"
                 >
 
@@ -79,7 +79,7 @@
                 <div class="relative">
                     <img
                         class="rounded-lg border"
-                        src="{{ asset('storage/'.$img->path) }}"
+                        src="{{ route('media.public', ['path' => $img->path]) }}"
                         alt=""
                     >
                     <button
