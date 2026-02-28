@@ -1,3 +1,4 @@
+{{-- resources/views/livewire/vendor/offering-content-card.blade.php --}}
 <div class="rounded-xl border border-gray-200 bg-white p-5">
     <div class="flex items-start justify-between gap-3">
         <div>

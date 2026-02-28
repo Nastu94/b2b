@@ -6,29 +6,41 @@ use App\Models\Offering;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Livewire\Component;
 use Livewire\Attributes\Layout;
+use Livewire\Component;
 
-#[Layout('layouts.vendor')]
+/**
+ * Gestione selezione servizi (Offerings) per il vendor.
+ *
+ * Responsabilità:
+ * - Mostrare le offerings disponibili per la categoria del vendor
+ * - Consentire selezione/deselezione
+ * - Salvare sul pivot mantenendo la colonna is_active come "soft-sync"
+ *
+ * Nota: la gestione contenuti (titolo, descrizione, cover, gallery, ecc.)
+ * verrà spostata in una tab/componente separato.
+ */
 class ManageOfferings extends Component
 {
     use AuthorizesRequests;
 
-    /** @var \Illuminate\Support\Collection<int, \App\Models\Offering> */
+    /**
+     * Offerings disponibili per la categoria del vendor.
+     *
+     * @var \Illuminate\Support\Collection<int, \App\Models\Offering>
+     */
     public Collection $availableOfferings;
 
-    /** @var array<int> IDs offerings selezionate */
+    /**
+     * IDs offerings selezionate (stato UI).
+     *
+     * @var array<int>
+     */
     public array $selectedOfferingIds = [];
 
     /**
-     * IDs services attivi calcolati dal DB (source of truth).
-     * Questa lista viene usata per renderizzare le schede contenuti in Blade,
-     * evitando di fidarsi di selectedOfferingIds (client-side).
-     *
-     * @var array<int, int>
+     * Inizializza la pagina: carica offerings disponibili e pre-seleziona quelle attive.
      */
-    public array $activeOfferingIds = [];
-
     public function mount(): void
     {
         $user = Auth::user();
@@ -47,7 +59,7 @@ class ManageOfferings extends Component
             abort(403);
         }
 
-        // solo offerings della categoria del vendor
+        // Solo offerings della categoria del vendor
         $this->availableOfferings = Offering::query()
             ->where('category_id', $vendorAccount->category_id)
             ->where('is_active', true)
@@ -55,13 +67,12 @@ class ManageOfferings extends Component
             ->orderBy('name')
             ->get();
 
-        // pre-seleziona quelle già associate
+        // Pre-seleziona quelle già associate e attive
         $this->selectedOfferingIds = $vendorAccount->offerings()
             ->wherePivot('is_active', true)
             ->pluck('offerings.id')
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->toArray();
-        $this->activeOfferingIds = $this->selectedOfferingIds;
     }
 
     /**
@@ -91,6 +102,7 @@ class ManageOfferings extends Component
             ->map(fn ($id) => (int) $id)
             ->toArray();
 
+        // Selezione finale ripulita (evita ID fuori categoria / disattivi / manipolati)
         $finalIds = array_values(array_intersect(
             array_map('intval', $this->selectedOfferingIds),
             $allowedIds
@@ -108,6 +120,7 @@ class ManageOfferings extends Component
             if (in_array($offeringId, $current, true)) {
                 $vendorAccount->offerings()->updateExistingPivot($offeringId, ['is_active' => $isActive]);
             } else {
+                // Inseriamo la pivot solo se l’offering è selezionata (evita righe inutili)
                 if ($isActive) {
                     $vendorAccount->offerings()->attach($offeringId, ['is_active' => true]);
                 }
@@ -120,22 +133,16 @@ class ManageOfferings extends Component
             ->pluck('offerings.id')
             ->map(fn ($id) => (int) $id)
             ->toArray();
-        $this->activeOfferingIds = $this->selectedOfferingIds;
 
         session()->flash('status', 'Servizi aggiornati con successo.');
 
-        // Forza rerender (utile quando sotto ci sono componenti figli per ogni offering)
+        // Forza rerender (utile per riallineare UI in caso di input sporchi o race)
         $this->dispatch('$refresh');
     }
 
     /**
      * Quando l'utente spunta/despunta checkbox, Livewire aggiorna selectedOfferingIds.
-     * Qui NON ci fidiamo del payload client-side: ricostruiamo la lista attiva
-     * interrogando il DB, così renderizziamo schede solo per offerings realmente
-     * attive e appartenenti al vendor.
-     *
-     * Nota: le schede contenuti devono riflettere lo stato salvato (pivot is_active),
-     * quindi aggiorniamo activeOfferingIds leggendo dal DB.
+     * Qui NON ci fidiamo del payload client-side: filtriamo subito agli ID ammessi.
      *
      * @param mixed $value
      */
@@ -170,24 +177,10 @@ class ManageOfferings extends Component
 
         // Aggiorna selectedOfferingIds con versione "safe" (evita valori spuri in UI)
         $this->selectedOfferingIds = $safeSelectedIds;
-
-        /**
-         * Scelta di UX:
-         * - Le schede contenuti mostrano SOLO offerings già "attive" in pivot (stato salvato).
-         * - Quindi activeOfferingIds resta agganciato al DB.
-         *
-         * Se invece vuoi far comparire le schede "prima del salvataggio",
-         * nel prossimo step possiamo renderizzare in base a $safeSelectedIds.
-         */
-        $this->activeOfferingIds = $vendorAccount->offerings()
-            ->wherePivot('is_active', true)
-            ->pluck('offerings.id')
-            ->map(fn ($id) => (int) $id)
-            ->toArray();
     }
 
     /**
-     * Rende la vista del componente, passando il titolo e le offerings disponibili.
+     * Rende la vista del componente.
      */
     public function render()
     {

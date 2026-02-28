@@ -29,25 +29,5 @@
                 </button>
             </div>
         </form>
-
-        {{-- SOTTO: schede contenuti per servizi selezionati --}}
-        <div class="mt-10">
-            <h3 class="text-base font-semibold text-gray-900">Contenuti servizi selezionati</h3>
-            <p class="text-sm text-gray-600 mt-1">
-                Per ogni servizio selezionato, inserisci descrizione e carica immagini (cover + gallery).
-            </p>
-
-            <div class="mt-6 space-y-4">
-                @forelse($activeOfferingIds as $offeringId)
-                    <div id="offering-{{ $offeringId }}">
-                        <livewire:vendor.offering-content-card :offeringId="$offeringId" :key="'offering-content-card-' . $offeringId" />
-                    </div>
-                @empty
-                    <div class="p-4 border rounded bg-gray-50 text-sm text-gray-700">
-                        Seleziona almeno un servizio sopra: qui compariranno le schede per inserire foto e descrizione.
-                    </div>
-                @endforelse
-            </div>
-        </div>
     </div>
 </div>
