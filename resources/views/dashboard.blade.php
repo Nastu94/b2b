@@ -31,7 +31,7 @@
                         <div class="p-4 bg-gray-100 rounded">
                             <p class="text-sm text-gray-600">Vendor Attivi</p>
                             <p class="text-2xl font-bold">
-                                {{ \App\Models\VendorAccount::where('status','ACTIVE')->count() }}
+                                {{ \App\Models\VendorAccount::where('status', 'ACTIVE')->count() }}
                             </p>
                         </div>
                     </div>
@@ -60,10 +60,39 @@
                         <div class="p-4 bg-gray-100 rounded">
                             <p class="text-sm text-gray-600">Categoria</p>
                             <p class="text-lg font-semibold">
-                                {{ auth()->user()->vendorAccount->category ?? 'Non impostata' }}
+                                {{ auth()->user()->vendorAccount->category->name ?? 'N/A' }}
                             </p>
                         </div>
                     </div>
+                    <div class="mt-4">
+                        <strong>Servizi offerti:</strong>
+
+                        @php
+                            $vendorAccount = auth()->user()->vendorAccount;
+                            $activeOfferings = $vendorAccount
+                                ->offerings()
+                                ->wherePivot('is_active', true)
+                                ->orderBy('offerings.name')
+                                ->get();
+                        @endphp
+
+                        @if ($activeOfferings->isEmpty())
+                            <div class="text-sm text-gray-600 mt-2">
+                                Nessun servizio selezionato.
+                                <a href="{{ route('vendor.offerings') }}" class="underline text-indigo-600">Seleziona
+                                    servizi</a>
+                            </div>
+                        @else
+                            <ul class="list-disc ml-6 mt-2 text-sm">
+                                @foreach ($activeOfferings as $offering)
+                                    <li>{{ $offering->name }}</li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </div>
+                    <a href="{{ route('vendor.offerings') }}" class="underline text-indigo-600">
+                        Gestisci servizi
+                    </a>
                 </div>
             @endrole
 

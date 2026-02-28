@@ -2,6 +2,9 @@
     <x-authentication-card>
         <x-slot name="logo">
             <x-authentication-card-logo />
+            <x-slot name="title">
+                {{ __('Benvenuto! Effettua il login al tuo account.') }}
+            </x-slot>
         </x-slot>
 
         <x-validation-errors class="mb-4" />
@@ -12,7 +15,7 @@
             </div>
         @endsession
 
-        <form method="POST" action="{{ route('login') }}">
+        <form method="POST" action="{{ route('login') }}" >
             @csrf
 
             <div>
