@@ -4,12 +4,16 @@ namespace App\Livewire\Admin\Vendors;
 
 use Livewire\Component;
 use Livewire\Attributes\Layout;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Facades\Auth;
 use App\Models\VendorAccount;
 use App\Models\Category;
 
-#[Layout('layouts.admin')] // usata solo per il layout, non per i dati, che vengono caricati in mount() - altrimenti mi dava errore vscode  
+#[Layout('layouts.admin')] // usata solo per il layout, non per i dati, che vengono caricati in mount()
 class VendorEditPage extends Component
 {
+    use AuthorizesRequests;
+
     public VendorAccount $vendorAccount;
 
     public array $form = [];
@@ -17,20 +21,30 @@ class VendorEditPage extends Component
 
     public bool $confirmingDelete = false;
 
-    // Caricamento dati del vendor e categorie per select in mount() 
+    // Caricamento dati del vendor e categorie per select in mount()
     public function mount(VendorAccount $vendorAccount): void
     {
+        $user = Auth::user();
+
+        if (!$user) {
+            abort(401);
+        }
+
+        // Porta area admin (permesso esistente)
+        abort_unless($user->can('admin.access'), 403);
+
+        // Policy: visualizzazione vendor
+        $this->authorize('view', $vendorAccount);
+
         $this->vendorAccount = $vendorAccount->load(['user', 'category']);
 
         $this->categories = Category::query()
             ->orderBy('name')
             ->get(['id', 'name'])
-            ->map(fn($c) => ['id' => $c->id, 'name' => $c->name])
+            ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name])
             ->all();
 
-        $va = $this->vendorAccount;
-
-        // Inizializzazione form con i dati del vendor. In questo modo, se il vendor ha già dei dati, li vediamo nel form. Se invece è un nuovo vendor (creato da admin), il form sarà vuoto e l'admin potrà compilarlo.
+        // Inizializzazione form con i dati del vendor
         $this->form = [
             'status' => $vendorAccount->status,
             'account_type' => $vendorAccount->account_type,
@@ -122,6 +136,9 @@ class VendorEditPage extends Component
     // Salvataggio dati del vendor
     public function save(): void
     {
+        // Policy: update vendor
+        $this->authorize('update', $this->vendorAccount);
+
         $this->validate();
 
         $this->vendorAccount->fill([
@@ -169,6 +186,9 @@ class VendorEditPage extends Component
     // Funzioni per cancellazione vendor (soft delete)
     public function confirmDelete(): void
     {
+        // Policy: delete vendor (anche solo aprire la conferma ha senso limitarlo)
+        $this->authorize('delete', $this->vendorAccount);
+
         $this->confirmingDelete = true;
     }
 
@@ -177,15 +197,21 @@ class VendorEditPage extends Component
         $this->confirmingDelete = false;
     }
 
-    
     public function deleteVendor(): void
     {
+        // Policy: delete vendor
+        $this->authorize('delete', $this->vendorAccount);
+
         $this->vendorAccount->delete(); // soft delete
+
         redirect()->route('admin.dashboard');
     }
 
     public function render()
     {
+        // Policy: view vendor (difesa in profondità)
+        $this->authorize('view', $this->vendorAccount);
+
         $displayName = $this->vendorAccount->company_name
             ?: trim(($this->vendorAccount->first_name ?? '') . ' ' . ($this->vendorAccount->last_name ?? ''))
             ?: ('Vendor #' . $this->vendorAccount->id);

@@ -4,13 +4,18 @@ namespace App\Livewire\Admin\Vendors;
 
 use Livewire\Component;
 use Livewire\Attributes\Layout;
-use Illuminate\Validation\Rule;
 use App\Actions\Fortify\CreateNewUser;
 use App\Models\Category;
+use App\Models\VendorAccount;
+use App\Services\CreateVendorService;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 #[Layout('layouts.admin')]
 class VendorCreatePage extends Component
 {
+    use AuthorizesRequests;
     public array $form = [
         // accesso
         'name' => '',
@@ -50,6 +55,18 @@ class VendorCreatePage extends Component
 
     public function mount(): void
     {
+        $user = Auth::user();
+
+        if (!$user) {
+            abort(401);
+        }
+
+        // Porta area admin
+        abort_unless($user->can('admin.access'), 403);
+
+        // Policy: creazione vendor (usa vendors.manage)
+        $this->authorize('create', VendorAccount::class);
+
         // default un po’ più sensato
         $this->form['legal_country'] = $this->form['legal_country'] ?: 'IT';
     }
@@ -131,11 +148,12 @@ class VendorCreatePage extends Component
         return $rules;
     }
 
-    public function save(CreateNewUser $createNewUser)
+    public function save(CreateVendorService $createVendorService)
     {
+        $this->authorize('create', VendorAccount::class);
+
         $this->validate();
 
-        // se uguale alla sede legale, copiamo prima di chiamare CreateNewUser
         if ($this->form['operational_same_as_legal']) {
             $this->form['operational_country'] = $this->form['legal_country'];
             $this->form['operational_region'] = $this->form['legal_region'];
@@ -144,15 +162,17 @@ class VendorCreatePage extends Component
             $this->form['operational_address_line1'] = $this->form['legal_address_line1'];
         }
 
-        $user = $createNewUser->create($this->form);
+        $vendorAccount = $createVendorService->create($this->form);
 
         session()->flash('status', 'Vendor creato con successo.');
 
-        return redirect()->route('admin.vendors.edit', $user->vendorAccount);
+        return redirect()->route('admin.vendors.edit', $vendorAccount);
     }
 
     public function render()
     {
+        $this->authorize('create', VendorAccount::class);
+
         return view('livewire.admin.vendors.vendor-create-page', [
             'categories' => Category::where('is_active', true)->orderBy('sort_order')->get(['id','name']),
             'title' => 'Crea Vendor',

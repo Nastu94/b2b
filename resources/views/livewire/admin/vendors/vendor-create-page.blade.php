@@ -1,3 +1,4 @@
+{{-- resources/views/livewire/admin/vendors/vendor-create-page.blade.php --}}
 <div class="space-y-6">
 
     {{-- Header --}}

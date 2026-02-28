@@ -1,3 +1,4 @@
+{{-- resources/views/livewire/vendor/offerings/manage-offerings.blade.php --}}
 <div class="max-w-4xl mx-auto">
     <div class="bg-white shadow-sm rounded-lg p-6">
         <h2 class="text-lg font-semibold">I miei servizi</h2>
@@ -37,7 +38,7 @@
             </p>
 
             <div class="mt-6 space-y-4">
-                @forelse($selectedOfferingIds as $offeringId)
+                @forelse($activeOfferingIds as $offeringId)
                     <div id="offering-{{ $offeringId }}">
                         <livewire:vendor.offering-content-card :offeringId="$offeringId" :key="'offering-content-card-' . $offeringId" />
                     </div>

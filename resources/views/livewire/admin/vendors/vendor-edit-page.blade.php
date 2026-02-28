@@ -1,3 +1,4 @@
+{{-- resources/views/livewire/admin/vendors/vendor-edit-page.blade.php --}}
 <div class="space-y-6">
 
     {{-- Header --}}
@@ -16,6 +17,9 @@
                 if (trim($displayName) === '') {
                     $displayName = 'Vendor';
                 }
+
+                $canUpdate = auth()->user()?->can('update', $vendorAccount) ?? false;
+                $canDelete = auth()->user()?->can('delete', $vendorAccount) ?? false;
             @endphp
 
             <p class="mt-1 text-sm text-slate-500">
@@ -32,12 +36,13 @@
                class="text-sm px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50">
                 ← Torna alla lista
             </a>
-
-            <button type="button"
-                    wire:click="confirmDelete"
-                    class="text-sm px-4 py-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100">
-                Elimina
-            </button>
+            @can('delete', $vendorAccount)
+                <button type="button"
+                        wire:click="confirmDelete"
+                        class="text-sm px-4 py-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100">
+                    Elimina
+                </button>
+            @endcan
         </div>
     </div>
 
@@ -66,6 +71,7 @@
                     <select
                         class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                         wire:model="form.status"
+                        @disabled(!$canUpdate)
                     >
                         <option value="ACTIVE">ACTIVE</option>
                         <option value="INACTIVE">INACTIVE</option>
@@ -78,6 +84,7 @@
                     <select
                         class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                         wire:model.live="form.account_type"
+                        @disabled(!$canUpdate)
                     >
                         <option value="COMPANY">COMPANY</option>
                         <option value="PRIVATE">PRIVATE</option>
@@ -90,6 +97,7 @@
                     <select
                         class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                         wire:model="form.category_id"
+                        @disabled(!$canUpdate)
                     >
                         <option value="">—</option>
                         @foreach($categories as $c)
@@ -123,7 +131,7 @@
                             <label class="text-sm text-slate-600">Ragione sociale</label>
                             <input type="text"
                                    class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                                   wire:model="form.company_name">
+                                   wire:model="form.company_name" @disabled(!$canUpdate)>
                             @error('form.company_name') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                         </div>
 
@@ -131,7 +139,7 @@
                             <label class="text-sm text-slate-600">Forma giuridica</label>
                             <input type="text"
                                    class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                                   wire:model="form.legal_entity_type">
+                                   wire:model="form.legal_entity_type" @disabled(!$canUpdate)>
                             @error('form.legal_entity_type') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                         </div>
 
@@ -139,7 +147,7 @@
                             <label class="text-sm text-slate-600">P.IVA</label>
                             <input type="text"
                                    class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                                   wire:model="form.vat_number">
+                                   wire:model="form.vat_number" @disabled(!$canUpdate)>
                             @error('form.vat_number') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                         </div>
 
@@ -147,7 +155,7 @@
                             <label class="text-sm text-slate-600">Codice fiscale</label>
                             <input type="text"
                                    class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                                   wire:model="form.tax_code">
+                                   wire:model="form.tax_code" @disabled(!$canUpdate)>
                             @error('form.tax_code') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                         </div>
                     </div>
@@ -169,7 +177,7 @@
                             <label class="text-sm text-slate-600">Nome</label>
                             <input type="text"
                                    class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                                   wire:model="form.first_name">
+                                   wire:model="form.first_name" @disabled(!$canUpdate)>
                             @error('form.first_name') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                         </div>
 
@@ -177,7 +185,7 @@
                             <label class="text-sm text-slate-600">Cognome</label>
                             <input type="text"
                                    class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                                   wire:model="form.last_name">
+                                   wire:model="form.last_name" @disabled(!$canUpdate)>
                             @error('form.last_name') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                         </div>
 
@@ -185,7 +193,7 @@
                             <label class="text-sm text-slate-600">Codice fiscale</label>
                             <input type="text"
                                    class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                                   wire:model="form.tax_code">
+                                   wire:model="form.tax_code" @disabled(!$canUpdate)>
                             @error('form.tax_code') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                         </div>
                     </div>
@@ -209,7 +217,7 @@
                     <label class="text-sm text-slate-600">Paese</label>
                     <input type="text"
                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           wire:model="form.legal_country">
+                           wire:model="form.legal_country" @disabled(!$canUpdate)>
                     @error('form.legal_country') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                 </div>
 
@@ -217,7 +225,7 @@
                     <label class="text-sm text-slate-600">Regione</label>
                     <input type="text"
                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           wire:model="form.legal_region">
+                           wire:model="form.legal_region" @disabled(!$canUpdate)>
                     @error('form.legal_region') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                 </div>
 
@@ -225,7 +233,7 @@
                     <label class="text-sm text-slate-600">Città</label>
                     <input type="text"
                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           wire:model="form.legal_city">
+                           wire:model="form.legal_city" @disabled(!$canUpdate)>
                     @error('form.legal_city') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                 </div>
 
@@ -233,7 +241,7 @@
                     <label class="text-sm text-slate-600">CAP</label>
                     <input type="text"
                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           wire:model="form.legal_postal_code">
+                           wire:model="form.legal_postal_code" @disabled(!$canUpdate)>
                     @error('form.legal_postal_code') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                 </div>
 
@@ -241,7 +249,7 @@
                     <label class="text-sm text-slate-600">Indirizzo</label>
                     <input type="text"
                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           wire:model="form.legal_address_line1">
+                           wire:model="form.legal_address_line1" @disabled(!$canUpdate)>
                     @error('form.legal_address_line1') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                 </div>
             </div>
@@ -264,7 +272,7 @@
                 <label class="inline-flex items-center gap-2 text-sm text-slate-700 mt-1">
                     <input type="checkbox"
                            class="rounded border-slate-300 text-slate-900 focus:ring-slate-400"
-                           wire:model.live="form.operational_same_as_legal">
+                           wire:model.live="form.operational_same_as_legal" @disabled(!$canUpdate)>
                     Uguale alla sede legale
                 </label>
             </div>
@@ -275,7 +283,7 @@
                     <input type="text"
                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                            wire:model="form.operational_country"
-                           @disabled($sameAsLegal)>
+                           @disabled($sameAsLegal || !$canUpdate)>
                     @error('form.operational_country') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                 </div>
 
@@ -284,7 +292,7 @@
                     <input type="text"
                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                            wire:model="form.operational_region"
-                           @disabled($sameAsLegal)>
+                           @disabled($sameAsLegal || !$canUpdate)>
                     @error('form.operational_region') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                 </div>
 
@@ -293,7 +301,7 @@
                     <input type="text"
                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                            wire:model="form.operational_city"
-                           @disabled($sameAsLegal)>
+                           @disabled($sameAsLegal || !$canUpdate)>
                     @error('form.operational_city') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                 </div>
 
@@ -302,7 +310,7 @@
                     <input type="text"
                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                            wire:model="form.operational_postal_code"
-                           @disabled($sameAsLegal)>
+                           @disabled($sameAsLegal || !$canUpdate)>
                     @error('form.operational_postal_code') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                 </div>
 
@@ -311,22 +319,29 @@
                     <input type="text"
                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                            wire:model="form.operational_address_line1"
-                           @disabled($sameAsLegal)>
+                           @disabled($sameAsLegal || !$canUpdate)>
                     @error('form.operational_address_line1') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                 </div>
             </div>
         </div>
 
         <div class="flex justify-end">
-            <button type="submit"
-                    class="text-sm px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition">
-                Salva
-            </button>
+            @can('update', $vendorAccount)
+                <button type="submit"
+                        class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+                    Salva
+                </button>
+            @endcan
+            @cannot('update', $vendorAccount)
+                <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
+                    Non hai i permessi per modificare questo vendor.
+                </div>
+            @endcannot
         </div>
     </form>
 
     {{-- Modal delete --}}
-    @if($confirmingDelete)
+    @if($confirmingDelete && $canDelete)
         <div class="fixed inset-0 bg-black/30 flex items-center justify-center p-4">
             <div class="w-full max-w-md bg-white rounded-xl border border-slate-200 shadow-sm p-6">
                 <h3 class="text-lg font-semibold text-slate-900">Conferma eliminazione</h3>
@@ -343,7 +358,8 @@
 
                     <button type="button"
                             wire:click="deleteVendor"
-                            class="text-sm px-4 py-2 rounded-lg bg-rose-600 text-white hover:bg-rose-700">
+                            class="text-sm px-4 py-2 rounded-lg bg-rose-600 text-white hover:bg-rose-700"
+                            @disabled(!$canDelete)>
                         Elimina
                     </button>
                 </div>

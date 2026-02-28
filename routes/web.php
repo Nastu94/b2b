@@ -37,9 +37,12 @@ Route::middleware([
     })->name('dashboard');
 
     // Vendor area
-    Route::middleware(['role:vendor'])->prefix('vendor')->name('vendor.')->group(function () {
-        Route::get('/dashboard', VendorDashboardPage::class)->name('dashboard');
-        Route::get('/offerings', ManageOfferings::class)->name('offerings');
+    Route::middleware(['role:vendor', 'permission:vendor.access', 'active.vendor'])
+        ->prefix('vendor')
+        ->name('vendor.')
+        ->group(function () {
+            Route::get('/dashboard', VendorDashboardPage::class)->name('dashboard');
+            Route::get('/offerings', ManageOfferings::class)->name('offerings');
     });
 
     // Admin area
