@@ -4,6 +4,7 @@ namespace App\Livewire\Vendor;
 
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Offering;
@@ -13,6 +14,7 @@ use App\Models\VendorOfferingImage;
 class OfferingContentCard extends Component
 {
     use WithFileUploads;
+    use AuthorizesRequests;
 
     public int $offeringId;
 
@@ -26,24 +28,57 @@ class OfferingContentCard extends Component
     public $cover;          // upload singolo
     public $gallery = [];   // upload multiplo
 
+    /**
+     * Mount: carica dati e verifica autorizzazioni
+     */
     public function mount(int $offeringId): void
     {
         $this->offeringId = $offeringId;
 
-        $vendorId = Auth::user()->vendorAccount->id;
+        $user = Auth::user();
+        if (!$user) {
+            abort(403);
+        }
+
+        // Gating: il vendor deve avere accesso al pannello vendor
+        abort_unless($user->can('vendor.access'), 403);
+
+        $vendorAccount = $user->vendorAccount;
+
+        // Difesa in profondità: evita null e vendor soft-deleted
+        if (!$vendorAccount || $vendorAccount->trashed()) {
+            abort(403);
+        }
+
+        $vendorId = $vendorAccount->id;
 
         $this->offering = Offering::findOrFail($offeringId);
 
+        /**
+         * Regola di dominio:
+         * il vendor può gestire contenuti solo per offerings della propria categoria.
+         */
+        if ((int) $this->offering->category_id !== (int) $vendorAccount->category_id) {
+            abort(403);
+        }
+
+        // Crea o recupera il profilo "owned" dal vendor
         $this->profile = VendorOfferingProfile::firstOrCreate(
             ['vendor_account_id' => $vendorId, 'offering_id' => $offeringId],
             []
         );
+
+        // Policy: il vendor può operare solo sul proprio profilo
+        $this->authorize('update', $this->profile);
 
         $this->title = $this->profile->title;
         $this->short_description = $this->profile->short_description;
         $this->description = $this->profile->description;
     }
 
+    /**
+     * Salva dati e immagini, con validazione e autorizzazioni
+     */
     public function save(): void
     {
         $this->validate([
@@ -54,6 +89,12 @@ class OfferingContentCard extends Component
             'gallery' => 'array|max:8',            // max 8 foto
             'gallery.*' => 'image|max:4096',
         ]);
+
+        // Policy: update profilo (ownership)
+        $this->authorize('update', $this->profile);
+
+        // Policy: create immagini (gating generale; ownership specifica è legata al profilo)
+        $this->authorize('create', VendorOfferingImage::class);
 
         $this->profile->update([
             'title' => $this->title,
@@ -95,14 +136,23 @@ class OfferingContentCard extends Component
         // Publish auto se completo
         $fresh = $this->profile->fresh();
         if ($fresh->cover_image_path && $fresh->description) {
+            // Policy: è comunque un update sul profilo
+            $this->authorize('update', $fresh);
+
             $fresh->update(['is_published' => true]);
         }
 
         $this->dispatch('notify', message: 'Salvato');
     }
 
+    /**
+     * Rimuove cover, con autorizzazione e pulizia filesystem
+     */
     public function removeCover(): void
     {
+        // Policy: update profilo (ownership)
+        $this->authorize('update', $this->profile);
+
         // refresh per coerenza
         $this->profile->refresh();
 
@@ -121,12 +171,18 @@ class OfferingContentCard extends Component
         $this->dispatch('notify', message: 'Cover rimossa');
     }
 
+    /**
+     * Elimina immagine gallery, con autorizzazione e pulizia filesystem
+     */
     public function deleteImage(int $imageId): void
     {
         $img = VendorOfferingImage::query()
             ->where('vendor_offering_profile_id', $this->profile->id)
             ->whereKey($imageId)
             ->firstOrFail();
+
+        // Policy: delete immagine (ownership via profile->vendor_account_id)
+        $this->authorize('delete', $img);
 
         if ($img->path && Storage::disk('public')->exists($img->path)) {
             Storage::disk('public')->delete($img->path);
@@ -140,8 +196,12 @@ class OfferingContentCard extends Component
         $this->dispatch('notify', message: 'Foto eliminata');
     }
 
+    /**
+     * Render: carica immagini solo per il profilo già "owned" e autorizzato
+     */
     public function render()
     {
+        // Scoping implicito: carichiamo immagini solo per il profilo già "owned" e autorizzato
         $this->profile->load('images');
 
         return view('livewire.vendor.offering-content-card');
