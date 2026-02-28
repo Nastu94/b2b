@@ -12,13 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function ($middleware) {
-        $middleware->append(\App\Http\Middleware\LivewireUploadDebugMiddleware::class);
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             'active.vendor' => \App\Http\Middleware\EnsureActiveVendorAccount::class,
-            'lw.upload.debug' => \App\Http\Middleware\LivewireUploadDebugMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
