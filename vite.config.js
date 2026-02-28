@@ -1,17 +1,20 @@
 import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 
-export default {
-  content: [
-    "./resources/**/*.blade.php",
-    "./resources/**/*.js",
-    "./resources/**/*.vue",
-    "./app/**/*.php",
-    "./vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php",
-    "./vendor/laravel/jetstream/**/*.blade.php",
+/**
+ * Configurazione Vite per Laravel.
+ *
+ * - Usa laravel-vite-plugin per:
+ *   - output in public/build
+ *   - manifest per @vite(...)
+ *   - HMR in dev
+ */
+export default defineConfig({
+  plugins: [
+    laravel({
+      // Entry points standard Jetstream/Livewire
+      input: ['resources/css/app.css', 'resources/js/app.js'],
+      refresh: true,
+    }),
   ],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
-};
+});
