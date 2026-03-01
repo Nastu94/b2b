@@ -123,7 +123,7 @@
                         {{-- Cover --}}
                         <div class="h-36 bg-slate-50">
                             @if($cover)
-                                <img src="{{ asset('storage/'.$cover) }}" class="h-36 w-full object-cover" alt="">
+                                <img src="{{ route('media.public', ['path' => $cover]) }}" class="h-36 w-full object-cover" alt="">
                             @else
                                 <div class="h-36 w-full flex items-center justify-center text-xs text-slate-400">
                                     Nessuna cover

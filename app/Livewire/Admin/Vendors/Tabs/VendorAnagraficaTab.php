@@ -1,42 +1,39 @@
 <?php
 
-namespace App\Livewire\Admin\Vendors;
+namespace App\Livewire\Admin\Vendors\Tabs;
 
-use Livewire\Component;
-use Livewire\Attributes\Layout;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Support\Facades\Auth;
-use App\Models\VendorAccount;
 use App\Models\Category;
+use App\Models\VendorAccount;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Livewire\Attributes\On;
+use Livewire\Attributes\Reactive;
+use Livewire\Component;
 
-#[Layout('layouts.admin')] // usata solo per il layout, non per i dati, che vengono caricati in mount()
-class VendorEditPage extends Component
+class VendorAnagraficaTab extends Component
 {
     use AuthorizesRequests;
+
+    public int $vendorAccountId;
+
+    #[Reactive]
+    public bool $editing = false;
 
     public VendorAccount $vendorAccount;
 
     public array $form = [];
+    public array $originalForm = [];
     public array $categories = [];
 
-    public bool $confirmingDelete = false;
-
-    // Caricamento dati del vendor e categorie per select in mount()
-    public function mount(VendorAccount $vendorAccount): void
+    public function mount(int $vendorAccountId): void
     {
-        $user = Auth::user();
+        $this->vendorAccountId = $vendorAccountId;
 
-        if (!$user) {
-            abort(401);
-        }
+        $this->vendorAccount = VendorAccount::query()
+            ->with(['user', 'category', 'offerings'])
+            ->findOrFail($vendorAccountId);
 
-        // Porta area admin (permesso esistente)
-        abort_unless($user->can('admin.access'), 403);
-
-        // Policy: visualizzazione vendor
-        $this->authorize('view', $vendorAccount);
-
-        $this->vendorAccount = $vendorAccount->load(['user', 'category']);
+        // difesa in profondità
+        $this->authorize('view', $this->vendorAccount);
 
         $this->categories = Category::query()
             ->orderBy('name')
@@ -44,62 +41,57 @@ class VendorEditPage extends Component
             ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name])
             ->all();
 
-        // Inizializzazione form con i dati del vendor
         $this->form = [
-            'status' => $vendorAccount->status,
-            'account_type' => $vendorAccount->account_type,
-            'category_id' => $vendorAccount->category_id,
+            'status' => $this->vendorAccount->status,
+            'account_type' => $this->vendorAccount->account_type,
+            'category_id' => $this->vendorAccount->category_id,
 
             // COMPANY
-            'company_name' => $vendorAccount->company_name,
-            'legal_entity_type' => $vendorAccount->legal_entity_type,
-            'vat_number' => $vendorAccount->vat_number,
+            'company_name' => $this->vendorAccount->company_name,
+            'legal_entity_type' => $this->vendorAccount->legal_entity_type,
+            'vat_number' => $this->vendorAccount->vat_number,
 
             // PRIVATE
-            'first_name' => $vendorAccount->first_name,
-            'last_name' => $vendorAccount->last_name,
+            'first_name' => $this->vendorAccount->first_name,
+            'last_name' => $this->vendorAccount->last_name,
 
             // COMMON
-            'tax_code' => $vendorAccount->tax_code,
+            'tax_code' => $this->vendorAccount->tax_code,
 
             // LEGAL SEAT
-            'legal_country' => $vendorAccount->legal_country,
-            'legal_region' => $vendorAccount->legal_region,
-            'legal_city' => $vendorAccount->legal_city,
-            'legal_postal_code' => $vendorAccount->legal_postal_code,
-            'legal_address_line1' => $vendorAccount->legal_address_line1,
+            'legal_country' => $this->vendorAccount->legal_country,
+            'legal_region' => $this->vendorAccount->legal_region,
+            'legal_city' => $this->vendorAccount->legal_city,
+            'legal_postal_code' => $this->vendorAccount->legal_postal_code,
+            'legal_address_line1' => $this->vendorAccount->legal_address_line1,
 
             // OPERATIONAL SEAT
-            'operational_same_as_legal' => (bool) $vendorAccount->operational_same_as_legal,
-            'operational_country' => $vendorAccount->operational_country,
-            'operational_region' => $vendorAccount->operational_region,
-            'operational_city' => $vendorAccount->operational_city,
-            'operational_postal_code' => $vendorAccount->operational_postal_code,
-            'operational_address_line1' => $vendorAccount->operational_address_line1,
+            'operational_same_as_legal' => (bool) $this->vendorAccount->operational_same_as_legal,
+            'operational_country' => $this->vendorAccount->operational_country,
+            'operational_region' => $this->vendorAccount->operational_region,
+            'operational_city' => $this->vendorAccount->operational_city,
+            'operational_postal_code' => $this->vendorAccount->operational_postal_code,
+            'operational_address_line1' => $this->vendorAccount->operational_address_line1,
         ];
+
+        $this->originalForm = $this->form;
     }
 
-    // Regole di validazione dinamiche in base al tipo di account (company/private)
     protected function rules(): array
     {
         $rules = [
-
-            // Base
             'form.status' => ['required', 'in:ACTIVE,INACTIVE'],
             'form.account_type' => ['required', 'in:COMPANY,PRIVATE'],
             'form.category_id' => ['nullable', 'integer', 'exists:categories,id'],
 
-            // Campi comuni
             'form.tax_code' => ['nullable', 'string', 'max:50'],
 
-            // Sede legale
             'form.legal_country' => ['nullable', 'string', 'max:255'],
             'form.legal_region' => ['nullable', 'string', 'max:255'],
             'form.legal_city' => ['nullable', 'string', 'max:255'],
             'form.legal_postal_code' => ['nullable', 'string', 'max:50'],
             'form.legal_address_line1' => ['nullable', 'string', 'max:255'],
 
-            // Operativa
             'form.operational_same_as_legal' => ['boolean'],
             'form.operational_country' => ['nullable', 'string', 'max:255'],
             'form.operational_region' => ['nullable', 'string', 'max:255'],
@@ -108,23 +100,19 @@ class VendorEditPage extends Component
             'form.operational_address_line1' => ['nullable', 'string', 'max:255'],
         ];
 
-        // COMPANY
-        if ($this->form['account_type'] === 'COMPANY') {
+        if (($this->form['account_type'] ?? null) === 'COMPANY') {
             $rules['form.company_name'] = ['required', 'string', 'max:255'];
             $rules['form.legal_entity_type'] = ['nullable', 'string', 'max:255'];
             $rules['form.vat_number'] = ['required', 'string', 'max:50'];
 
-            // PRIVATE non obbligatori
             $rules['form.first_name'] = ['nullable'];
             $rules['form.last_name'] = ['nullable'];
         }
 
-        // PRIVATE
-        if ($this->form['account_type'] === 'PRIVATE') {
+        if (($this->form['account_type'] ?? null) === 'PRIVATE') {
             $rules['form.first_name'] = ['required', 'string', 'max:255'];
             $rules['form.last_name'] = ['required', 'string', 'max:255'];
 
-            // COMPANY non obbligatori
             $rules['form.company_name'] = ['nullable'];
             $rules['form.legal_entity_type'] = ['nullable'];
             $rules['form.vat_number'] = ['nullable'];
@@ -133,10 +121,8 @@ class VendorEditPage extends Component
         return $rules;
     }
 
-    // Salvataggio dati del vendor
     public function save(): void
     {
-        // Policy: update vendor
         $this->authorize('update', $this->vendorAccount);
 
         $this->validate();
@@ -169,7 +155,6 @@ class VendorEditPage extends Component
             'operational_address_line1' => $this->form['operational_address_line1'],
         ]);
 
-        // se same_as_legal => copia i dati (utile)
         if ($this->vendorAccount->operational_same_as_legal) {
             $this->vendorAccount->operational_country = $this->vendorAccount->legal_country;
             $this->vendorAccount->operational_region = $this->vendorAccount->legal_region;
@@ -181,43 +166,41 @@ class VendorEditPage extends Component
         $this->vendorAccount->save();
 
         session()->flash('status', 'Anagrafica salvata con successo.');
+
+        $this->vendorAccount->refresh()->load(['user', 'category', 'offerings']);
+
+        $this->originalForm = $this->form;
+
+        // dice al container: “puoi spegnere editing e refreshare il vendor globale”
+        $this->dispatch('vendor-anagrafica-saved', vendorAccountId: $this->vendorAccount->id);
     }
 
-    // Funzioni per cancellazione vendor (soft delete)
-    public function confirmDelete(): void
+    #[On('vendor-anagrafica-cancel-edit')]
+    public function onCancelEdit(int $vendorAccountId): void
     {
-        // Policy: delete vendor (anche solo aprire la conferma ha senso limitarlo)
-        $this->authorize('delete', $this->vendorAccount);
+        if ($vendorAccountId !== $this->vendorAccount->id) {
+            return;
+        }
 
-        $this->confirmingDelete = true;
+        $this->form = $this->originalForm;
+        $this->resetValidation();
     }
 
-    public function cancelDelete(): void
+    #[On('vendor-anagrafica-enter-edit')]
+    public function onEnterEdit(int $vendorAccountId): void
     {
-        $this->confirmingDelete = false;
-    }
+        if ($vendorAccountId !== $this->vendorAccount->id) {
+            return;
+        }
 
-    public function deleteVendor(): void
-    {
-        // Policy: delete vendor
-        $this->authorize('delete', $this->vendorAccount);
-
-        $this->vendorAccount->delete(); // soft delete
-
-        redirect()->route('admin.dashboard');
+        // per ora non serve fare nulla: il container controlla $editing,
+        // e la view abilita/disabilita i campi in base a quello.
     }
 
     public function render()
     {
-        // Policy: view vendor (difesa in profondità)
         $this->authorize('view', $this->vendorAccount);
 
-        $displayName = $this->vendorAccount->company_name
-            ?: trim(($this->vendorAccount->first_name ?? '') . ' ' . ($this->vendorAccount->last_name ?? ''))
-            ?: ('Vendor #' . $this->vendorAccount->id);
-
-        return view('livewire.admin.vendors.vendor-edit-page', [
-            'title' => 'Vendor: ' . $displayName,
-        ]);
+        return view('livewire.admin.vendors.tabs.vendor-anagrafica-tab');
     }
 }

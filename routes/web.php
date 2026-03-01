@@ -11,7 +11,7 @@ use App\Livewire\Vendor\Offerings\ManageOfferings;
 use App\Livewire\Vendor\Offerings\ManageOfferingsTabs;
 use App\Livewire\Admin\Vendors\VendorCreatePage;
 use App\Livewire\Admin\Dashboard\AdminDashboardPage;
-use App\Livewire\Admin\Vendors\VendorEditPage;
+use App\Livewire\Admin\Vendors\VendorProfileTabs;
 use Illuminate\Support\Facades\Storage;
 
 
@@ -34,7 +34,7 @@ Route::get('/media/{path}', function (string $path): StreamedResponse {
 })->where('path', '.*')->name('media.public');
 
 Route::middleware([
-    'auth:sanctum',
+    'auth',
     config('jetstream.auth_session'),
     // 'verified',
 ])->group(function () {
@@ -66,6 +66,6 @@ Route::middleware([
     Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('/dashboard', AdminDashboardPage::class)->name('dashboard');
         Route::get('/vendors/create', VendorCreatePage::class)->name('vendors.create');
-        Route::get('/vendors/{vendorAccount}', VendorEditPage::class)->name('vendors.edit');
+        Route::get('/vendors/{vendorAccount}', VendorProfileTabs::class)->name('vendors.edit');
     });
 });

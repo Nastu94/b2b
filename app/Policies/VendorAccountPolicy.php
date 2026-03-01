@@ -42,6 +42,24 @@ class VendorAccountPolicy
     }
 
     /**
+     * Creare un nuovo vendor.
+     */
+    public function create(User $user): bool
+    {
+        return $user->can('vendors.manage');
+    }
+
+
+    /**
+     * Aggiornare un vendor (anagrafica).
+     */
+    public function update(User $user, VendorAccount $vendorAccount): bool
+    {
+        // se vuoi allinearlo a view/viewAny:
+        return $user->can('admin.access');
+    }
+
+    /**
      * Soft delete vendor.
      */
     public function delete(User $user, VendorAccount $vendorAccount): bool
