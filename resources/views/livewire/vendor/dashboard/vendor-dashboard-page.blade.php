@@ -62,17 +62,14 @@
             </div>
         @else
             @php
-
                 $publishedOfferings = array_values(
                     array_filter($activeOfferings, fn($o) => (bool) ($o['is_published'] ?? false)),
                 );
                 $draftOfferings = array_values(
                     array_filter($activeOfferings, fn($o) => !(bool) ($o['is_published'] ?? false)),
                 );
-
             @endphp
 
-            {{-- Nuove liste: Pubblicati / In bozza --}}
             <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 {{-- Pubblicati --}}
@@ -81,11 +78,9 @@
                         <h3 class="text-sm font-semibold text-slate-900">Servizi pubblicati</h3>
                         <span class="text-xs text-slate-500">{{ count($publishedOfferings) }}</span>
                     </div>
-
                     <div class="mt-3 flex flex-wrap gap-2">
                         @forelse($publishedOfferings as $o)
-                            <span
-                                class="px-3 py-1 rounded-full text-sm bg-emerald-50 border border-emerald-200 text-emerald-800">
+                            <span class="px-3 py-1 rounded-full text-sm bg-emerald-50 border border-emerald-200 text-emerald-800">
                                 {{ $o['name'] }}
                             </span>
                         @empty
@@ -100,11 +95,9 @@
                         <h3 class="text-sm font-semibold text-slate-900">Servizi in bozza</h3>
                         <span class="text-xs text-slate-500">{{ count($draftOfferings) }}</span>
                     </div>
-
                     <div class="mt-3 flex flex-wrap gap-2">
                         @forelse($draftOfferings as $o)
-                            <span
-                                class="px-3 py-1 rounded-full text-sm bg-amber-50 border border-amber-200 text-amber-800">
+                            <span class="px-3 py-1 rounded-full text-sm bg-amber-50 border border-amber-200 text-amber-800">
                                 {{ $o['name'] }}
                             </span>
                         @empty
@@ -118,7 +111,84 @@
 
     </div>
 
-    {{-- sezioni da decidere - disponibilita, giorni di chiusura, preavviso --}}
+    {{-- Riepilogo disponibilità --}}
+    <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
 
+        <h2 class="text-lg font-semibold text-slate-900 mb-4">
+            Riepilogo disponibilità
+        </h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+            {{-- Slot configurati --}}
+            <div class="border border-slate-200 rounded-xl p-4">
+                <div class="text-xs uppercase text-slate-500 tracking-wide">Slot configurati</div>
+                @if($slotsCount > 0)
+                    <div class="mt-2 text-2xl font-semibold text-slate-900">{{ $slotsCount }}</div>
+                    <div class="mt-1 text-xs text-slate-400">
+                        {{ $slotsCount === 1 ? 'fascia oraria' : 'fasce orarie' }}
+                    </div>
+                @else
+                    <div class="mt-2 text-sm text-amber-600 font-medium">Non configurati</div>
+                    <div class="mt-1 text-xs text-slate-400">
+                        <a href="{{ route('vendor.offerings') }}" class="underline">Vai a Servizi &rarr; Slot</a>
+                    </div>
+                @endif
+            </div>
+
+            {{-- Giorni aperti --}}
+            <div class="border border-slate-200 rounded-xl p-4">
+                <div class="text-xs uppercase text-slate-500 tracking-wide">Giorni aperti</div>
+                @if($openDaysCount > 0)
+                    <div class="mt-2 text-2xl font-semibold text-slate-900">{{ $openDaysCount }}</div>
+                    <div class="mt-1 text-xs text-slate-400">
+                        {{ implode(', ', $openDayNames) }}
+                    </div>
+                @else
+                    <div class="mt-2 text-sm text-amber-600 font-medium">Non configurati</div>
+                    <div class="mt-1 text-xs text-slate-400">
+                        <a href="{{ route('vendor.offerings') }}" class="underline">Vai a Template settimanale</a>
+                    </div>
+                @endif
+            </div>
+
+            {{-- Lead time --}}
+            <div class="border border-slate-200 rounded-xl p-4">
+                <div class="text-xs uppercase text-slate-500 tracking-wide">Preavviso</div>
+                @if($leadTimeConfigured)
+                    <div class="mt-2 text-sm font-semibold text-emerald-600">Configurato</div>
+                    <div class="mt-1 text-xs text-slate-400">
+                        <a href="{{ route('vendor.offerings') }}" class="underline">Modifica</a>
+                    </div>
+                @else
+                    <div class="mt-2 text-sm text-amber-600 font-medium">Non configurato</div>
+                    <div class="mt-1 text-xs text-slate-400">
+                        <a href="{{ route('vendor.offerings') }}" class="underline">Vai a Lead time</a>
+                    </div>
+                @endif
+            </div>
+
+            {{-- Prossimi blackout --}}
+            <div class="border border-slate-200 rounded-xl p-4">
+                <div class="text-xs uppercase text-slate-500 tracking-wide">Prossimi blocchi</div>
+                @if(count($upcomingBlackouts) > 0)
+                    <div class="mt-2 space-y-1">
+                        @foreach($upcomingBlackouts as $b)
+                            <div class="text-xs text-slate-700">
+                                <span class="font-medium">{{ $b['range'] }}</span>
+                                @if(!$b['full_day'])
+                                    <span class="text-slate-400"> — slot specifico</span>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="mt-2 text-sm text-slate-400">Nessun blocco</div>
+                @endif
+            </div>
+
+        </div>
+
+    </div>
 
 </div>

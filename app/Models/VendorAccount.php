@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class VendorAccount extends Model
 {
@@ -107,5 +108,25 @@ class VendorAccount extends Model
     public function effectiveLng(): ?float
     {
         return $this->operational_lng ?? $this->legal_lng;
+    }
+
+    public function slots(): HasMany
+    {
+        return $this->hasMany(VendorSlot::class);
+    }
+
+    public function weeklySchedules(): HasMany
+    {
+        return $this->hasMany(VendorWeeklySchedule::class);
+    }
+
+    public function leadTimes(): HasMany
+    {
+        return $this->hasMany(VendorLeadTime::class);
+    }
+
+    public function blackouts(): HasMany
+    {
+        return $this->hasMany(VendorBlackout::class);
     }
 }

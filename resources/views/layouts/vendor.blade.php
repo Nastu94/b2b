@@ -51,20 +51,6 @@
                     class="{{ $linkBase }} {{ $is('vendor.offerings') ? $linkActive : $linkIdle }}">
                     Servizi
                 </a>
-
-                <div class="mt-6 pt-4 border-t border-slate-200">
-                    <div class="text-xs uppercase tracking-wider text-slate-400 mb-3 px-1">
-                        Coming soon
-                    </div>
-
-                    <div class="px-3 py-2 text-slate-400 text-sm">
-                        Availability
-                    </div>
-
-                    <div class="px-3 py-2 text-slate-400 text-sm">
-                        Bookings
-                    </div>
-                </div>
             </nav>
 
             {{-- User box --}}
