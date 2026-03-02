@@ -7,11 +7,11 @@ use Illuminate\Support\Facades\Auth;
 
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use App\Livewire\Vendor\Dashboard\VendorDashboardPage;
-use App\Livewire\Vendor\Offerings\ManageOfferings;
 use App\Livewire\Vendor\Offerings\ManageOfferingsTabs;
 use App\Livewire\Admin\Vendors\VendorCreatePage;
 use App\Livewire\Admin\Dashboard\AdminDashboardPage;
 use App\Livewire\Admin\Vendors\VendorProfileTabs;
+use App\Livewire\Vendor\Profile\VendorProfilePage;
 use Illuminate\Support\Facades\Storage;
 
 
@@ -60,6 +60,7 @@ Route::middleware([
         ->group(function () {
             Route::get('/dashboard', VendorDashboardPage::class)->name('dashboard');
             Route::get('/offerings', ManageOfferingsTabs::class)->name('offerings');
+            Route::get('/profile', VendorProfilePage::class)->name('profile');
     });
 
     // Admin area

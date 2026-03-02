@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-[x-cloak] {
-    display: none;
+[x-cloak] { display: none; }
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;   /* IE/Edge legacy */
+    scrollbar-width: none;      /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;              /* Chrome/Safari */
+  }
 }

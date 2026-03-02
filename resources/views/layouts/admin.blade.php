@@ -11,8 +11,8 @@
     @livewireStyles
 </head>
 
-<body class="min-h-screen bg-slate-100 text-slate-800 antialiased">
-    <div class="min-h-screen flex">
+<body class="h-screen overflow-hidden bg-slate-100 text-slate-800 antialiased">
+    <div class="h-screen w-full flex overflow-hidden">
 
         @php
             $linkBase = "block px-3 py-2.5 rounded-lg transition";
@@ -48,7 +48,7 @@
         </aside>
 
         <div class="flex-1 flex flex-col min-w-0">
-            <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6">
+            <header class="h-16 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-6">
                 <div>
                     <div class="text-xs text-slate-500">Admin</div>
                     <div class="text-lg font-semibold text-slate-900">{{ $title ?? 'Dashboard' }}</div>
@@ -56,7 +56,7 @@
                 <div class="text-sm text-slate-500">Party Legacy Management Engine</div>
             </header>
 
-            <main class="flex-1 p-6">
+            <main class="flex-1 p-6 overflow-y-auto scrollbar-hide">
                 <div class="max-w-7xl mx-auto">
                     {{ $slot }}
                 </div>

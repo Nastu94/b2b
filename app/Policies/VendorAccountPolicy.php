@@ -38,7 +38,13 @@ class VendorAccountPolicy
      */
     public function view(User $user, VendorAccount $vendorAccount): bool
     {
-        return $user->can('admin.access');
+        // admin già bypassato da before(), ma ok anche così:
+        if ($user->can('admin.access')) {
+            return true;
+        }
+
+        return $user->hasRole('vendor')
+            && (int) $vendorAccount->user_id === (int) $user->id;
     }
 
     /**
@@ -55,8 +61,12 @@ class VendorAccountPolicy
      */
     public function update(User $user, VendorAccount $vendorAccount): bool
     {
-        // se vuoi allinearlo a view/viewAny:
-        return $user->can('admin.access');
+        if ($user->can('admin.access')) {
+            return true;
+        }
+
+        return $user->hasRole('vendor')
+            && (int) $vendorAccount->user_id === (int) $user->id;
     }
 
     /**
