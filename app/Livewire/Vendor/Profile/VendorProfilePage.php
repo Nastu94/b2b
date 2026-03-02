@@ -7,6 +7,7 @@ use App\Models\VendorAccount;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use App\Services\GeocodingService;
 
 #[Layout('layouts.vendor')]
 class VendorProfilePage extends Component
@@ -39,7 +40,7 @@ class VendorProfilePage extends Component
         $this->categories = Category::query()
             ->orderBy('name')
             ->get(['id', 'name'])
-            ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name])
+            ->map(fn($c) => ['id' => $c->id, 'name' => $c->name])
             ->all();
 
         $this->fillForm();
@@ -142,7 +143,7 @@ class VendorProfilePage extends Component
         return $rules;
     }
 
-    public function save(): void
+    public function save(GeocodingService $geo): void
     {
         $this->authorize('update', $this->vendorAccount);
 
@@ -175,6 +176,7 @@ class VendorProfilePage extends Component
             'operational_address_line1' => $this->form['operational_address_line1'],
         ]);
 
+        // Se operativo = legale, copia i campi testo (come già fai)
         if ($this->vendorAccount->operational_same_as_legal) {
             $this->vendorAccount->operational_country = $this->vendorAccount->legal_country;
             $this->vendorAccount->operational_region = $this->vendorAccount->legal_region;
@@ -183,14 +185,68 @@ class VendorProfilePage extends Component
             $this->vendorAccount->operational_address_line1 = $this->vendorAccount->legal_address_line1;
         }
 
+        /**
+         * AUTO-GEOCODING
+         * - usiamo prima indirizzo operativo (quello usato per la distanza)
+         * - se fallisce, proviamo legale
+         * - se operativo = legale e troviamo coords, allineiamo anche legal_lat/lng
+         */
+        $statusMessage = 'Profilo salvato con successo.';
+
+        $operationalAddr = [
+            'address_line1' => $this->vendorAccount->operational_address_line1,
+            'address_line2' => $this->vendorAccount->operational_address_line2 ?? null,
+            'postal_code'   => $this->vendorAccount->operational_postal_code,
+            'city'          => $this->vendorAccount->operational_city,
+            'region'        => $this->vendorAccount->operational_region,
+            'country'       => $this->vendorAccount->operational_country ?? 'IT',
+        ];
+
+        $coords = $geo->geocodeItaly($operationalAddr);
+
+        if ($coords) {
+            $this->vendorAccount->operational_lat = $coords['lat'];
+            $this->vendorAccount->operational_lng = $coords['lng'];
+
+            if ($this->vendorAccount->operational_same_as_legal) {
+                $this->vendorAccount->legal_lat = $coords['lat'];
+                $this->vendorAccount->legal_lng = $coords['lng'];
+            }
+        } else {
+            // fallback: prova sede legale
+            $legalAddr = [
+                'address_line1' => $this->vendorAccount->legal_address_line1,
+                'address_line2' => $this->vendorAccount->legal_address_line2 ?? null,
+                'postal_code'   => $this->vendorAccount->legal_postal_code,
+                'city'          => $this->vendorAccount->legal_city,
+                'region'        => $this->vendorAccount->legal_region,
+                'country'       => $this->vendorAccount->legal_country ?? 'IT',
+            ];
+
+            $coordsLegal = $geo->geocodeItaly($legalAddr);
+
+            if ($coordsLegal) {
+                $this->vendorAccount->legal_lat = $coordsLegal['lat'];
+                $this->vendorAccount->legal_lng = $coordsLegal['lng'];
+
+                // se l'operativa non è geocodificabile, almeno usiamo la legale come fallback distanza
+                if (!$this->vendorAccount->operational_lat || !$this->vendorAccount->operational_lng) {
+                    $this->vendorAccount->operational_lat = $coordsLegal['lat'];
+                    $this->vendorAccount->operational_lng = $coordsLegal['lng'];
+                }
+            } else {
+                $statusMessage = 'Profilo salvato, ma non sono riuscito a geolocalizzare l’indirizzo. Verifica CAP/città e numero civico.';
+            }
+        }
+
         $this->vendorAccount->save();
 
-        session()->flash('status', 'Profilo salvato con successo.');
+        session()->flash('status', $statusMessage);
 
         $this->vendorAccount->refresh()->load(['user', 'category', 'offerings']);
 
-        $this->fillForm();      // aggiorna form + originalForm
-        $this->editing = false; // torna in view mode
+        $this->fillForm();
+        $this->editing = false;
     }
 
     public function render()

@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Vendor\Offerings;
 
-use App\Models\VendorSlot;
 use App\Models\VendorWeeklySchedule;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
@@ -42,28 +41,22 @@ class ManageWeeklySchedule extends Component
             ->orderBy('label')
             ->get();
 
-        // Inizializza tutti i giorni con valori default
+        // Default: chiuso se non esiste record (coerente con la tua scelta)
         $this->schedule = [];
         foreach ($this->slots as $slot) {
             foreach (array_keys($this->days) as $day) {
                 $this->schedule[$slot->id][$day] = [
-                    'is_open'          => false,
-                    'min_notice_hours' => 48,
-                    'cutoff_time'      => '',
+                    'is_open' => false,
                 ];
             }
         }
 
         // Sovrascrive con i valori salvati nel DB
-        $saved = $vendorAccount->weeklySchedules()->get();
+        $saved = $vendorAccount->weeklySchedules()->get(['vendor_slot_id', 'day_of_week', 'is_open']);
 
         foreach ($saved as $row) {
             $this->schedule[$row->vendor_slot_id][$row->day_of_week] = [
-                'is_open'          => (bool) $row->is_open,
-                'min_notice_hours' => (int)  $row->min_notice_hours,
-                'cutoff_time'      => $row->cutoff_time
-                    ? substr($row->cutoff_time, 0, 5)
-                    : '',
+                'is_open' => (bool) $row->is_open,
             ];
         }
     }
@@ -88,7 +81,9 @@ class ManageWeeklySchedule extends Component
 
             foreach ($days as $day => $values) {
                 $day = (int) $day;
-                if ($day < 0 || $day > 6) continue;
+                if ($day < 0 || $day > 6) {
+                    continue;
+                }
 
                 VendorWeeklySchedule::updateOrCreate(
                     [
@@ -97,11 +92,7 @@ class ManageWeeklySchedule extends Component
                         'day_of_week'       => $day,
                     ],
                     [
-                        'is_open'          => (bool) ($values['is_open'] ?? false),
-                        'min_notice_hours' => (int)  ($values['min_notice_hours'] ?? 48),
-                        'cutoff_time'      => !empty($values['cutoff_time'])
-                            ? $values['cutoff_time'] . ':00'
-                            : null,
+                        'is_open' => (bool) ($values['is_open'] ?? false),
                     ]
                 );
             }
