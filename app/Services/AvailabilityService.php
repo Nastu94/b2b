@@ -8,6 +8,7 @@ use App\Models\VendorSlot;
 use App\Models\VendorWeeklySchedule;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
+use App\Models\SlotLock;
 
 class AvailabilityService
 {
@@ -61,7 +62,7 @@ class AvailabilityService
         $weekly = VendorWeeklySchedule::query()
             ->where('vendor_account_id', $vendorAccountId)
             ->get(['vendor_slot_id', 'day_of_week', 'is_open'])
-            ->keyBy(fn ($r) => $r->vendor_slot_id . ':' . $r->day_of_week);
+            ->keyBy(fn($r) => $r->vendor_slot_id . ':' . $r->day_of_week);
 
         // Lead time per giorno: fallback 48h se non esiste record
         $leadTimes = VendorLeadTime::query()
@@ -112,8 +113,13 @@ class AvailabilityService
                     continue;
                 }
 
-                // 4) BOOKED (PDF: hold/lock/booking => BLOCKED(BOOKED)) - STUB fino a Fase 2
-                if ($this->isBookedStubFalse()) {
+                // 4) BOOKED / HOLD (PDF)
+                if ($this->isSlotLocked(
+                    $vendorAccountId,
+                    (int) $slot->id,
+                    $dayKey,
+                    $now
+                )) {
                     $out[$dayKey][] = $this->row($slot, 'BLOCKED', 'BOOKED');
                     continue;
                 }
@@ -207,4 +213,26 @@ class AvailabilityService
     {
         return false;
     }
+
+    private function isSlotLocked(
+    int $vendorAccountId,
+    int $vendorSlotId,
+    string $date,
+    CarbonImmutable $now
+): bool {
+
+    return SlotLock::query()
+        ->where('vendor_account_id', $vendorAccountId)
+        ->where('vendor_slot_id', $vendorSlotId)
+        ->whereDate('date', $date)
+        ->where('is_active', true)
+        ->where(function ($q) use ($now) {
+            $q->where('status', 'BOOKED')
+              ->orWhere(function ($sub) use ($now) {
+                  $sub->where('status', 'HOLD')
+                      ->where('expires_at', '>', $now);
+              });
+        })
+        ->exists();
+}
 }
