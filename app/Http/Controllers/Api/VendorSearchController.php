@@ -17,11 +17,13 @@ class VendorSearchController extends Controller
     ) {}
 
     /**
-     * Cerca vendor con filtri opzionali per categoria, città e posizione geografica.
+     * Cerca vendor con filtri categoria e posizione geografica.
      * 
-     * Supporta filtri geografici: se fornite coordinate e raggio,
-     * calcola la distanza di ogni vendor e filtra per raggio,
-     * ordinando i risultati dal più vicino al più lontano.
+     * Supporta 2 modalità per filtro geografico:
+     * 1) Coordinate dirette (latitude + longitude)
+     * 2) Indirizzo completo (address_line1, address_city, etc.) - Laravel fa geocoding automatico
+     * 
+     * Se geocoding dell'indirizzo fallisce, continua senza filtro geografico.
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -33,8 +35,18 @@ class VendorSearchController extends Controller
             'prestashop_category_id' => 'nullable|integer',
             'category_id' => 'nullable|integer|exists:categories,id',
             'city' => 'nullable|string',
+            
+            // Opzione 1: Coordinate dirette
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
+            
+            // Opzione 2: Indirizzo (Laravel fa geocoding automatico)
+            'address_line1' => 'nullable|string',
+            'address_line2' => 'nullable|string',
+            'postal_code' => 'nullable|string',
+            'address_city' => 'nullable|string',
+            'region' => 'nullable|string',
+            
             'radius' => 'nullable|integer|min:1|max:200',
         ]);
 
@@ -71,11 +83,39 @@ class VendorSearchController extends Controller
         // Esegue la query
         $vendors = $query->get();
 
-        // Se fornite coordinate, calcola distanze e filtra per raggio
+        // Gestione coordinate per calcolo distanza
+        $userLat = null;
+        $userLng = null;
+
+        // Opzione 1: Coordinate dirette fornite dal cliente
         if (isset($validated['latitude']) && isset($validated['longitude'])) {
             $userLat = $validated['latitude'];
             $userLng = $validated['longitude'];
-            $radius = $validated['radius'] ?? 50; // Default 50km se non specificato (da decidere se modificare)
+        }
+        // Opzione 2: Indirizzo fornito - Laravel fa geocoding automatico
+        elseif (isset($validated['address_line1']) || isset($validated['address_city'])) {
+            // Prepara dati indirizzo per geocoding service
+            $addressData = [
+                'address_line1' => $validated['address_line1'] ?? null,
+                'address_line2' => $validated['address_line2'] ?? null,
+                'postal_code' => $validated['postal_code'] ?? null,
+                'city' => $validated['address_city'] ?? null,
+                'region' => $validated['region'] ?? null,
+            ];
+
+            // Chiama geocoding service con fallback progressivo
+            $coords = $this->geocodingService->geocodeItaly($addressData);
+
+            if ($coords) {
+                $userLat = $coords['lat'];
+                $userLng = $coords['lng'];
+            }
+            // Se geocoding fallisce, $userLat e $userLng restano null
+        }
+
+        // Se abbiamo coordinate (dirette O ottenute da geocoding), calcola distanze
+        if ($userLat && $userLng) {
+            $radius = $validated['radius'] ?? 50; // Default 50km
 
             // Calcola distanza per ogni vendor
             $vendors = $vendors->map(function ($vendor) use ($userLat, $userLng) {
@@ -84,11 +124,12 @@ class VendorSearchController extends Controller
                 $lat = $vendor->operational_lat ?? $vendor->legal_lat;
                 $lng = $vendor->operational_lng ?? $vendor->legal_lng;
 
-                // Se le coordinate sono valide, calcola la distanza; altrimenti assegna un valore alto per escludere
+                // Se le coordinate sono valide, calcola la distanza
                 if ($lat && $lng) {
                     $distance = $this->geocodingService->calculateDistance($userLat, $userLng, $lat, $lng);
                     $vendor->distance_km = round($distance, 1);
                 } else {
+                    // Vendor senza coordinate: distanza infinita per escluderlo
                     $vendor->distance_km = 999999;
                 }
 

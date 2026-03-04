@@ -15,37 +15,37 @@
 
                 <button type="button" wire:click="setTab('offerings')"
                     class="whitespace-nowrap py-3 px-1 border-b-2 text-sm font-medium
-                        {{ $activeTab === 'offerings' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300' }}">
+                        {{ $activeTab === 'offerings' ? 'border-slate-600 text-slate-600' : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300' }}">
                     Servizi
                 </button>
 
                 <button type="button" wire:click="setTab('content')"
                     class="whitespace-nowrap py-3 px-1 border-b-2 text-sm font-medium
-                        {{ $activeTab === 'content' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300' }}">
+                        {{ $activeTab === 'content' ? 'border-slate-600 text-slate-600' : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300' }}">
                     Contenuti
                 </button>
 
                 <button type="button" wire:click="setTab('slots')"
                     class="whitespace-nowrap py-3 px-1 border-b-2 text-sm font-medium
-                        {{ $activeTab === 'slots' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300' }}">
+                        {{ $activeTab === 'slots' ? 'border-slate-600 text-slate-600' : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300' }}">
                     Slot
                 </button>
 
                 <button type="button" wire:click="setTab('weekly')"
                     class="whitespace-nowrap py-3 px-1 border-b-2 text-sm font-medium
-                        {{ $activeTab === 'weekly' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300' }}">
+                        {{ $activeTab === 'weekly' ? 'border-slate-600 text-slate-600' : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300' }}">
                     Template settimanale
                 </button>
 
                 <button type="button" wire:click="setTab('blackouts')"
                     class="whitespace-nowrap py-3 px-1 border-b-2 text-sm font-medium
-                        {{ $activeTab === 'blackouts' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300' }}">
+                        {{ $activeTab === 'blackouts' ? 'border-slate-600 text-slate-600' : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300' }}">
                     Blackout
                 </button>
 
                 <button type="button" wire:click="setTab('leadtime')"
                     class="whitespace-nowrap py-3 px-1 border-b-2 text-sm font-medium
-                        {{ $activeTab === 'leadtime' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300' }}">
+                        {{ $activeTab === 'leadtime' ? 'border-slate-600 text-slate-600' : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300' }}">
                     Lead time
                 </button>
 

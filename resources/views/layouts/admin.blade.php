@@ -15,32 +15,29 @@
     <div class="h-screen w-full flex overflow-hidden">
 
         @php
-            $linkBase = "block px-3 py-2.5 rounded-lg transition";
-            $linkIdle = "text-slate-600 hover:text-slate-900 hover:bg-slate-100";
-            $linkActive = "bg-slate-200 text-slate-900 font-medium";
             $is = fn ($name) => request()->routeIs($name);
         @endphp
 
-        <aside class="w-64 shrink-0 border-r border-slate-200 bg-white flex flex-col">
+        <aside class="w-64 shrink-0 pl-sidebar flex flex-col">
             <div class="p-6 border-b border-slate-200">
-                <div class="text-lg font-semibold text-slate-900">Party Legacy</div>
+                <div class="text-lg pl-sidebar-brand">Party Legacy</div>
                 <div class="text-sm text-slate-500">Admin Panel</div>
             </div>
 
             <nav class="p-4 space-y-1 flex-1">
                 <a href="{{ route('admin.dashboard') }}"
-                   class="{{ $linkBase }} {{ $is('admin.dashboard') ? $linkActive : $linkIdle }}">
+                   class="pl-sidebar-link {{ $is('admin.dashboard') ? 'pl-sidebar-link-active' : '' }}">
                     Dashboard
                 </a>
             </nav>
 
-            <div class="p-4 border-t border-slate-200 bg-slate-50">
-                <div class="text-sm text-slate-600">{{ auth()->user()?->name }}</div>
+            <div class="p-4 border-t border-slate-800">
+                <div class="text-sm text-slate-300">{{ auth()->user()?->name }}</div>
 
                 <form method="POST" action="{{ route('logout') }}" class="mt-3">
                     @csrf
                     <button type="submit"
-                        class="w-full text-sm px-3 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition">
+                        class="pl-btn-logout">
                         Logout
                     </button>
                 </form>

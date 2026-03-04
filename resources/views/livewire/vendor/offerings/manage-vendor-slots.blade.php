@@ -15,7 +15,7 @@
             <button
                 wire:click="openCreate"
                 type="button"
-                class="inline-flex items-center gap-1 px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700"
+                class="inline-flex items-center gap-1 px-3 py-2 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-700"
             >
                 + Nuovo slot
             </button>
@@ -24,8 +24,8 @@
 
     {{-- Form crea/modifica --}}
     @if($showForm)
-        <div class="mb-6 p-4 border border-indigo-200 bg-indigo-50 rounded-lg">
-            <h3 class="text-sm font-semibold text-indigo-800 mb-3">
+        <div class="mb-6 p-4 border border-slate-200 bg-slate-50 rounded-lg">
+            <h3 class="text-sm font-semibold text-slate-800 mb-3">
                 {{ $editingId ? 'Modifica slot' : 'Nuovo slot' }}
             </h3>
 
@@ -92,7 +92,7 @@
                 <button
                     wire:click="save"
                     type="button"
-                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700"
+                    class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-lg"
                 >
                     {{ $editingId ? 'Aggiorna' : 'Crea slot' }}
                 </button>
@@ -131,7 +131,7 @@
                         <button
                             wire:click="openEdit({{ $slot->id }})"
                             type="button"
-                            class="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                            class="text-xs text-slate-600 hover:text-indigo-800 font-medium"
                         >
                             Modifica
                         </button>

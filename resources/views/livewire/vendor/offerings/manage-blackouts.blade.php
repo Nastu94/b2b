@@ -15,7 +15,7 @@
             <button
                 wire:click="openCreate"
                 type="button"
-                class="inline-flex items-center gap-1 px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700"
+                class="inline-flex items-center gap-1 px-3 py-2 bg-slate-600 text-white text-sm font-medium rounded-lg hover:bg-slate-700"
             >
                 + Nuovo blocco
             </button>
@@ -24,8 +24,8 @@
 
     {{-- Form crea/modifica --}}
     @if($showForm)
-        <div class="mb-6 p-4 border border-indigo-200 bg-indigo-50 rounded-lg">
-            <h3 class="text-sm font-semibold text-indigo-800 mb-3">
+        <div class="mb-6 p-4 border border-slate-200 bg-slate-50 rounded-lg">
+            <h3 class="text-sm font-semibold text-slate-800 mb-3">
                 {{ $editingId ? 'Modifica blocco' : 'Nuovo blocco' }}
             </h3>
 
@@ -40,7 +40,7 @@
                         <input
                             type="date"
                             wire:model.live="date_from"
-                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-slate-500 focus:border-slate-500"
                         />
                         @error('date_from')
                             <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
@@ -54,7 +54,7 @@
                             type="date"
                             wire:model.live="date_to"
                             min="{{ $date_from }}"
-                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-slate-500 focus:border-slate-500"
                         />
                         @error('date_to')
                             <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
@@ -70,7 +70,7 @@
                     </label>
                     <select
                         wire:model="vendor_slot_id"
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-slate-500 focus:border-slate-500"
                     >
                         <option value="">— Tutti gli slot (giorno intero) —</option>
                         @foreach($slots as $slot)
@@ -94,7 +94,7 @@
                         type="text"
                         wire:model="reason_internal"
                         placeholder="Es. Ferie, Evento privato..."
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-slate-500 focus:border-slate-500"
                     />
                 </div>
 
@@ -108,7 +108,7 @@
                         type="text"
                         wire:model="reason_public"
                         placeholder="Es. Non disponibile in questa data"
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-slate-500 focus:border-slate-500"
                     />
                 </div>
             </div>
@@ -118,7 +118,7 @@
                 <button
                     wire:click="save"
                     type="button"
-                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700"
+                    class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-lg"
                 >
                     {{ $editingId ? 'Aggiorna' : 'Crea blocco' }}
                 </button>
@@ -151,7 +151,7 @@
                             <div class="text-sm font-medium text-gray-800">
                                 {{ $blackout->rangeLabel() }}
                                 @if(!$blackout->isFullDay())
-                                    <span class="ml-1 text-indigo-600">
+                                    <span class="ml-1 text-slate-800 text-xs">—</span>
                                         — {{ $blackout->slot?->label }}
                                         ({{ substr($blackout->slot?->start_time, 0, 5) }} - {{ substr($blackout->slot?->end_time, 0, 5) }})
                                     </span>
@@ -171,7 +171,7 @@
                         <button
                             wire:click="openEdit({{ $blackout->id }})"
                             type="button"
-                            class="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                            class="text-xs text-slate-800 hover:text-slate-600 font-medium"
                         >
                             Modifica
                         </button>

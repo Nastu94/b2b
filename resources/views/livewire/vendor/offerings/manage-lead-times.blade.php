@@ -58,7 +58,7 @@
         <button
             wire:click="save"
             type="button"
-            class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700"
+            class="px-4 py-2 bg-slate-600 text-white text-sm font-medium rounded-lg hover:bg-slate-700"
         >
             Salva preavvisi
         </button>

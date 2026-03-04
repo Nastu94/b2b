@@ -48,7 +48,7 @@
 
                 <span
                     class="text-xs px-2 py-1 rounded-full border
-                    {{ $isCompany ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-slate-50 border-slate-200 text-slate-700' }}">
+                    {{ $isCompany ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-slate-50 border-slate-200 text-slate-700' }}">
                     {{ $form['account_type'] ?? '—' }}
                 </span>
             </div>
@@ -97,10 +97,10 @@
 
             {{-- COMPANY --}}
             @if ($isCompany)
-                <div class="mt-5 rounded-xl border border-slate-200 p-4 bg-indigo-50/40">
+                <div class="mt-5 rounded-xl border border-slate-200 p-4 bg-slate-50/40">
                     <div class="flex items-center justify-between">
                         <h3 class="text-sm font-semibold text-slate-900">Azienda</h3>
-                        <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-100 border border-indigo-200 text-indigo-700">
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700">
                             COMPANY
                         </span>
                     </div>
@@ -300,7 +300,7 @@
             @can('update', $vendorAccount)
                 @if ($editing ?? false)
                     <button type="submit"
-                            class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+                            class="inline-flex items-center px-4 py-2 bg-slate-600 text-white rounded hover:bg-slate-700">
                         Salva
                     </button>
                 @endif

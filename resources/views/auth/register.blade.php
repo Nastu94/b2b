@@ -98,7 +98,7 @@
                             <div class="md:col-span-2">
                                 <x-label for="category_id" value="Categoria Servizio" />
                                 <select id="category_id" name="category_id"
-                                    class="block mt-1 w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-400 focus:ring-indigo-400">
+                                    class="block mt-1 w-full border-gray-300 rounded-md shadow-sm focus:border-slate-400 focus:ring-slate-400">
                                     @foreach ($categories as $category)
                                         <option value="{{ $category->id }}"
                                             {{ (string) old('category_id') === (string) $category->id ? 'selected' : '' }}>
@@ -119,7 +119,7 @@
                                 <p class="mt-1 text-xs text-gray-500">Compila se hai selezionato “Azienda”.</p>
                             </div>
                             <span
-                                class="text-[11px] px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                class="text-[11px] px-2 py-1 rounded-full bg-slate-50 text-slate-700 border border-slate-100">
                                 COMPANY
                             </span>
                         </div>

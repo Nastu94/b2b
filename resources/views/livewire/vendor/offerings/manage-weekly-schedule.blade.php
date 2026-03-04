@@ -44,7 +44,7 @@
                                     <input
                                         type="checkbox"
                                         wire:model.live="schedule.{{ $slot->id }}.{{ $day }}.is_open"
-                                        class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        class="rounded border-gray-300 text-slate-800 focus:ring-slate-500"
                                     />
                                 </td>
                             @endforeach
@@ -59,17 +59,13 @@
             <button
                 wire:click="save"
                 type="button"
-                class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700"
+                class="px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-700"
             >
                 Salva template settimanale
             </button>
             <span class="text-xs text-gray-400">
                 Le modifiche saranno visibili subito nel calendario disponibilità.
             </span>
-        </div>
-
-        <div class="mt-3 text-xs text-gray-500">
-            Nota: l’anticipo minimo e l’eventuale cutoff si gestiscono nella sezione <strong>Lead Time</strong>.
         </div>
     @endif
 </div>
