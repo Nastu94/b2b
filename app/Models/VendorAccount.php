@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class VendorAccount extends Model
 {
@@ -97,6 +98,14 @@ class VendorAccount extends Model
     }
 
     /**
+     * Relazione con i profili delle offerings del vendor
+     */
+    public function vendorOfferingProfiles()
+    {
+        return $this->hasMany(VendorOfferingProfile::class, 'vendor_account_id');
+    }
+
+    /**
      * Coordinate effettive: preferisci operativa, altrimenti legale.
      */
     public function effectiveLat(): ?float
@@ -107,5 +116,29 @@ class VendorAccount extends Model
     public function effectiveLng(): ?float
     {
         return $this->operational_lng ?? $this->legal_lng;
+    }
+
+    // Relazione con VendorSlot
+    public function slots(): HasMany
+    {
+        return $this->hasMany(VendorSlot::class);
+    }
+
+    // Relazione con VendorWeeklySchedule
+    public function weeklySchedules(): HasMany
+    {
+        return $this->hasMany(VendorWeeklySchedule::class);
+    }
+
+    // Relazione con VendorLeadTime
+    public function leadTimes(): HasMany
+    {
+        return $this->hasMany(VendorLeadTime::class);
+    }
+
+    // Relazione con VendorBlackout
+    public function blackouts(): HasMany
+    {
+        return $this->hasMany(VendorBlackout::class);
     }
 }

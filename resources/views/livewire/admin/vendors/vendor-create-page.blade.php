@@ -103,7 +103,7 @@
             <h2 class="text-lg font-semibold text-slate-900">Dati anagrafici</h2>
 
             @if($form['account_type'] === 'COMPANY')
-                <div class="mt-4 border border-slate-200 rounded-lg p-4 bg-indigo-50/40">
+                <div class="mt-4 border border-slate-200 rounded-lg p-4 bg-slate-50/40">
                     <div class="font-semibold text-slate-900 mb-3">Dati Azienda</div>
 
                     <label class="text-sm text-slate-600">Ragione Sociale</label>

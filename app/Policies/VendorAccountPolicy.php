@@ -38,7 +38,35 @@ class VendorAccountPolicy
      */
     public function view(User $user, VendorAccount $vendorAccount): bool
     {
-        return $user->can('admin.access');
+        // admin già bypassato da before(), ma ok anche così:
+        if ($user->can('admin.access')) {
+            return true;
+        }
+
+        return $user->hasRole('vendor')
+            && (int) $vendorAccount->user_id === (int) $user->id;
+    }
+
+    /**
+     * Creare un nuovo vendor.
+     */
+    public function create(User $user): bool
+    {
+        return $user->can('vendors.manage');
+    }
+
+
+    /**
+     * Aggiornare un vendor (anagrafica).
+     */
+    public function update(User $user, VendorAccount $vendorAccount): bool
+    {
+        if ($user->can('admin.access')) {
+            return true;
+        }
+
+        return $user->hasRole('vendor')
+            && (int) $vendorAccount->user_id === (int) $user->id;
     }
 
     /**

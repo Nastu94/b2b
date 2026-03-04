@@ -100,7 +100,7 @@
             type="button"
             wire:click="save"
             wire:loading.attr="disabled"
-            class="px-4 py-2 rounded bg-indigo-600 text-white text-sm disabled:opacity-50"
+            class="px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-white text-sm disabled:opacity-50"
         >
             Salva
         </button>
