@@ -19,6 +19,13 @@ class VendorDashboardPage extends Component
     /** @var array<int, array{id:int, name:string}> */
     public array $activeOfferings = [];
 
+    // Riepilogo disponibilità
+    public int   $slotsCount          = 0;
+    public int   $openDaysCount       = 0;
+    public array $openDayNames        = [];
+    public bool  $leadTimeConfigured  = false;
+    public array $upcomingBlackouts   = [];
+
     public function mount(): void
     {
         $user = Auth::user();
@@ -90,6 +97,45 @@ class VendorDashboardPage extends Component
                 'status_label' => $statusLabel,
             ];
         })->all();
+
+        // Riepilogo disponibilità 
+
+        // Quanti slot ha configurato il vendor
+        $this->slotsCount = $vendorAccount->slots()->active()->count();
+
+        // Giorni aperti nel template settimanale (distinti)
+        $dayNames = [
+            0 => 'Domenica', 1 => 'Lunedi',    2 => 'Martedi',
+            3 => 'Mercoledi', 4 => 'Giovedi', 5 => 'Venerdi', 6 => 'Sabato',
+        ];
+
+        $openDays = $vendorAccount->weeklySchedules()
+            ->where('is_open', true)
+            ->pluck('day_of_week')
+            ->unique()
+            ->sort()
+            ->values();
+
+        $this->openDaysCount = $openDays->count();
+        $this->openDayNames  = $openDays->map(fn($d) => $dayNames[$d] ?? '?')->toArray();
+
+        // Lead time: configurato se esiste almeno un record
+        $this->leadTimeConfigured = $vendorAccount->leadTimes()->exists();
+
+        // Prossimi blackout attivi (max 3)
+        $this->upcomingBlackouts = $vendorAccount->blackouts()
+            ->where('date_to', '>=', now()->toDateString())
+            ->orderBy('date_from')
+            ->limit(3)
+            ->get()
+            ->map(fn($b) => [
+                'range'    => $b->date_from->format('d/m/Y') === $b->date_to->format('d/m/Y')
+                    ? $b->date_from->format('d/m/Y')
+                    : $b->date_from->format('d/m/Y') . ' - ' . $b->date_to->format('d/m/Y'),
+                'reason'   => $b->reason_internal ?? 'Nessun motivo specificato',
+                'full_day' => is_null($b->vendor_slot_id),
+            ])
+            ->toArray();
     }
 
     public function render()

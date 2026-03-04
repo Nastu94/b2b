@@ -1,0 +1,25 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    public function up(): void
+    {
+        Schema::table('categories', function (Blueprint $table) {
+            $table->unsignedInteger('prestashop_category_id')
+                ->nullable()
+                ->unique()
+                ->after('id');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('categories', function (Blueprint $table) {
+            $table->dropUnique(['prestashop_category_id']);
+            $table->dropColumn('prestashop_category_id');
+        });
+    }
+};

@@ -1,4 +1,3 @@
-{{-- resources/views/livewire/vendor/offerings/manage-offerings.blade.php --}}
 <div class="max-w-4xl mx-auto">
     <div class="bg-white shadow-sm rounded-lg p-6">
         <h2 class="text-lg font-semibold">I miei servizi</h2>
@@ -24,7 +23,7 @@
 
             <div class="mt-6 flex justify-end">
                 <button type="submit"
-                    class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+                    class="inline-flex items-center px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700">
                     Salva
                 </button>
             </div>

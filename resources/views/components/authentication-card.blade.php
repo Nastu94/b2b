@@ -22,10 +22,6 @@
                class="text-gray-600 hover:text-gray-900 transition">
                 Torna alla home
             </a>
-
-            <span>
-                © {{ date('Y') }} {{ config('app.name', 'Party Legacy Management Engine') }}. All rights reserved.
-            </span>
         </div>
 
     </div>

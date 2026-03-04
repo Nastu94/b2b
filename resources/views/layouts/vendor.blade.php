@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,22 +12,19 @@
     @livewireStyles
 </head>
 
-<body class="min-h-screen bg-slate-100 text-slate-800 antialiased">
-    <div class="min-h-screen flex">
+<body class="h-screen overflow-hidden bg-slate-100 text-slate-800 antialiased">
+    <div class="h-screen w-full flex overflow-hidden">
 
         {{-- Sidebar --}}
         @php
-            $linkBase = "block px-3 py-2.5 rounded-lg transition";
-            $linkIdle = "text-slate-600 hover:text-slate-900 hover:bg-slate-100";
-            $linkActive = "bg-slate-200 text-slate-900 font-medium";
-            $is = fn ($name) => request()->routeIs($name);
+            $is = fn($name) => request()->routeIs($name);
         @endphp
 
-        <aside class="w-64 shrink-0 border-r border-slate-200 bg-white flex flex-col">
+        <aside class="w-64 shrink-0 pl-sidebar flex flex-col">
 
             {{-- Brand --}}
             <div class="p-6 border-b border-slate-200">
-                <div class="text-lg font-semibold text-slate-900">
+                <div class="text-lg pl-sidebar-brand">
                     Party Legacy
                 </div>
                 <div class="text-sm text-slate-500">
@@ -37,40 +35,30 @@
             {{-- Navigation --}}
             <nav class="p-4 space-y-1 flex-1">
                 <a href="{{ route('vendor.dashboard') }}"
-                   class="{{ $linkBase }} {{ $is('vendor.dashboard') ? $linkActive : $linkIdle }}">
+                    class="pl-sidebar-link {{ $is('vendor.dashboard') ? 'pl-sidebar-link-active' : '' }}">
                     Dashboard
                 </a>
 
-                <a href="{{ route('vendor.offerings') }}"
-                   class="{{ $linkBase }} {{ $is('vendor.offerings') ? $linkActive : $linkIdle }}">
-                    Servizi
+                <a href="{{ route('vendor.profile') }}"
+                    class="pl-sidebar-link {{ $is('vendor.profile') ? 'pl-sidebar-link-active' : '' }}">
+                    Profilo
                 </a>
 
-                <div class="mt-6 pt-4 border-t border-slate-200">
-                    <div class="text-xs uppercase tracking-wider text-slate-400 mb-3 px-1">
-                        Coming soon
-                    </div>
-
-                    <div class="px-3 py-2 text-slate-400 text-sm">
-                        Availability
-                    </div>
-
-                    <div class="px-3 py-2 text-slate-400 text-sm">
-                        Bookings
-                    </div>
-                </div>
+                <a href="{{ route('vendor.offerings') }}"
+                    class="pl-sidebar-link {{ $is('vendor.offerings') ? 'pl-sidebar-link-active' : '' }}">
+                    Servizi
+                </a>
             </nav>
 
             {{-- User box --}}
-            <div class="p-4 border-t border-slate-200 bg-slate-50">
-                <div class="text-sm text-slate-600">
+            <div class="p-4 border-t border-slate-800">
+                <div class="text-sm text-slate-300">
                     {{ auth()->user()?->name }}
                 </div>
 
                 <form method="POST" action="{{ route('logout') }}" class="mt-3">
                     @csrf
-                    <button type="submit"
-                        class="w-full text-sm px-3 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition">
+                    <button type="submit" class="pl-btn-logout">
                         Logout
                     </button>
                 </form>
@@ -81,21 +69,21 @@
         <div class="flex-1 flex flex-col min-w-0">
 
             {{-- Topbar --}}
-            <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6">
+            <header class="h-16 shrink-0 pl-topbar flex items-center justify-between px-6">
                 <div>
-                    <div class="text-xs text-slate-500">Vendor</div>
-                    <div class="text-lg font-semibold text-slate-900">
+                    <div class="text-xs pl-topbar-muted">Vendor</div>
+                    <div class="text-lg pl-topbar-title">
                         {{ $title ?? 'Dashboard' }}
                     </div>
                 </div>
 
-                <div class="text-sm text-slate-500">
+                <div class="text-sm pl-topbar-muted">
                     Party Legacy Management Engine
                 </div>
             </header>
 
             {{-- Content --}}
-            <main class="flex-1 p-6">
+            <main class="flex-1 p-6 overflow-y-auto scrollbar-hide">
                 <div class="max-w-7xl mx-auto">
                     {{ $slot }}
                 </div>
@@ -106,4 +94,5 @@
 
     @livewireScripts
 </body>
+
 </html>

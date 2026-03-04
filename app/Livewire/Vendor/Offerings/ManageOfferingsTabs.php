@@ -60,7 +60,7 @@ class ManageOfferingsTabs extends Component
     public function setTab(string $tab): void
     {
         // Whitelist semplice per evitare tab “inventate” via client.
-        $allowed = ['offerings', 'content', 'availability', 'blackouts', 'leadtime'];
+       $allowed = ['offerings', 'content', 'availability', 'slots', 'weekly', 'blackouts', 'leadtime'];
 
         if (!in_array($tab, $allowed, true)) {
             return;
