@@ -43,17 +43,17 @@ class VendorSearchController extends Controller
             ->where('status', 'ACTIVE')
             ->with([
                 'category:id,name,slug,prestashop_category_id',
-                'vendorOfferingProfiles' => function($q) {
+                'vendorOfferingProfiles' => function ($q) {
                     // Solo offering pubblicati
                     $q->where('is_published', true)
-                      ->with('offering:id,name,slug');
+                        ->with('offering:id,name,slug');
                 }
             ])
             ->withCount('offerings');
 
         // Filtra per categoria PrestaShop (ID mappato)
         if (isset($validated['prestashop_category_id'])) {
-            $query->whereHas('category', function($q) use ($validated) {
+            $query->whereHas('category', function ($q) use ($validated) {
                 $q->where('prestashop_category_id', $validated['prestashop_category_id']);
             });
         }
@@ -75,30 +75,28 @@ class VendorSearchController extends Controller
         if (isset($validated['latitude']) && isset($validated['longitude'])) {
             $userLat = $validated['latitude'];
             $userLng = $validated['longitude'];
-            $radius = $validated['radius'] ?? 50; // Default 50km se non specificato
+            $radius = $validated['radius'] ?? 50; // Default 50km se non specificato (da decidere se modificare)
 
             // Calcola distanza per ogni vendor
-            $vendors = $vendors->map(function($vendor) use ($userLat, $userLng) {
-                // Calcola distanza solo se vendor ha coordinate valide
-                if ($vendor->legal_lat && $vendor->legal_lng) {
-                    $distance = $this->geocodingService->calculateDistance(
-                        $userLat,
-                        $userLng,
-                        $vendor->legal_lat,
-                        $vendor->legal_lng
-                    );
-                    // Arrotonda a 1 decimale
+            $vendors = $vendors->map(function ($vendor) use ($userLat, $userLng) {
+
+                // Usa coordinate operative se disponibili, altrimenti legali
+                $lat = $vendor->operational_lat ?? $vendor->legal_lat;
+                $lng = $vendor->operational_lng ?? $vendor->legal_lng;
+
+                // Se le coordinate sono valide, calcola la distanza; altrimenti assegna un valore alto per escludere
+                if ($lat && $lng) {
+                    $distance = $this->geocodingService->calculateDistance($userLat, $userLng, $lat, $lng);
                     $vendor->distance_km = round($distance, 1);
                 } else {
-                    // Vendor senza coordinate: distanza infinita per escluderlo
                     $vendor->distance_km = 999999;
                 }
-                
+
                 return $vendor;
             });
 
             // Filtra: solo vendor entro il raggio e con coordinate valide
-            $vendors = $vendors->filter(function($vendor) use ($radius) {
+            $vendors = $vendors->filter(function ($vendor) use ($radius) {
                 return $vendor->distance_km !== 999999 && $vendor->distance_km <= $radius;
             });
 
@@ -109,7 +107,7 @@ class VendorSearchController extends Controller
         // Formatta la risposta JSON
         return response()->json([
             'success' => true,
-            'data' => $vendors->map(function($vendor) {
+            'data' => $vendors->map(function ($vendor) {
                 $result = [
                     'id' => $vendor->id,
                     'company_name' => $vendor->company_name,
@@ -117,7 +115,7 @@ class VendorSearchController extends Controller
                     'city' => $vendor->legal_city,
                     'phone' => $vendor->phone,
                     'offerings_count' => $vendor->offerings_count,
-                    'offerings' => $vendor->vendorOfferingProfiles->map(function($profile) {
+                    'offerings' => $vendor->vendorOfferingProfiles->map(function ($profile) {
                         return [
                             'id' => $profile->id,
                             'offering_id' => $profile->offering_id,
