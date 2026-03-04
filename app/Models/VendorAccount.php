@@ -98,6 +98,14 @@ class VendorAccount extends Model
     }
 
     /**
+     * Relazione con i profili delle offerings del vendor
+     */
+    public function vendorOfferingProfiles()
+    {
+        return $this->hasMany(VendorOfferingProfile::class, 'vendor_account_id');
+    }
+
+    /**
      * Coordinate effettive: preferisci operativa, altrimenti legale.
      */
     public function effectiveLat(): ?float
@@ -110,21 +118,25 @@ class VendorAccount extends Model
         return $this->operational_lng ?? $this->legal_lng;
     }
 
+    // Relazione con VendorSlot
     public function slots(): HasMany
     {
         return $this->hasMany(VendorSlot::class);
     }
 
+    // Relazione con VendorWeeklySchedule
     public function weeklySchedules(): HasMany
     {
         return $this->hasMany(VendorWeeklySchedule::class);
     }
 
+    // Relazione con VendorLeadTime
     public function leadTimes(): HasMany
     {
         return $this->hasMany(VendorLeadTime::class);
     }
 
+    // Relazione con VendorBlackout
     public function blackouts(): HasMany
     {
         return $this->hasMany(VendorBlackout::class);
