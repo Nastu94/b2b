@@ -16,6 +16,7 @@ class Booking extends Model
         'vendor_account_id',
         'slot_lock_id',
         'prestashop_order_id',
+        'prestashop_order_line_id',
         'event_date',
         'vendor_slot_id',
         'customer_data',

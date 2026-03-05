@@ -1,5 +1,7 @@
 <?php
 
+use App\Livewire\Admin\Bookings\AdminBookingShowPage;
+use App\Livewire\Admin\Bookings\AdminBookingsTabs;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -13,7 +15,9 @@ use App\Livewire\Vendor\Profile\VendorProfilePage;
 use App\Livewire\Admin\Dashboard\AdminDashboardPage;
 use App\Livewire\Admin\Vendors\VendorCreatePage;
 use App\Livewire\Admin\Vendors\VendorProfileTabs;
-
+use App\Livewire\Vendor\Bookings\VendorBookingShowPage;
+use App\Livewire\Vendor\Bookings\VendorBookingsPendingPage;
+use App\Livewire\Vendor\Bookings\VendorBookingsTabs;
 // Test / Dev
 use App\Models\Offering;
 use App\Services\GeocodingService;
@@ -67,6 +71,8 @@ Route::middleware([
             Route::get('/dashboard', VendorDashboardPage::class)->name('dashboard');
             Route::get('/offerings', ManageOfferingsTabs::class)->name('offerings');
             Route::get('/profile', VendorProfilePage::class)->name('profile');
+            Route::get('/bookings', VendorBookingsTabs::class)->name('bookings');
+            Route::get('/bookings/{booking}', VendorBookingShowPage::class)->name('bookings.show');
         });
 
     // Admin area
@@ -77,5 +83,7 @@ Route::middleware([
             Route::get('/dashboard', AdminDashboardPage::class)->name('dashboard');
             Route::get('/vendors/create', VendorCreatePage::class)->name('vendors.create');
             Route::get('/vendors/{vendorAccount}', VendorProfileTabs::class)->name('vendors.edit');
+            Route::get('/bookings', AdminBookingsTabs::class)->name('bookings');
+            Route::get('/bookings/{booking}', AdminBookingShowPage::class)->name('bookings.show');
         });
 });

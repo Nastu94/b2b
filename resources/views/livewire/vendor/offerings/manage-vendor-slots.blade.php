@@ -131,7 +131,7 @@
                         <button
                             wire:click="openEdit({{ $slot->id }})"
                             type="button"
-                            class="text-xs text-slate-600 hover:text-indigo-800 font-medium"
+                            class="text-xs text-slate-600 hover:text-slate-800 font-medium"
                         >
                             Modifica
                         </button>

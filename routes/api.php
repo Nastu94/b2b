@@ -22,7 +22,11 @@ Route::get('/vendors/search', [VendorSearchController::class, 'search']);
 // Disponibilità calendario
 Route::get('/availability', [AvailabilityController::class, 'index']);
 
-// Gestione slot (hold/confirm/release)
-Route::post('/slots/hold', [SlotController::class, 'hold']);
-Route::post('/slots/confirm', [SlotController::class, 'confirm']);
-Route::post('/slots/release', [SlotController::class, 'release']);
+// Rotte per gestione slot (hold, confirm, release) protette da BookingBridgeAuth
+Route::middleware('booking.bridge')->group(function () {
+
+    Route::post('/slots/hold', [SlotController::class, 'hold']);
+    Route::post('/slots/confirm', [SlotController::class, 'confirm']);
+    Route::post('/slots/release', [SlotController::class, 'release']);
+
+});
