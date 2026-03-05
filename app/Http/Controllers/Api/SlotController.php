@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\SlotLock;
+use App\Models\Booking;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
@@ -90,27 +91,27 @@ class SlotController extends Controller
     }
 
     /**
-     * Metodo confirm: conferma l'hold e trasforma lo stato in BOOKED
+     * Conferma blocco dopo pagamento completato.
      * 
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * Converte hold temporaneo in booking definitivo,
+     * crea record booking per tracciabilità.
      */
     public function confirm(Request $request)
     {
-        // Valida i dati della richiesta
         $validated = $request->validate([
             'hold_token' => 'required|uuid',
-            'order_id' => 'required|string',
+            'prestashop_order_id' => 'required|string',
             'paid_at' => 'required|date',
+            'customer_data' => 'nullable|array',
+            'total_amount' => 'nullable|numeric|min:0',
         ]);
 
-        // Cerca il lock con il token e stato HOLD attivo
+        // Trova hold attivo
         $lock = SlotLock::where('hold_token', $validated['hold_token'])
             ->where('status', 'HOLD')
             ->where('is_active', true)
             ->first();
 
-        // Se il lock non esiste, ritorna errore 404
         if (!$lock) {
             return response()->json([
                 'success' => false,
@@ -118,9 +119,8 @@ class SlotController extends Controller
             ], 404);
         }
 
-        // Verifica se l'hold è scaduto
+        // Verifica scadenza (15 minuti)
         if (Carbon::parse($lock->expires_at)->isPast()) {
-            // Aggiorna lo stato a EXPIRED e disattiva il lock
             $lock->update(['status' => 'EXPIRED', 'is_active' => false]);
 
             return response()->json([
@@ -129,19 +129,32 @@ class SlotController extends Controller
             ], 410);
         }
 
-        // Cambia lo stato da HOLD a BOOKED e azzera la data di scadenza
+        // Converte HOLD in BOOKED (lock definitivo)
         $lock->update([
             'status' => 'BOOKED',
-            'expires_at' => null,
+            'expires_at' => null, // Lock definitivo non scade
         ]);
 
-        // Ritorna la conferma della prenotazione
+        // Crea booking per tracciabilità completa
+        $booking = Booking::create([
+            'vendor_account_id' => $lock->vendor_account_id,
+            'slot_lock_id' => $lock->id,
+            'prestashop_order_id' => $validated['prestashop_order_id'],
+            'event_date' => $lock->date,
+            'vendor_slot_id' => $lock->vendor_slot_id,
+            'customer_data' => $validated['customer_data'] ?? null,
+            'total_amount' => $validated['total_amount'] ?? null,
+            'status' => 'PENDING_VENDOR_CONFIRMATION',
+            'paid_at' => $validated['paid_at'],
+        ]);
+
         return response()->json([
             'success' => true,
             'data' => [
                 'lock_id' => $lock->id,
+                'booking_id' => $booking->id,
                 'status' => 'BOOKED',
-                'order_id' => $validated['order_id'],
+                'prestashop_order_id' => $validated['prestashop_order_id'],
             ],
         ], 200);
     }
