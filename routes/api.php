@@ -16,17 +16,15 @@ use App\Http\Controllers\Api\SlotController;
  */
 Route::middleware('auth:sanctum')->get('/user', MeController::class);
 
-// Vendor search (per PrestaShop)
-Route::get('/vendors/search', [VendorSearchController::class, 'search']);
-
-// Disponibilità calendario
-Route::get('/availability', [AvailabilityController::class, 'index']);
-
 // Rotte per gestione slot (hold, confirm, release) protette da BookingBridgeAuth
 Route::middleware('booking.bridge')->group(function () {
+    // Vendor search (per PrestaShop)
+    Route::get('/vendors/search', [VendorSearchController::class, 'search']);
+
+    // Disponibilità calendario
+    Route::get('/availability', [AvailabilityController::class, 'index']);
 
     Route::post('/slots/hold', [SlotController::class, 'hold']);
     Route::post('/slots/confirm', [SlotController::class, 'confirm']);
     Route::post('/slots/release', [SlotController::class, 'release']);
-
 });
