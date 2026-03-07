@@ -141,4 +141,10 @@ class VendorAccount extends Model
     {
         return $this->hasMany(VendorBlackout::class);
     }
+
+    // Relazione con Booking
+    public function bookings(): HasMany
+    {
+        return $this->hasMany(Booking::class);
+    }
 }

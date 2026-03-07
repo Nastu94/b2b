@@ -48,6 +48,11 @@
                     class="pl-sidebar-link {{ $is('vendor.offerings') ? 'pl-sidebar-link-active' : '' }}">
                     Servizi
                 </a>
+
+                <a href="{{ route('vendor.bookings') }}"
+                    class="pl-sidebar-link {{ $is('vendor.bookings') ? 'pl-sidebar-link-active' : '' }}">
+                    Prenotazioni
+                </a>
             </nav>
 
             {{-- User box --}}
