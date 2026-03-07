@@ -1,3 +1,4 @@
+{{-- resources/views/livewire/vendor/offerings/manage-offerings-tabs.blade.php --}}
 <div class="max-w-6xl mx-auto">
     <div class="bg-white shadow-sm rounded-lg p-6">
         <div class="flex items-start justify-between gap-4">
