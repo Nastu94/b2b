@@ -29,6 +29,11 @@
                    class="pl-sidebar-link {{ $is('admin.dashboard') ? 'pl-sidebar-link-active' : '' }}">
                     Dashboard
                 </a>
+
+                 <a href="{{ route('admin.bookings') }}"
+                   class="pl-sidebar-link {{ $is('admin.bookings*') ? 'pl-sidebar-link-active' : '' }}">
+                    Prenotazioni
+                </a>
             </nav>
 
             <div class="p-4 border-t border-slate-800">

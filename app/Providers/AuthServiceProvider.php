@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Booking;
 use App\Models\VendorOfferingProfile;
 use App\Models\VendorOfferingImage;
 use App\Models\VendorAccount;
@@ -16,6 +17,8 @@ use App\Models\VendorWeeklySchedule;
 use App\Models\VendorBlackout;
 use App\Policies\VendorLeadTimePolicy;
 use App\Policies\VendorBlackoutPolicy;
+use App\Policies\BookingPolicy;
+
 
 
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
@@ -35,5 +38,6 @@ class AuthServiceProvider extends ServiceProvider
         VendorWeeklySchedule::class => VendorWeeklySchedulePolicy::class,
         VendorLeadTime::class => VendorLeadTimePolicy::class,
         VendorBlackout::class => VendorBlackoutPolicy::class,
+        Booking::class => BookingPolicy::class,
     ];
 }

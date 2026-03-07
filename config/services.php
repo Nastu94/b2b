@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'booking_bridge' => [
+        'key' => env('BOOKING_BRIDGE_KEY'),
+    ],
+
 ];
