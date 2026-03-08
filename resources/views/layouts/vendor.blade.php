@@ -50,6 +50,11 @@
                     Servizi
                 </a>
 
+                <a href="{{ route('vendor.pricings') }}"
+                    class="pl-sidebar-link {{ $is('vendor.pricings') ? 'pl-sidebar-link-active' : '' }}">
+                    Listini
+                </a>
+
                 <a href="{{ route('vendor.bookings') }}"
                     class="pl-sidebar-link {{ $is('vendor.bookings') ? 'pl-sidebar-link-active' : '' }}">
                     Prenotazioni
