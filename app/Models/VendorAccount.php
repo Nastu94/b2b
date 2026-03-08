@@ -147,4 +147,12 @@ class VendorAccount extends Model
     {
         return $this->hasMany(Booking::class);
     }
+
+    /**
+     * Relazione con i listini base del vendor.
+     */
+    public function pricings(): HasMany
+    {
+        return $this->hasMany(VendorOfferingPricing::class);
+    }
 }

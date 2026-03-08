@@ -9,15 +9,17 @@ use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 // Livewire pages
-use App\Livewire\Vendor\Dashboard\VendorDashboardPage;
-use App\Livewire\Vendor\Offerings\ManageOfferingsTabs;
-use App\Livewire\Vendor\Profile\VendorProfilePage;
 use App\Livewire\Admin\Dashboard\AdminDashboardPage;
 use App\Livewire\Admin\Vendors\VendorCreatePage;
 use App\Livewire\Admin\Vendors\VendorProfileTabs;
 use App\Livewire\Vendor\Bookings\VendorBookingShowPage;
 use App\Livewire\Vendor\Bookings\VendorBookingsPendingPage;
 use App\Livewire\Vendor\Bookings\VendorBookingsTabs;
+use App\Livewire\Vendor\Dashboard\VendorDashboardPage;
+use App\Livewire\Vendor\Offerings\ManageOfferingsTabs;
+use App\Livewire\Vendor\Pricings\ManagePricingsTabs;
+use App\Livewire\Vendor\Profile\VendorProfilePage;
+
 // Test / Dev
 use App\Models\Offering;
 use App\Services\GeocodingService;
@@ -70,6 +72,7 @@ Route::middleware([
         ->group(function () {
             Route::get('/dashboard', VendorDashboardPage::class)->name('dashboard');
             Route::get('/offerings', ManageOfferingsTabs::class)->name('offerings');
+            Route::get('/pricings', ManagePricingsTabs::class)->name('pricings');
             Route::get('/profile', VendorProfilePage::class)->name('profile');
             Route::get('/bookings', VendorBookingsTabs::class)->name('bookings');
             Route::get('/bookings/{booking}', VendorBookingShowPage::class)->name('bookings.show');

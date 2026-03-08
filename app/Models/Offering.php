@@ -38,4 +38,12 @@ class Offering extends Model
     {
         return $this->hasMany(VendorOfferingProfile::class);
     }
+
+    /**
+     * Relazione con i listini base associati al servizio.
+     */
+    public function pricings()
+    {
+        return $this->hasMany(VendorOfferingPricing::class);
+    }
 }

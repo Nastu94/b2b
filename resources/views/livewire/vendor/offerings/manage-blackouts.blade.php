@@ -1,3 +1,4 @@
+{{-- resources/views/livewire/vendor/offerings/manage-blackouts.blade.php --}}
 <div>
     {{-- Flash message --}}
     @if (session('status'))
@@ -15,7 +16,7 @@
             <button
                 wire:click="openCreate"
                 type="button"
-                class="inline-flex items-center gap-1 px-3 py-2 bg-slate-600 text-white text-sm font-medium rounded-lg hover:bg-slate-700"
+                class="inline-flex items-center gap-1 px-3 py-2 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-700"
             >
                 + Nuovo blocco
             </button>

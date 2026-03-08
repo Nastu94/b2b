@@ -1,4 +1,6 @@
+{{-- resources/views/livewire/vendor/offerings/manage-offerings.blade.php --}}
 <div class="max-w-4xl mx-auto">
+    
     <div class="bg-white shadow-sm rounded-lg p-6">
         <h2 class="text-lg font-semibold">I miei servizi</h2>
         <p class="text-sm text-gray-600 mt-1">

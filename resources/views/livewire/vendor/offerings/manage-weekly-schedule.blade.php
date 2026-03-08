@@ -1,3 +1,4 @@
+{{-- resources/views/livewire/vendor/offerings/manage-weekly-schedule.blade.php --}}
 <div>
     {{-- Flash message --}}
     @if (session('status'))
