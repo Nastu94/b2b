@@ -5,7 +5,7 @@
                 Schede servizi
             </h2>
             <p class="mt-1 text-sm text-slate-500">
-                Anteprima contenuti (cover, descrizioni, stato pubblicazione).
+                Anteprima contenuti, modalità di servizio e stato pubblicazione.
             </p>
         </div>
 
@@ -34,10 +34,17 @@
                     $cover = $s['cover_image_path'] ?? '';
                     $short = $s['short_description'] ?? '';
                     $imagesCount = (int)($s['images_count'] ?? 0);
+                    $serviceMode = $s['service_mode'] ?? 'FIXED_LOCATION';
+                    $serviceRadiusKm = $s['service_radius_km'] ?? null;
+
+                    $serviceModeLabel = match ($serviceMode) {
+                        'MOBILE' => 'Mobile',
+                        'FIXED_LOCATION' => 'In sede',
+                        default => 'N/A',
+                    };
                 @endphp
 
                 <div class="rounded-xl border border-slate-200 overflow-hidden bg-white">
-                    {{-- Cover --}}
                     <div class="h-36 bg-slate-50">
                         @if($cover)
                             <img src="{{ route('media.public', ['path' => $cover]) }}" class="h-36 w-full object-cover" alt="">
@@ -59,7 +66,19 @@
                             </span>
                         </div>
 
-                        <p class="mt-2 text-sm text-slate-600 line-clamp-3">
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <span class="text-[11px] px-2 py-1 rounded-full border border-slate-200 bg-slate-50 text-slate-700">
+                                {{ $serviceModeLabel }}
+                            </span>
+
+                            @if($serviceMode === 'MOBILE' && $serviceRadiusKm)
+                                <span class="text-[11px] px-2 py-1 rounded-full border border-slate-200 bg-slate-50 text-slate-700">
+                                    {{ $serviceRadiusKm }} km
+                                </span>
+                            @endif
+                        </div>
+
+                        <p class="mt-3 text-sm text-slate-600 line-clamp-3">
                             {{ $short ?: 'Aggiungi una descrizione breve per questo servizio.' }}
                         </p>
 

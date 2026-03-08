@@ -74,6 +74,8 @@ class VendorServiziTab extends Component
                 'description' => (string) ($p?->description ?? ''),
                 'cover_image_path' => (string) ($p?->cover_image_path ?? ''),
                 'images_count' => (int) ($p?->images_count ?? 0),
+                'service_mode' => (string) ($p?->service_mode ?? 'FIXED_LOCATION'),
+                'service_radius_km' => $p?->service_radius_km,
 
                 // stato
                 'is_published' => $isPublished,

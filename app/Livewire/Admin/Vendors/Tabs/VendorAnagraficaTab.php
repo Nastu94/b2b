@@ -32,13 +32,15 @@ class VendorAnagraficaTab extends Component
             ->with(['user', 'category', 'offerings'])
             ->findOrFail($vendorAccountId);
 
-        // difesa in profondità
         $this->authorize('view', $this->vendorAccount);
 
         $this->categories = Category::query()
             ->orderBy('name')
             ->get(['id', 'name'])
-            ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name])
+            ->map(fn ($category) => [
+                'id' => $category->id,
+                'name' => $category->name,
+            ])
             ->all();
 
         $this->form = [
@@ -75,6 +77,19 @@ class VendorAnagraficaTab extends Component
         ];
 
         $this->originalForm = $this->form;
+    }
+
+    public function updatedFormOperationalSameAsLegal($value): void
+    {
+        // Se la sede operativa coincide con la sede legale, puliamo i campi
+        // manuali per evitare dati incoerenti.
+        if ((bool) $value === true) {
+            $this->form['operational_country'] = '';
+            $this->form['operational_region'] = '';
+            $this->form['operational_city'] = '';
+            $this->form['operational_postal_code'] = '';
+            $this->form['operational_address_line1'] = '';
+        }
     }
 
     protected function rules(): array
@@ -155,6 +170,7 @@ class VendorAnagraficaTab extends Component
             'operational_address_line1' => $this->form['operational_address_line1'],
         ]);
 
+        // Se la sede operativa coincide con quella legale, copiamo i valori.
         if ($this->vendorAccount->operational_same_as_legal) {
             $this->vendorAccount->operational_country = $this->vendorAccount->legal_country;
             $this->vendorAccount->operational_region = $this->vendorAccount->legal_region;
@@ -169,9 +185,36 @@ class VendorAnagraficaTab extends Component
 
         $this->vendorAccount->refresh()->load(['user', 'category', 'offerings']);
 
+        $this->form = [
+            'status' => $this->vendorAccount->status,
+            'account_type' => $this->vendorAccount->account_type,
+            'category_id' => $this->vendorAccount->category_id,
+
+            'company_name' => $this->vendorAccount->company_name,
+            'legal_entity_type' => $this->vendorAccount->legal_entity_type,
+            'vat_number' => $this->vendorAccount->vat_number,
+
+            'first_name' => $this->vendorAccount->first_name,
+            'last_name' => $this->vendorAccount->last_name,
+
+            'tax_code' => $this->vendorAccount->tax_code,
+
+            'legal_country' => $this->vendorAccount->legal_country,
+            'legal_region' => $this->vendorAccount->legal_region,
+            'legal_city' => $this->vendorAccount->legal_city,
+            'legal_postal_code' => $this->vendorAccount->legal_postal_code,
+            'legal_address_line1' => $this->vendorAccount->legal_address_line1,
+
+            'operational_same_as_legal' => (bool) $this->vendorAccount->operational_same_as_legal,
+            'operational_country' => $this->vendorAccount->operational_country,
+            'operational_region' => $this->vendorAccount->operational_region,
+            'operational_city' => $this->vendorAccount->operational_city,
+            'operational_postal_code' => $this->vendorAccount->operational_postal_code,
+            'operational_address_line1' => $this->vendorAccount->operational_address_line1,
+        ];
+
         $this->originalForm = $this->form;
 
-        // dice al container: “puoi spegnere editing e refreshare il vendor globale”
         $this->dispatch('vendor-anagrafica-saved', vendorAccountId: $this->vendorAccount->id);
     }
 
@@ -193,8 +236,7 @@ class VendorAnagraficaTab extends Component
             return;
         }
 
-        // per ora non serve fare nulla: il container controlla $editing,
-        // e la view abilita/disabilita i campi in base a quello.
+        // Il container controlla già lo stato di editing.
     }
 
     public function render()

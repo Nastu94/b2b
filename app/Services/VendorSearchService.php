@@ -3,113 +3,341 @@
 namespace App\Services;
 
 use App\Models\VendorAccount;
-use App\Models\VendorSlot;
-use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\DB;
+use App\Models\VendorOfferingProfile;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class VendorSearchService
 {
-   
-    protected AvailabilityService $availability;
-
-    public function __construct(AvailabilityService $availability)
-    {
-        $this->availability = $availability;
+    public function __construct(
+        protected AvailabilityService $availabilityService,
+        protected GeocodingService $geocodingService
+    ) {
     }
 
-    // Metodo di ricerca che filtra vendor per offering, distanza e disponibilità slot
+    // Esegue la ricerca vendor in base a città e data.
+    //
+    // Nuova regola:
+    // - includi solo vendor attivi e disponibili nella data richiesta
+    // - considera solo i vendorOfferingProfiles pubblicati
+    // - includi sempre i servizi dei vendor della città richiesta
+    // - includi i servizi MOBILE fuori città solo se il loro raggio copre la città richiesta
+    // - includi i servizi FIXED_LOCATION fuori città, ordinati per distanza
+    // - escludi i vendor che non hanno servizi validi per la città richiesta
+    // - ordina dando priorità ai vendor della città richiesta, poi per distanza crescente
     public function search(array $params): array
     {
-        // Estrazione e casting dei parametri di ricerca
-        $offeringId = (int) $params['offering_id'];
-        $date = $params['date'];
-        $slotSlug = $params['slot_slug'];
-        $lat = (float) $params['lat'];
-        $lng = (float) $params['lng'];
-        $radiusKm = (float) ($params['radius_km'] ?? 30);
-        $limit = (int) ($params['limit'] ?? 30);
+        $city = $this->normalizeText($params['city'] ?? null);
+        $date = $params['date'] ?? null;
+        $limit = (int) ($params['limit'] ?? 50);
 
-        // Formula Haversine per il calcolo della distanza geografica in MySQL
-        $distanceSql = "
-            (6371 * acos(
-                cos(radians(?)) *
-                cos(radians(COALESCE(operational_lat, legal_lat))) *
-                cos(radians(COALESCE(operational_lng, legal_lng)) - radians(?)) +
-                sin(radians(?)) *
-                sin(radians(COALESCE(operational_lat, legal_lat)))
-            ))
-        ";
-
-        // Query per ottenere vendor attivi con distanza entro il raggio specificato
-        $vendors = VendorAccount::query()
-            ->select([
-                'vendor_accounts.*',
-                DB::raw("$distanceSql AS distance_km")
-            ])
-            ->addBinding([$lat, $lng, $lat], 'select')
-            ->where('status', 'ACTIVE')
-            ->whereNotNull(DB::raw('COALESCE(operational_lat, legal_lat)'))
-            ->whereHas('offerings', function ($q) use ($offeringId) {
-                $q->where('offering_id', $offeringId)
-                    ->where('offerings.is_active', 1)
-                    ->where('vendor_offerings.is_active', 1);
-            })
-            ->whereHas('offeringProfiles', function ($q) use ($offeringId) {
-                $q->where('offering_id', $offeringId)
-                    ->where('is_published', true);
-            })
-            ->having('distance_km', '<=', $radiusKm)
-            ->orderBy('distance_km')
-            ->limit($limit)
-            ->get();
-
-  
-        $results = [];
-
-        // Iterazione su ogni vendor trovato
-        foreach ($vendors as $vendor) {
-
-            // Ricerca dello slot specifico per il vendor
-            $slot = VendorSlot::query()
-                ->where('vendor_account_id', $vendor->id)
-                ->where('slug', $slotSlug)
-                ->where('is_active', true)
-                ->first();
-
-            // Se lo slot non esiste, salta al prossimo vendor
-            if (!$slot) {
-                continue;
-            }
-
-            // Controllo della disponibilità puntuale per la data richiesta
-            $availability = $this->availability
-                ->getAvailability($vendor->id, $date, $date);
-
-            // Estrazione dei dati di disponibilità per la data
-            $dayData = $availability[$date] ?? [];
-            // Ricerca dello slot specifico nei dati di disponibilità
-            $slotData = collect($dayData)
-                ->firstWhere('vendor_slot_id', $slot->id);
-
-            // Se lo slot non è disponibile, salta al prossimo vendor
-            if (!$slotData || $slotData['status'] !== 'AVAILABLE') {
-                continue;
-            }
-
-            // Aggiunta del vendor ai risultati con le informazioni rilevanti
-            $results[] = [
-                'vendor_account_id' => $vendor->id,
-                'company_name' => $vendor->company_name,
-                'distance_km' => round($vendor->distance_km, 2),
-                'slot' => [
-                    'slug' => $slot->slug,
-                    'label' => $slot->label,
-                    'start_time' => $slot->start_time,
-                    'end_time' => $slot->end_time,
-                ],
+        if ($city === null || $date === null) {
+            return [
+                'fallback_used' => false,
+                'search_mode' => 'city',
+                'city' => $params['city'] ?? null,
+                'date' => $date,
+                'total' => 0,
+                'data' => [],
             ];
         }
 
-        return $results;
+        $vendors = $this->buildBaseQuery($params)->get();
+
+        // Consideriamo solo i vendor realmente disponibili nella data richiesta.
+        $availableVendors = $this->filterAvailableVendorsByDate($vendors, $date);
+
+        // Se non ci sono vendor disponibili in assoluto, ritorniamo vuoto.
+        if ($availableVendors->isEmpty()) {
+            return [
+                'fallback_used' => false,
+                'search_mode' => 'city',
+                'city' => $params['city'] ?? null,
+                'date' => $date,
+                'total' => 0,
+                'data' => [],
+            ];
+        }
+
+        // Geocodifichiamo sempre la città richiesta per poter:
+        // - calcolare le distanze
+        // - verificare il raggio dei servizi MOBILE
+        $cityCoordinates = $this->geocodingService->geocodeCity($params['city']);
+
+        // Se il geocoding fallisce, possiamo comunque restituire i vendor della città
+        // che matchano per nome città, ma senza risultati fuori città.
+        if (!$cityCoordinates) {
+            $cityOnlyVendors = $availableVendors
+                ->map(function (VendorAccount $vendor) use ($city) {
+                    if (!$this->vendorMatchesCity($vendor, $city)) {
+                        return null;
+                    }
+
+                    $vendor->distance_km = 0.0;
+                    $vendor->is_city_match = true;
+
+                    $validProfiles = $vendor->vendorOfferingProfiles
+                        ->filter(fn (VendorOfferingProfile $profile) => $this->profileIsSearchable($profile))
+                        ->values();
+
+                    if ($validProfiles->isEmpty()) {
+                        return null;
+                    }
+
+                    $vendor->setRelation('vendorOfferingProfiles', $validProfiles);
+
+                    return $vendor;
+                })
+                ->filter()
+                ->take($limit)
+                ->values();
+
+            return [
+                'fallback_used' => false,
+                'search_mode' => 'city',
+                'city' => $params['city'] ?? null,
+                'date' => $date,
+                'total' => $cityOnlyVendors->count(),
+                'data' => $this->groupVendorsByCategory($cityOnlyVendors),
+            ];
+        }
+
+        $matchedVendors = $availableVendors
+            ->map(function (VendorAccount $vendor) use ($city, $cityCoordinates) {
+                $lat = $vendor->effectiveLat();
+                $lng = $vendor->effectiveLng();
+
+                // I vendor senza coordinate non possono essere ordinati per distanza
+                // e non possono essere valutati correttamente fuori città.
+                if ($lat === null || $lng === null) {
+                    // Se il vendor matcha esattamente la città richiesta, lo teniamo comunque.
+                    if ($this->vendorMatchesCity($vendor, $city)) {
+                        $vendor->distance_km = 0.0;
+                        $vendor->is_city_match = true;
+
+                        $validProfiles = $vendor->vendorOfferingProfiles
+                            ->filter(fn (VendorOfferingProfile $profile) => $this->profileIsSearchable($profile))
+                            ->values();
+
+                        if ($validProfiles->isEmpty()) {
+                            return null;
+                        }
+
+                        $vendor->setRelation('vendorOfferingProfiles', $validProfiles);
+
+                        return $vendor;
+                    }
+
+                    return null;
+                }
+
+                $distance = $this->geocodingService->calculateDistance(
+                    (float) $cityCoordinates['lat'],
+                    (float) $cityCoordinates['lng'],
+                    (float) $lat,
+                    (float) $lng
+                );
+
+                $vendor->distance_km = round($distance, 1);
+                $vendor->is_city_match = $this->vendorMatchesCity($vendor, $city);
+
+                $validProfiles = $vendor->vendorOfferingProfiles
+                    ->filter(function (VendorOfferingProfile $profile) use ($vendor) {
+                        return $this->profileIsValidForVendorDistance($profile, $vendor);
+                    })
+                    ->values();
+
+                if ($validProfiles->isEmpty()) {
+                    return null;
+                }
+
+                $vendor->setRelation('vendorOfferingProfiles', $validProfiles);
+
+                return $vendor;
+            })
+            ->filter()
+            ->sort(function (VendorAccount $a, VendorAccount $b) {
+                // Prima i vendor della città richiesta.
+                $aPriority = ($a->is_city_match ?? false) ? 0 : 1;
+                $bPriority = ($b->is_city_match ?? false) ? 0 : 1;
+
+                if ($aPriority !== $bPriority) {
+                    return $aPriority <=> $bPriority;
+                }
+
+                // Poi ordina per distanza crescente.
+                return ((float) ($a->distance_km ?? 999999)) <=> ((float) ($b->distance_km ?? 999999));
+            })
+            ->take($limit)
+            ->values();
+
+        $hasOutsideCityResults = $matchedVendors->contains(function (VendorAccount $vendor) {
+            return ($vendor->is_city_match ?? false) === false;
+        });
+
+        return [
+            'fallback_used' => $hasOutsideCityResults,
+            'search_mode' => $hasOutsideCityResults ? 'mixed' : 'city',
+            'city' => $params['city'] ?? null,
+            'date' => $date,
+            'total' => $matchedVendors->count(),
+            'data' => $this->groupVendorsByCategory($matchedVendors),
+        ];
+    }
+
+    // Costruisce la query base dei vendor attivi.
+    private function buildBaseQuery(array $params)
+    {
+        $query = VendorAccount::query()
+            ->where('status', 'ACTIVE')
+            ->with([
+                'category:id,name,slug,prestashop_category_id',
+                'vendorOfferingProfiles' => function ($query) {
+                    $query->where('is_published', true)
+                        ->with('offering:id,name,slug');
+                },
+            ]);
+
+        if (isset($params['prestashop_category_id'])) {
+            $query->whereHas('category', function ($query) use ($params) {
+                $query->where('prestashop_category_id', $params['prestashop_category_id']);
+            });
+        }
+
+        if (isset($params['category_id'])) {
+            $query->where('category_id', $params['category_id']);
+        }
+
+        return $query;
+    }
+
+    // Tiene solo i vendor che hanno almeno uno slot disponibile nella data richiesta.
+    private function filterAvailableVendorsByDate(Collection $vendors, string $date): Collection
+    {
+        return $vendors
+            ->filter(function (VendorAccount $vendor) use ($date) {
+                $availability = $this->availabilityService->getAvailability($vendor->id, $date, $date);
+                $dayAvailability = $availability[$date] ?? [];
+
+                foreach ($dayAvailability as $slot) {
+                    if (($slot['status'] ?? null) === 'AVAILABLE') {
+                        return true;
+                    }
+                }
+
+                return false;
+            })
+            ->values();
+    }
+
+    // Verifica se il vendor appartiene alla città richiesta.
+    private function vendorMatchesCity(VendorAccount $vendor, string $searchedCity): bool
+    {
+        $vendorCity = $this->normalizeText($vendor->effectiveCity());
+
+        if ($vendorCity === null || $searchedCity === null) {
+            return false;
+        }
+
+        return $vendorCity === $searchedCity;
+    }
+
+    // Verifica se il profilo servizio è ricercabile.
+    private function profileIsSearchable(VendorOfferingProfile $profile): bool
+    {
+        return $profile->offering !== null;
+    }
+
+    // Applica le regole di ricerca al singolo profilo servizio.
+    private function profileIsValidForVendorDistance(VendorOfferingProfile $profile, VendorAccount $vendor): bool
+    {
+        if (!$this->profileIsSearchable($profile)) {
+            return false;
+        }
+
+        // Regola 1: i servizi dei vendor della città richiesta vanno sempre inclusi.
+        if (($vendor->is_city_match ?? false) === true) {
+            return true;
+        }
+
+        // Regola 2: i servizi MOBILE fuori città devono rispettare il raggio.
+        if ($profile->isMobileService()) {
+            if (!$profile->hasServiceRadius()) {
+                return false;
+            }
+
+            return (float) $vendor->distance_km <= (float) $profile->service_radius_km;
+        }
+
+        // Regola 3: i servizi FIXED_LOCATION fuori città possono comunque essere mostrati.
+        return true;
+    }
+
+    // Normalizza una stringa per confronti case-insensitive.
+    private function normalizeText(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        return Str::lower(preg_replace('/\s+/', ' ', $value));
+    }
+
+    // Raggruppa i vendor per categoria per semplificare il rendering lato frontend.
+    private function groupVendorsByCategory(Collection $vendors): array
+    {
+        return $vendors
+            ->groupBy(fn (VendorAccount $vendor) => $vendor->category?->id ?? 'uncategorized')
+            ->map(function (Collection $group) {
+                $firstVendor = $group->first();
+
+                return [
+                    'category' => [
+                        'id' => $firstVendor?->category?->id,
+                        'name' => $firstVendor?->category?->name,
+                        'slug' => $firstVendor?->category?->slug,
+                        'prestashop_category_id' => $firstVendor?->category?->prestashop_category_id,
+                    ],
+                    'vendors' => $group->map(function (VendorAccount $vendor) {
+                        $filteredOfferings = $vendor->vendorOfferingProfiles->map(function (VendorOfferingProfile $profile) {
+                            return [
+                                'id' => $profile->id,
+                                'offering_id' => $profile->offering_id,
+                                'offering_name' => $profile->offering->name ?? null,
+                                'offering_slug' => $profile->offering->slug ?? null,
+                                'title' => $profile->title,
+                                'short_description' => $profile->short_description,
+                                'description' => $profile->description,
+                                'service_mode' => $profile->service_mode ?? null,
+                                'service_radius_km' => $profile->service_radius_km ?? null,
+                                'is_published' => (bool) $profile->is_published,
+                            ];
+                        })->values();
+
+                        $result = [
+                            'id' => $vendor->id,
+                            'company_name' => $vendor->company_name,
+                            'city' => $vendor->effectiveCity(),
+                            'phone' => $vendor->phone,
+                            'offerings_count' => $filteredOfferings->count(),
+                            'offerings' => $filteredOfferings,
+                        ];
+
+                        if (isset($vendor->distance_km)) {
+                            $result['distance_km'] = $vendor->distance_km;
+                        }
+
+                        return $result;
+                    })->values(),
+                ];
+            })
+            ->values()
+            ->all();
     }
 }

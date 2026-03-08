@@ -13,10 +13,13 @@ class VendorOfferingProfile extends Model
         'short_description',
         'description',
         'cover_image_path',
+        'service_mode',
+        'service_radius_km',
         'is_published',
     ];
 
     protected $casts = [
+        'service_radius_km' => 'float',
         'is_published' => 'boolean',
     ];
 
@@ -33,5 +36,15 @@ class VendorOfferingProfile extends Model
     public function images()
     {
         return $this->hasMany(VendorOfferingImage::class)->orderBy('sort_order');
+    }
+
+    public function isMobileService(): bool
+    {
+        return $this->service_mode === 'MOBILE';
+    }
+
+    public function hasServiceRadius(): bool
+    {
+        return $this->service_radius_km !== null && $this->service_radius_km > 0;
     }
 }

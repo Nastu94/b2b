@@ -16,9 +16,9 @@ use Illuminate\Support\Facades\Hash;
  * - Creare VendorAccount collegato
  * - Garantire vendor.access (permission)
  *
- * Nota sicurezza:
- * - Questo service NON fa authorize() da solo.
- *   L'autorizzazione va fatta nel chiamante (Livewire admin) tramite policy.
+ * Nota:
+ * - L'autorizzazione va gestita nel chiamante.
+ * - Questo service si occupa solo della creazione atomica dei dati.
  */
 class CreateVendorService
 {
@@ -30,23 +30,24 @@ class CreateVendorService
     public function create(array $data): VendorAccount
     {
         return DB::transaction(function () use ($data) {
-            // 1) User
+            // 1) Crea user.
             $user = User::create([
                 'name' => (string) $data['name'],
                 'email' => (string) $data['email'],
                 'password' => Hash::make((string) $data['password']),
             ]);
 
-            // 2) Ruolo vendor
+            // 2) Assegna ruolo vendor.
             $user->assignRole('vendor');
 
-            // 3) VendorAccount
+            // 3) Crea VendorAccount.
             $vendorAccount = VendorAccount::create([
                 'user_id' => $user->id,
                 'category_id' => (int) $data['category_id'],
                 'status' => 'ACTIVE',
+                'activated_at' => now(),
 
-                // Campi vendor dal tuo form (manteniamo le stesse chiavi)
+                // Campi vendor dal form
                 'account_type' => $data['account_type'] ?? null,
 
                 'company_name' => $data['company_name'] ?? null,
@@ -71,7 +72,7 @@ class CreateVendorService
                 'operational_address_line1' => $data['operational_address_line1'] ?? null,
             ]);
 
-            // 4) Permesso base vendor
+            // 4) Permesso base vendor.
             $user->givePermissionTo('vendor.access');
 
             return $vendorAccount;

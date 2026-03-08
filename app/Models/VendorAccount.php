@@ -3,15 +3,16 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class VendorAccount extends Model
 {
     use SoftDeletes;
 
+    // Campi assegnabili in mass assignment.
     protected $fillable = [
         'user_id',
 
@@ -19,7 +20,7 @@ class VendorAccount extends Model
         'category_id',
 
         // Tipo account
-        'account_type', // COMPANY | PRIVATE
+        'account_type',
 
         // Dati azienda / privato
         'company_name',
@@ -61,88 +62,106 @@ class VendorAccount extends Model
         'operational_lat',
         'operational_lng',
 
+        // Integrazione PrestaShop
+        'prestashop_product_id',
+
         // Stato
         'status',
         'activated_at',
+        'deactivated_at',
     ];
 
+    // Cast espliciti per mantenere coerenti i tipi in lettura e scrittura.
     protected $casts = [
         'operational_same_as_legal' => 'boolean',
+        'legal_lat' => 'float',
+        'legal_lng' => 'float',
+        'operational_lat' => 'float',
+        'operational_lng' => 'float',
+        'prestashop_product_id' => 'integer',
         'activated_at' => 'datetime',
+        'deactivated_at' => 'datetime',
     ];
 
-    // Relazione con Category, ogni VendorAccount appartiene a una Category
+    // Ogni vendor appartiene a una categoria.
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
     }
 
-    // Relazione con User, ogni VendorAccount appartiene a un User
+    // Ogni vendor appartiene a un utente.
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    // Relazione many-to-many con il catalogo offerings.
     public function offerings(): BelongsToMany
     {
         return $this->belongsToMany(
-            \App\Models\Offering::class,
+            Offering::class,
             'vendor_offerings'
         )->withPivot('is_active')->withTimestamps();
     }
 
-
-    public function offeringProfiles()
+    // Relazione legacy mantenuta per compatibilità interna.
+    public function offeringProfiles(): HasMany
     {
         return $this->hasMany(VendorOfferingProfile::class);
     }
 
-    /**
-     * Relazione con i profili delle offerings del vendor
-     */
-    public function vendorOfferingProfiles()
+    // Relazione esplicita con i profili offering del vendor.
+    public function vendorOfferingProfiles(): HasMany
     {
         return $this->hasMany(VendorOfferingProfile::class, 'vendor_account_id');
     }
 
-    /**
-     * Coordinate effettive: preferisci operativa, altrimenti legale.
-     */
+    // Restituisce la latitudine effettiva del vendor.
+    // Se disponibile, usa la sede operativa; altrimenti usa quella legale.
     public function effectiveLat(): ?float
     {
         return $this->operational_lat ?? $this->legal_lat;
     }
 
+    // Restituisce la longitudine effettiva del vendor.
+    // Se disponibile, usa la sede operativa; altrimenti usa quella legale.
     public function effectiveLng(): ?float
     {
         return $this->operational_lng ?? $this->legal_lng;
     }
 
-    // Relazione con VendorSlot
+    // Restituisce la città effettiva del vendor.
+    // Se disponibile, usa la sede operativa; altrimenti usa quella legale.
+    public function effectiveCity(): ?string
+    {
+        return $this->operational_city ?: $this->legal_city;
+    }
+
+    // Relazione con gli slot configurati dal vendor.
     public function slots(): HasMany
     {
         return $this->hasMany(VendorSlot::class);
     }
 
-    // Relazione con VendorWeeklySchedule
+    // Relazione con la configurazione settimanale degli slot.
     public function weeklySchedules(): HasMany
     {
         return $this->hasMany(VendorWeeklySchedule::class);
     }
 
-    // Relazione con VendorLeadTime
+    // Relazione con le regole di lead time del vendor.
     public function leadTimes(): HasMany
     {
         return $this->hasMany(VendorLeadTime::class);
     }
 
-    // Relazione con VendorBlackout
+    // Relazione con i blackout del vendor.
     public function blackouts(): HasMany
     {
         return $this->hasMany(VendorBlackout::class);
     }
 
-    // Relazione con Booking
+    // Relazione con le prenotazioni del vendor.
     public function bookings(): HasMany
     {
         return $this->hasMany(Booking::class);

@@ -4,17 +4,17 @@ namespace Database\Seeders;
 
 use App\Models\Category;
 use App\Models\Offering;
+use App\Models\SlotLock;
 use App\Models\User;
 use App\Models\VendorAccount;
+use App\Models\VendorBlackout;
+use App\Models\VendorLeadTime;
+use App\Models\VendorOfferingProfile;
 use App\Models\VendorSlot;
 use App\Models\VendorWeeklySchedule;
-use App\Models\VendorLeadTime;
-use App\Models\VendorBlackout;
-use App\Models\VendorOfferingProfile;
-use App\Models\SlotLock;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class DemoVendorsSeeder extends Seeder
 {
@@ -22,7 +22,6 @@ class DemoVendorsSeeder extends Seeder
     {
         $this->command->info('PULIZIA COMPLETA DATABASE VENDOR...');
 
-        // Lista email vendor demo da proteggere
         $demoVendorEmails = [
             'mario.rossi@partylegacy.it',
             'luca.bianchi@partylegacy.it',
@@ -35,7 +34,6 @@ class DemoVendorsSeeder extends Seeder
             'claudia.marino@partylegacy.it',
         ];
 
-        // PRIMA: Prendi gli ID dei vendor demo
         $demoVendorUserIds = User::whereIn('email', $demoVendorEmails)->pluck('id')->toArray();
         $demoVendorIds = VendorAccount::whereIn('user_id', $demoVendorUserIds)->pluck('id')->toArray();
 
@@ -87,9 +85,8 @@ class DemoVendorsSeeder extends Seeder
 
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
-        $this->command->info('Database pulito (admin protetto)!\n');
-
-        $this->command->info('Creazione 1 vendor per categoria (Puglia) + 2 offering cards...');
+        $this->command->info('Database pulito (admin protetto)');
+        $this->command->info('Creazione vendor demo con offering coerenti e modalità realistiche...');
 
         $vendors = [
             [
@@ -274,13 +271,23 @@ class DemoVendorsSeeder extends Seeder
             $this->createSlots($vendor);
             $this->createSchedule($vendor);
             $this->createLeadTime($vendor);
-            $this->createVendorOfferings($vendor, $category);
 
-            $this->command->info("{$category->name}: {$data['company_name']} ({$data['city']})");
+            $createdProfiles = $this->createVendorOfferings($vendor, $category);
+
+            foreach ($createdProfiles as $profile) {
+                $radiusLabel = $profile->service_mode === 'MOBILE'
+                    ? ($profile->service_radius_km . ' km')
+                    : 'n/a';
+
+                $this->command->info(
+                    "{$category->name}: {$data['company_name']} - {$profile->offering->name} - mode: {$profile->service_mode}, radius: {$radiusLabel}"
+                );
+            }
+
             $count++;
         }
 
-        $this->command->info("\n Creati {$count} vendor con offerings!");
+        $this->command->info("Creati {$count} vendor con offerings");
     }
 
     private function createSlots(VendorAccount $vendor): void
@@ -291,15 +298,15 @@ class DemoVendorsSeeder extends Seeder
             ['slug' => 'evening', 'label' => 'Sera', 'start' => '19:00:00', 'end' => '23:00:00', 'order' => 30],
         ];
 
-        foreach ($slots as $s) {
+        foreach ($slots as $slot) {
             VendorSlot::create([
                 'vendor_account_id' => $vendor->id,
-                'slug' => $s['slug'],
-                'label' => $s['label'],
-                'start_time' => $s['start'],
-                'end_time' => $s['end'],
+                'slug' => $slot['slug'],
+                'label' => $slot['label'],
+                'start_time' => $slot['start'],
+                'end_time' => $slot['end'],
                 'is_active' => true,
-                'sort_order' => $s['order'],
+                'sort_order' => $slot['order'],
             ]);
         }
     }
@@ -332,27 +339,30 @@ class DemoVendorsSeeder extends Seeder
         }
     }
 
-    /**
-     * CREA 2 OFFERING CARDS PER VENDOR
-     */
-    private function createVendorOfferings(VendorAccount $vendor, Category $category): void
+    private function createVendorOfferings(VendorAccount $vendor, Category $category): array
     {
-        // Prendi 2 offerings dalla categoria
-        $offerings = Offering::where('category_id', $category->id)
-            ->where('is_active', true)
-            ->inRandomOrder()
-            ->limit(2)
-            ->get();
+        $definitions = $this->getOfferingDefinitionsForCategory($category->slug);
 
-        if ($offerings->count() < 2) {
-            $this->command->warn("Meno di 2 offerings per categoria");
-            return;
+        if (count($definitions) < 2) {
+            $this->command->warn("Meno di 2 definizioni offering per categoria '{$category->slug}'");
+            return [];
         }
 
         $descriptions = $this->getDescriptions($category->slug);
+        $createdProfiles = [];
 
-        foreach ($offerings as $index => $offering) {
-            // 1. Crea relazione pivot
+        foreach ($definitions as $index => $definition) {
+            $offering = Offering::where('category_id', $category->id)
+                ->where('name', $definition['offering_name'])
+                ->first();
+
+            if (!$offering) {
+                $this->command->warn(
+                    "Offering '{$definition['offering_name']}' non trovata per categoria '{$category->slug}'"
+                );
+                continue;
+            }
+
             DB::table('vendor_offerings')->insert([
                 'vendor_account_id' => $vendor->id,
                 'offering_id' => $offering->id,
@@ -361,24 +371,143 @@ class DemoVendorsSeeder extends Seeder
                 'updated_at' => now(),
             ]);
 
-            // 2. Crea profile con descrizioni
-            VendorOfferingProfile::create([
+            $profile = VendorOfferingProfile::create([
                 'vendor_account_id' => $vendor->id,
                 'offering_id' => $offering->id,
                 'title' => $offering->name,
                 'short_description' => $descriptions['short'][$index] ?? 'Servizio professionale per eventi',
                 'description' => $descriptions['long'][$index] ?? 'Descrizione dettagliata del servizio.',
                 'cover_image_path' => null,
+                'service_mode' => $definition['service_mode'],
+                'service_radius_km' => $definition['service_radius_km'],
                 'is_published' => true,
             ]);
+
+            $profile->load('offering');
+            $createdProfiles[] = $profile;
         }
 
-        $this->command->info("Creati {$offerings->count()} offering profiles");
+        $this->command->info("Creati " . count($createdProfiles) . " offering profiles");
+
+        return $createdProfiles;
     }
 
-    /**
-     * DESCRIZIONI COMPLETE PER OGNI CATEGORIA
-     */
+    private function getOfferingDefinitionsForCategory(string $categorySlug): array
+    {
+        $map = [
+            'animazione-bambini' => [
+                [
+                    'offering_name' => 'Animatore / Truccabimbi',
+                    'service_mode' => 'MOBILE',
+                    'service_radius_km' => 25,
+                ],
+                [
+                    'offering_name' => 'Gonfiabili e strutture ludiche',
+                    'service_mode' => 'MOBILE',
+                    'service_radius_km' => 25,
+                ],
+            ],
+            'animazione-teen-party' => [
+                [
+                    'offering_name' => 'DJ set con animatore',
+                    'service_mode' => 'MOBILE',
+                    'service_radius_km' => 35,
+                ],
+                [
+                    'offering_name' => 'Silent disco',
+                    'service_mode' => 'MOBILE',
+                    'service_radius_km' => 35,
+                ],
+            ],
+            'animazione-adulti-feste-private' => [
+                [
+                    'offering_name' => 'DJ set personalizzato',
+                    'service_mode' => 'MOBILE',
+                    'service_radius_km' => 120,
+                ],
+                [
+                    'offering_name' => 'Cena con delitto',
+                    'service_mode' => 'FIXED_LOCATION',
+                    'service_radius_km' => null,
+                ],
+            ],
+            'addio-al-celibato-nubilato' => [
+                [
+                    'offering_name' => 'Spogliarellista personalizzato',
+                    'service_mode' => 'MOBILE',
+                    'service_radius_km' => 40,
+                ],
+                [
+                    'offering_name' => 'Yacht party',
+                    'service_mode' => 'FIXED_LOCATION',
+                    'service_radius_km' => null,
+                ],
+            ],
+            'eventi-aziendali' => [
+                [
+                    'offering_name' => 'Presentatore / Speaker',
+                    'service_mode' => 'MOBILE',
+                    'service_radius_km' => 80,
+                ],
+                [
+                    'offering_name' => 'Photo booth / 360° booth',
+                    'service_mode' => 'MOBILE',
+                    'service_radius_km' => 80,
+                ],
+            ],
+            'compleanni-adulti' => [
+                [
+                    'offering_name' => 'DJ set',
+                    'service_mode' => 'MOBILE',
+                    'service_radius_km' => 30,
+                ],
+                [
+                    'offering_name' => 'Noleggio sala privata',
+                    'service_mode' => 'FIXED_LOCATION',
+                    'service_radius_km' => null,
+                ],
+            ],
+            'matrimoni-ed-eventi-eleganti' => [
+                [
+                    'offering_name' => 'DJ matrimonio',
+                    'service_mode' => 'MOBILE',
+                    'service_radius_km' => 120,
+                ],
+                [
+                    'offering_name' => 'Open bar show',
+                    'service_mode' => 'MOBILE',
+                    'service_radius_km' => 120,
+                ],
+            ],
+            'servizi-di-supporto' => [
+                [
+                    'offering_name' => 'Noleggio palco',
+                    'service_mode' => 'MOBILE',
+                    'service_radius_km' => 90,
+                ],
+                [
+                    'offering_name' => 'Catering',
+                    'service_mode' => 'MOBILE',
+                    'service_radius_km' => 60,
+                ],
+            ],
+            'format-premium-esperienze-esclusive' => [
+                [
+                    'offering_name' => 'Party su yacht',
+                    'service_mode' => 'FIXED_LOCATION',
+                    'service_radius_km' => null,
+                ],
+                [
+                    'offering_name' => 'Rooftop party',
+                    'service_mode' => 'FIXED_LOCATION',
+                    'service_radius_km' => null,
+                ],
+            ],
+        ];
+
+        return $map[$categorySlug] ?? [];
+    }
+
     private function getDescriptions(string $slug): array
     {
         $all = [
@@ -475,8 +604,14 @@ class DemoVendorsSeeder extends Seeder
         ];
 
         return $all[$slug] ?? [
-            'short' => ['Servizio professionale di qualità', 'Esperienza garantita e professionalità'],
-            'long' => ['Descrizione dettagliata del servizio offerto con qualità superiore.', 'Servizio di qualità con esperienza pluriennale nel settore.'],
+            'short' => [
+                'Servizio professionale di qualità',
+                'Esperienza garantita e professionalità',
+            ],
+            'long' => [
+                'Descrizione dettagliata del servizio offerto con qualità superiore.',
+                'Servizio di qualità con esperienza pluriennale nel settore.',
+            ],
         ];
     }
 }

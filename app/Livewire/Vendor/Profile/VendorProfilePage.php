@@ -4,10 +4,10 @@ namespace App\Livewire\Vendor\Profile;
 
 use App\Models\Category;
 use App\Models\VendorAccount;
+use App\Services\GeocodingService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
-use App\Services\GeocodingService;
 
 #[Layout('layouts.vendor')]
 class VendorProfilePage extends Component
@@ -25,11 +25,11 @@ class VendorProfilePage extends Component
     public function mount(): void
     {
         $user = auth()->user();
-        if (! $user) {
+
+        if (!$user) {
             abort(401);
         }
 
-        // Prendo il vendor dell’utente loggato
         $this->vendorAccount = VendorAccount::query()
             ->with(['user', 'category', 'offerings'])
             ->where('user_id', $user->id)
@@ -40,7 +40,10 @@ class VendorProfilePage extends Component
         $this->categories = Category::query()
             ->orderBy('name')
             ->get(['id', 'name'])
-            ->map(fn($c) => ['id' => $c->id, 'name' => $c->name])
+            ->map(fn ($category) => [
+                'id' => $category->id,
+                'name' => $category->name,
+            ])
             ->all();
 
         $this->fillForm();
@@ -48,39 +51,39 @@ class VendorProfilePage extends Component
 
     private function fillForm(): void
     {
-        $va = $this->vendorAccount;
+        $vendorAccount = $this->vendorAccount;
 
         $this->form = [
-            'status' => $va->status,
-            'account_type' => $va->account_type,
-            'category_id' => $va->category_id,
+            'status' => $vendorAccount->status,
+            'account_type' => $vendorAccount->account_type,
+            'category_id' => $vendorAccount->category_id,
 
             // COMPANY
-            'company_name' => $va->company_name,
-            'legal_entity_type' => $va->legal_entity_type,
-            'vat_number' => $va->vat_number,
+            'company_name' => $vendorAccount->company_name,
+            'legal_entity_type' => $vendorAccount->legal_entity_type,
+            'vat_number' => $vendorAccount->vat_number,
 
             // PRIVATE
-            'first_name' => $va->first_name,
-            'last_name' => $va->last_name,
+            'first_name' => $vendorAccount->first_name,
+            'last_name' => $vendorAccount->last_name,
 
             // COMMON
-            'tax_code' => $va->tax_code,
+            'tax_code' => $vendorAccount->tax_code,
 
             // LEGAL SEAT
-            'legal_country' => $va->legal_country,
-            'legal_region' => $va->legal_region,
-            'legal_city' => $va->legal_city,
-            'legal_postal_code' => $va->legal_postal_code,
-            'legal_address_line1' => $va->legal_address_line1,
+            'legal_country' => $vendorAccount->legal_country,
+            'legal_region' => $vendorAccount->legal_region,
+            'legal_city' => $vendorAccount->legal_city,
+            'legal_postal_code' => $vendorAccount->legal_postal_code,
+            'legal_address_line1' => $vendorAccount->legal_address_line1,
 
             // OPERATIONAL SEAT
-            'operational_same_as_legal' => (bool) $va->operational_same_as_legal,
-            'operational_country' => $va->operational_country,
-            'operational_region' => $va->operational_region,
-            'operational_city' => $va->operational_city,
-            'operational_postal_code' => $va->operational_postal_code,
-            'operational_address_line1' => $va->operational_address_line1,
+            'operational_same_as_legal' => (bool) $vendorAccount->operational_same_as_legal,
+            'operational_country' => $vendorAccount->operational_country,
+            'operational_region' => $vendorAccount->operational_region,
+            'operational_city' => $vendorAccount->operational_city,
+            'operational_postal_code' => $vendorAccount->operational_postal_code,
+            'operational_address_line1' => $vendorAccount->operational_address_line1,
         ];
 
         $this->originalForm = $this->form;
@@ -89,6 +92,7 @@ class VendorProfilePage extends Component
     public function enableEditing(): void
     {
         $this->authorize('update', $this->vendorAccount);
+
         $this->editing = true;
     }
 
@@ -97,6 +101,19 @@ class VendorProfilePage extends Component
         $this->editing = false;
         $this->form = $this->originalForm;
         $this->resetValidation();
+    }
+
+    public function updatedFormOperationalSameAsLegal($value): void
+    {
+        // Se la sede operativa coincide con la legale, ripuliamo i campi manuali
+        // per evitare dati inconsistenti.
+        if ((bool) $value === true) {
+            $this->form['operational_country'] = '';
+            $this->form['operational_region'] = '';
+            $this->form['operational_city'] = '';
+            $this->form['operational_postal_code'] = '';
+            $this->form['operational_address_line1'] = '';
+        }
     }
 
     protected function rules(): array
@@ -176,7 +193,7 @@ class VendorProfilePage extends Component
             'operational_address_line1' => $this->form['operational_address_line1'],
         ]);
 
-        // Se operativo = legale, copia i campi testo (come già fai)
+        // Se operativo = legale, copia i campi testuali.
         if ($this->vendorAccount->operational_same_as_legal) {
             $this->vendorAccount->operational_country = $this->vendorAccount->legal_country;
             $this->vendorAccount->operational_region = $this->vendorAccount->legal_region;
@@ -185,24 +202,22 @@ class VendorProfilePage extends Component
             $this->vendorAccount->operational_address_line1 = $this->vendorAccount->legal_address_line1;
         }
 
-        /**
-         * AUTO-GEOCODING
-         * - usiamo prima indirizzo operativo (quello usato per la distanza)
-         * - se fallisce, proviamo legale
-         * - se operativo = legale e troviamo coords, allineiamo anche legal_lat/lng
-         */
+        // Auto-geocoding:
+        // - prima proviamo la sede operativa
+        // - se fallisce, proviamo la sede legale
+        // - se operativo = legale e troviamo coordinate, allineiamo anche la sede legale
         $statusMessage = 'Profilo salvato con successo.';
 
-        $operationalAddr = [
+        $operationalAddress = [
             'address_line1' => $this->vendorAccount->operational_address_line1,
             'address_line2' => $this->vendorAccount->operational_address_line2 ?? null,
-            'postal_code'   => $this->vendorAccount->operational_postal_code,
-            'city'          => $this->vendorAccount->operational_city,
-            'region'        => $this->vendorAccount->operational_region,
-            'country'       => $this->vendorAccount->operational_country ?? 'IT',
+            'postal_code' => $this->vendorAccount->operational_postal_code,
+            'city' => $this->vendorAccount->operational_city,
+            'region' => $this->vendorAccount->operational_region,
+            'country' => $this->vendorAccount->operational_country ?? 'IT',
         ];
 
-        $coords = $geo->geocodeItaly($operationalAddr);
+        $coords = $geo->geocodeItaly($operationalAddress);
 
         if ($coords) {
             $this->vendorAccount->operational_lat = $coords['lat'];
@@ -213,29 +228,28 @@ class VendorProfilePage extends Component
                 $this->vendorAccount->legal_lng = $coords['lng'];
             }
         } else {
-            // fallback: prova sede legale
-            $legalAddr = [
+            $legalAddress = [
                 'address_line1' => $this->vendorAccount->legal_address_line1,
                 'address_line2' => $this->vendorAccount->legal_address_line2 ?? null,
-                'postal_code'   => $this->vendorAccount->legal_postal_code,
-                'city'          => $this->vendorAccount->legal_city,
-                'region'        => $this->vendorAccount->legal_region,
-                'country'       => $this->vendorAccount->legal_country ?? 'IT',
+                'postal_code' => $this->vendorAccount->legal_postal_code,
+                'city' => $this->vendorAccount->legal_city,
+                'region' => $this->vendorAccount->legal_region,
+                'country' => $this->vendorAccount->legal_country ?? 'IT',
             ];
 
-            $coordsLegal = $geo->geocodeItaly($legalAddr);
+            $coordsLegal = $geo->geocodeItaly($legalAddress);
 
             if ($coordsLegal) {
                 $this->vendorAccount->legal_lat = $coordsLegal['lat'];
                 $this->vendorAccount->legal_lng = $coordsLegal['lng'];
 
-                // se l'operativa non è geocodificabile, almeno usiamo la legale come fallback distanza
+                // Se l'operativa non è geocodificabile, almeno usiamo la legale come fallback.
                 if (!$this->vendorAccount->operational_lat || !$this->vendorAccount->operational_lng) {
                     $this->vendorAccount->operational_lat = $coordsLegal['lat'];
                     $this->vendorAccount->operational_lng = $coordsLegal['lng'];
                 }
             } else {
-                $statusMessage = 'Profilo salvato, ma non sono riuscito a geolocalizzare l’indirizzo. Verifica CAP/città e numero civico.';
+                $statusMessage = 'Profilo salvato, ma non sono riuscito a geolocalizzare l’indirizzo. Verifica CAP, città e numero civico.';
             }
         }
 
