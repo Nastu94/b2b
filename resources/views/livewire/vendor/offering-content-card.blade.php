@@ -1,10 +1,9 @@
-{{-- resources/views/livewire/vendor/offering-content-card.blade.php --}}
 <div class="rounded-xl border border-gray-200 bg-white p-5">
     <div class="flex items-start justify-between gap-3">
         <div>
             <h4 class="text-sm font-semibold text-gray-900">{{ $offering->name }}</h4>
             <p class="mt-1 text-xs text-gray-500">
-                Inserisci descrizione e immagini per questo servizio.
+                Inserisci descrizione, modalità di servizio e immagini per questo servizio.
             </p>
         </div>
 
@@ -23,16 +22,51 @@
         <div>
             <label class="text-xs font-medium text-gray-700">Titolo</label>
             <input type="text" wire:model.defer="title" class="mt-1 w-full rounded border-gray-300" />
+            @error('title')
+                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
         </div>
 
         <div>
             <label class="text-xs font-medium text-gray-700">Descrizione breve</label>
             <input type="text" wire:model.defer="short_description" class="mt-1 w-full rounded border-gray-300" />
+            @error('short_description')
+                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
+        </div>
+
+        <div>
+            <label class="text-xs font-medium text-gray-700">Modalità servizio</label>
+            <select wire:model.live="service_mode" class="mt-1 w-full rounded border-gray-300">
+                <option value="FIXED_LOCATION">In sede</option>
+                <option value="MOBILE">Mobile</option>
+            </select>
+            @error('service_mode')
+                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
+        </div>
+
+        <div>
+            <label class="text-xs font-medium text-gray-700">Raggio operativo (km)</label>
+            <input
+                type="number"
+                min="1"
+                max="500"
+                wire:model.defer="service_radius_km"
+                @if($service_mode !== 'MOBILE') disabled @endif
+                class="mt-1 w-full rounded border-gray-300 disabled:bg-gray-100 disabled:text-gray-500"
+            />
+            @error('service_radius_km')
+                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
         </div>
 
         <div class="md:col-span-2">
             <label class="text-xs font-medium text-gray-700">Descrizione completa</label>
             <textarea wire:model.defer="description" rows="4" class="mt-1 w-full rounded border-gray-300"></textarea>
+            @error('description')
+                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
         </div>
 
         <div>
@@ -72,7 +106,6 @@
         </div>
     </div>
 
-    {{-- gallery preview --}}
     @if($profile->images->count())
         <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
             @foreach($profile->images as $img)

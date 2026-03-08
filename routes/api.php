@@ -2,27 +2,41 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
 use App\Http\Controllers\Api\Auth\MeController;
 use App\Http\Controllers\Api\VendorSearchController;
 use App\Http\Controllers\Api\AvailabilityController;
 use App\Http\Controllers\Api\SlotController;
 
-/**
- * Route API protetta da Sanctum.
- *
- * Nota:
- * - Manteniamo URI e middleware identici.
- * - Spostiamo la logica in un Controller per poterla documentare bene con Scribe.
- */
 Route::middleware('auth:sanctum')->get('/user', MeController::class);
 
-// Vendor search (per PrestaShop)
-Route::get('/vendors/search', [VendorSearchController::class, 'search']);
+// Tutte le rotte sotto questo gruppo sono accessibili solo dal bridge
+// PrestaShop tramite il middleware "booking.bridge".
+Route::middleware('booking.bridge')->group(function () {
 
-// Disponibilità calendario
-Route::get('/availability', [AvailabilityController::class, 'index']);
+    // Ricerca vendor basata su:
+    // - città selezionata
+    // - data dell'evento
+    //
+    // Il sistema restituisce:
+    // - vendor disponibili per quella data
+    // - raggruppati per categoria
+    // - con i servizi offerti
+    //
+    // Se non esistono vendor disponibili nella città selezionata,
+    // il sistema restituisce i vendor più vicini ordinati per distanza.
+    Route::get('/vendors/search', [VendorSearchController::class, 'search']);
 
-// Gestione slot (hold/confirm/release)
-Route::post('/slots/hold', [SlotController::class, 'hold']);
-Route::post('/slots/confirm', [SlotController::class, 'confirm']);
-Route::post('/slots/release', [SlotController::class, 'release']);
+    // Recupera la disponibilità degli slot per uno specifico vendor
+    // in un intervallo di date.
+    Route::get('/availability', [AvailabilityController::class, 'index']);
+
+    // Blocca temporaneamente uno slot durante il checkout.
+    Route::post('/slots/hold', [SlotController::class, 'hold']);
+
+    // Conferma lo slot dopo pagamento accettato.
+    Route::post('/slots/confirm', [SlotController::class, 'confirm']);
+
+    // Libera lo slot in caso di annullamento o timeout.
+    Route::post('/slots/release', [SlotController::class, 'release']);
+});

@@ -1,187 +1,280 @@
 <?php
 
-// Namespace del controller API per la gestione degli slot
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Booking;
 use App\Models\SlotLock;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * SlotController
- * Controller per la gestione del blocco e prenotazione degli slot
+ * Gestione hold/confirm/release degli slot (Booking Bridge)
  */
 class SlotController extends Controller
 {
     /**
-     * Metodo hold: mette in hold uno slot per 15 minuti
-     * 
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * HOLD: mette in hold uno slot per 15 minuti (TTL).
+     * Ritorna 409 se lo slot è già occupato (HOLD non scaduto o BOOKED).
      */
     public function hold(Request $request)
     {
-        // Valida i dati della richiesta
         $validated = $request->validate([
             'vendor_account_id' => 'required|integer|exists:vendor_accounts,id',
-            'vendor_slot_id' => 'required|integer|exists:vendor_slots,id',
-            'date' => 'required|date_format:Y-m-d|after_or_equal:today',
+            'vendor_slot_id'    => 'required|integer|exists:vendor_slots,id',
+            'date'              => 'required|date_format:Y-m-d|after_or_equal:today',
         ]);
 
+        $holdToken = (string) Str::uuid();
+        $expiresAt = now()->addMinutes(15);
+
         try {
-            // Verifica se esiste già un lock attivo per lo slot
-            $existingLock = SlotLock::where('vendor_account_id', $validated['vendor_account_id'])
-                ->where('vendor_slot_id', $validated['vendor_slot_id'])
-                ->where('date', $validated['date'])
-                ->where('is_active', true)
-                // Controlla se lo slot è già BOOKED oppure se è in HOLD e non è scaduto
-                ->where(function ($q) {
-                    $q->where('status', 'BOOKED')
-                        ->orWhere(function ($sub) {
-                            $sub->where('status', 'HOLD')
-                                ->where('expires_at', '>', now());
-                        });
-                })
-                ->exists();
-
-            // Se esiste un lock, lo slot non è disponibile
-            if ($existingLock) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Slot non disponibile',
-                ], 409);
-            }
-
-            // Genera un token UUID univoco per l'hold
-            $holdToken = Str::uuid()->toString();
-            // Imposta la scadenza a 15 minuti da adesso
-            $expiresAt = now()->addMinutes(15);
-
-            // Crea un nuovo record di lock con stato HOLD
+            // Tentativo diretto: il DB dovrebbe impedire duplicati con vincoli (consigliato).
             $lock = SlotLock::create([
                 'vendor_account_id' => $validated['vendor_account_id'],
-                'vendor_slot_id' => $validated['vendor_slot_id'],
-                'date' => $validated['date'],
-                'status' => 'HOLD',
-                'hold_token' => $holdToken,
-                'expires_at' => $expiresAt,
-                'is_active' => true,
+                'vendor_slot_id'    => $validated['vendor_slot_id'],
+                'date'              => $validated['date'],
+                'status'            => 'HOLD',
+                'hold_token'        => $holdToken,
+                'expires_at'        => $expiresAt,
+                'is_active'         => true,
             ]);
 
-            // Ritorna la risposta con il token e i dettagli dell'hold
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'hold_token' => $holdToken,
-                    'expires_at' => $expiresAt->toIso8601String(),
-                    'lock_id' => $lock->id,
-                    'ttl_seconds' => 900, // Time To Live: 15 minuti in secondi
+                    'hold_token'  => $holdToken,
+                    'expires_at'  => $expiresAt->toIso8601String(),
+                    'lock_id'     => $lock->id,
+                    'ttl_seconds' => 900,
                 ],
             ], 201);
-        } catch (\Exception $e) {
-            // Gestisce gli errori generici
+        } catch (QueryException $e) {
+            // Collisione su vincolo unico o altra condizione DB: slot occupato
             return response()->json([
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error'   => 'Slot non disponibile',
+            ], 409);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'error'   => 'Errore hold',
             ], 500);
         }
     }
 
     /**
-     * Metodo confirm: conferma l'hold e trasforma lo stato in BOOKED
-     * 
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * CONFIRM: dopo pagamento accettato converte l'HOLD in BOOKED e crea la Booking.
+     * Requisito: IDEMPOTENTE rispetto a (prestashop_order_id, prestashop_order_line_id).
      */
     public function confirm(Request $request)
     {
-        // Valida i dati della richiesta
         $validated = $request->validate([
-            'hold_token' => 'required|uuid',
-            'order_id' => 'required|string',
-            'paid_at' => 'required|date',
+            'hold_token'               => 'required|uuid',
+            'prestashop_order_id'      => 'required|string',
+            'prestashop_order_line_id' => 'required|string',
+            'paid_at'                  => 'required|date',
+            'customer_data'            => 'nullable|array',
+            'total_amount'             => 'nullable|numeric|min:0',
         ]);
 
-        // Cerca il lock con il token e stato HOLD attivo
-        $lock = SlotLock::where('hold_token', $validated['hold_token'])
-            ->where('status', 'HOLD')
-            ->where('is_active', true)
+        // Idempotenza primaria: se esiste già la booking per ordine+riga, ritorna quella
+        $existing = Booking::where('prestashop_order_id', $validated['prestashop_order_id'])
+            ->where('prestashop_order_line_id', $validated['prestashop_order_line_id'])
             ->first();
 
-        // Se il lock non esiste, ritorna errore 404
-        if (!$lock) {
+        if ($existing) {
             return response()->json([
-                'success' => false,
-                'error' => 'Hold non trovato',
-            ], 404);
+                'success' => true,
+                'data' => [
+                    'lock_id'            => $existing->slot_lock_id,
+                    'booking_id'         => $existing->id,
+                    'status'             => 'BOOKED',
+                    'prestashop_order_id'=> $existing->prestashop_order_id,
+                ],
+            ], 200);
         }
 
-        // Verifica se l'hold è scaduto
-        if (Carbon::parse($lock->expires_at)->isPast()) {
-            // Aggiorna lo stato a EXPIRED e disattiva il lock
-            $lock->update(['status' => 'EXPIRED', 'is_active' => false]);
+        try {
+            return DB::transaction(function () use ($validated) {
 
+                // Lock pessimista sulla riga SlotLock per evitare doppie confirm concorrenti
+                $lock = SlotLock::where('hold_token', $validated['hold_token'])
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$lock) {
+                    return response()->json([
+                        'success' => false,
+                        'error'   => 'Hold non trovato',
+                    ], 404);
+                }
+
+                /**
+                 * Idempotenza secondaria:
+                 * se la lock è già BOOKED, questa è una retry.
+                 * Ritorniamo 200 e cerchiamo la booking collegata.
+                 */
+                if ($lock->status === 'BOOKED') {
+                    $booking = Booking::where('slot_lock_id', $lock->id)->first();
+
+                    return response()->json([
+                        'success' => true,
+                        'data' => [
+                            'lock_id'            => $lock->id,
+                            'booking_id'          => $booking?->id,
+                            'status'              => 'BOOKED',
+                            'prestashop_order_id' => $validated['prestashop_order_id'],
+                        ],
+                    ], 200);
+                }
+
+                // Deve essere HOLD per poter confermare
+                if ($lock->status !== 'HOLD') {
+                    return response()->json([
+                        'success' => false,
+                        'error'   => 'Lock non confermabile',
+                        'details' => ['status' => $lock->status],
+                    ], 409);
+                }
+
+                // Scadenza hold
+                if ($lock->expires_at && Carbon::parse($lock->expires_at)->isPast()) {
+                    $lock->update([
+                        'status'    => 'EXPIRED',
+                        'is_active' => false,
+                    ]);
+
+                    return response()->json([
+                        'success' => false,
+                        'error'   => 'Hold scaduto',
+                    ], 410);
+                }
+
+                // Crea booking (se vincolo UNIQUE su (prestashop_order_id, prestashop_order_line_id),
+                // eventuali race concorrenti verranno gestite sotto come "già creata").
+                try {
+                    $booking = Booking::create([
+                        'slot_lock_id'             => $lock->id,
+                        'vendor_account_id'        => $lock->vendor_account_id,
+                        'vendor_slot_id'           => $lock->vendor_slot_id,
+                        'event_date'               => $lock->date,
+
+                        'prestashop_order_id'       => $validated['prestashop_order_id'],
+                        'prestashop_order_line_id'  => $validated['prestashop_order_line_id'],
+                        'paid_at'                   => $validated['paid_at'],
+
+                        'customer_data'             => $validated['customer_data'] ?? null,
+                        'total_amount'              => $validated['total_amount'] ?? null,
+
+                        'status' => 'PENDING_VENDOR_CONFIRMATION',
+                    ]);
+                } catch (QueryException $e) {
+                    // Probabile duplicate key per retry/parallel confirm: recupero booking esistente
+                    $booking = Booking::where('prestashop_order_id', $validated['prestashop_order_id'])
+                        ->where('prestashop_order_line_id', $validated['prestashop_order_line_id'])
+                        ->first();
+
+                    if (!$booking) {
+                        throw $e;
+                    }
+                }
+
+                // Finalizza lock: BOOKED deve restare "attiva" perché occupa lo slot
+                $lock->update([
+                    'status'     => 'BOOKED',
+                    'is_active'  => true,
+                    // Se la colonna expires_at non è nullable, NON mettere null:
+                    // in quel caso usa una data molto futura, o (meglio) rendi nullable via migration.
+                    'expires_at' => null,
+
+                    // Se la colonna booking_id esiste in slot_locks, collega.
+                    // Se non esiste, questa riga va rimossa per evitare errori SQL.
+                    'booking_id' => $booking->id,
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'lock_id'            => $lock->id,
+                        'booking_id'          => $booking->id,
+                        'status'              => 'BOOKED',
+                        'prestashop_order_id' => $validated['prestashop_order_id'],
+                    ],
+                ], 200);
+            });
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Hold scaduto',
-            ], 410);
+                'error'   => 'Errore confirm',
+            ], 500);
         }
-
-        // Cambia lo stato da HOLD a BOOKED e azzera la data di scadenza
-        $lock->update([
-            'status' => 'BOOKED',
-            'expires_at' => null,
-        ]);
-
-        // Ritorna la conferma della prenotazione
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'lock_id' => $lock->id,
-                'status' => 'BOOKED',
-                'order_id' => $validated['order_id'],
-            ],
-        ], 200);
     }
 
     /**
-     * Metodo release: rilascia un hold cancellando la prenotazione
-     * 
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * RELEASE: rilascia un HOLD (non un BOOKED).
+     * - Se è già BOOKED: 409
+     * - Se HOLD scaduto: 410
      */
     public function release(Request $request)
     {
-        // Valida il token della richiesta
         $validated = $request->validate([
             'hold_token' => 'required|uuid',
         ]);
 
-        // Cerca il lock attivo con il token fornito
-        $lock = SlotLock::where('hold_token', $validated['hold_token'])
-            ->where('is_active', true)
-            ->first();
+        try {
+            return DB::transaction(function () use ($validated) {
 
-        // Se il lock non esiste, ritorna errore 404
-        if (!$lock) {
+                $lock = SlotLock::where('hold_token', $validated['hold_token'])
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$lock) {
+                    return response()->json([
+                        'success' => false,
+                        'error'   => 'Lock non trovato',
+                    ], 404);
+                }
+
+                if ($lock->status === 'BOOKED') {
+                    return response()->json([
+                        'success' => false,
+                        'error'   => 'Lock già BOOKED (non rilasciabile con release)',
+                    ], 409);
+                }
+
+                if ($lock->status === 'HOLD' && $lock->expires_at && Carbon::parse($lock->expires_at)->isPast()) {
+                    $lock->update([
+                        'status'    => 'EXPIRED',
+                        'is_active' => false,
+                    ]);
+
+                    return response()->json([
+                        'success' => false,
+                        'error'   => 'Hold scaduto',
+                    ], 410);
+                }
+
+                // Rilascio esplicito
+                $lock->update([
+                    'status'    => 'CANCELLED',
+                    'is_active' => false,
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Hold rilasciato',
+                ], 200);
+            });
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Lock non trovato',
-            ], 404);
+                'error'   => 'Errore release',
+            ], 500);
         }
-
-        // Cambia lo stato a CANCELLED e disattiva il lock
-        $lock->update([
-            'status' => 'CANCELLED',
-            'is_active' => false,
-        ]);
-
-        // Ritorna la conferma del rilascio
-        return response()->json([
-            'success' => true,
-            'message' => 'Hold rilasciato',
-        ], 200);
     }
 }

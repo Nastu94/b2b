@@ -15,6 +15,7 @@
 
             $oldAccountType = old('account_type', 'COMPANY');
             $oldOperationalSame = old('operational_same_as_legal', '1');
+
             $operationalSameChecked =
                 $oldOperationalSame === '1' ||
                 $oldOperationalSame === 1 ||
@@ -27,10 +28,8 @@
                 class="w-full max-w-6xl mx-auto space-y-6">
                 @csrf
 
-                {{-- GRID 2 COLONNE (desktop), 1 COLONNA (mobile) --}}
                 <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
-                    {{-- DATI ACCESSO --}}
                     <div class="rounded-xl border border-gray-200 bg-white p-5">
                         <div class="flex items-start justify-between gap-3">
                             <div>
@@ -66,13 +65,11 @@
                         </div>
                     </div>
 
-                    {{-- TIPO + CATEGORIA --}}
                     <div class="rounded-xl border border-gray-200 bg-white p-5">
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <h3 class="text-sm font-semibold text-gray-900">Profilo vendor</h3>
-                                <p class="mt-1 text-xs text-gray-500">Seleziona tipo account e categoria di servizio.
-                                </p>
+                                <p class="mt-1 text-xs text-gray-500">Seleziona tipo account e categoria di servizio.</p>
                             </div>
                         </div>
 
@@ -108,9 +105,12 @@
                                 </select>
                             </div>
                         </div>
+
+                        <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+                            La modalità di servizio e il raggio operativo verranno configurati successivamente nei singoli servizi del vendor.
+                        </div>
                     </div>
 
-                    {{-- DATI AZIENDA --}}
                     <div id="company-fields"
                         class="xl:col-span-2 rounded-xl border border-gray-200 bg-white p-5 {{ $oldAccountType === 'PRIVATE' ? 'hidden' : '' }}">
                         <div class="flex items-start justify-between gap-3">
@@ -145,7 +145,6 @@
                         </div>
                     </div>
 
-                    {{-- DATI PRIVATO --}}
                     <div id="private-fields"
                         class="xl:col-span-2 rounded-xl border border-gray-200 bg-white p-5 {{ $oldAccountType === 'PRIVATE' ? '' : 'hidden' }}">
                         <div class="flex items-start justify-between gap-3">
@@ -180,7 +179,6 @@
                         </div>
                     </div>
 
-                    {{-- SEDE LEGALE --}}
                     <div class="xl:col-span-2 rounded-xl border border-gray-200 bg-white p-5">
                         <div class="flex items-start justify-between gap-3">
                             <div>
@@ -222,13 +220,11 @@
                         </div>
                     </div>
 
-                    {{-- SEDE OPERATIVA --}}
                     <div class="xl:col-span-2 rounded-xl border border-gray-200 bg-white p-5">
                         <div class="flex items-center justify-between gap-4">
                             <div>
                                 <h3 class="text-sm font-semibold text-gray-900">Sede Operativa</h3>
-                                <p class="mt-1 text-xs text-gray-500">Se diversa dalla sede legale, inserisci i dati.
-                                </p>
+                                <p class="mt-1 text-xs text-gray-500">Se diversa dalla sede legale, inserisci i dati.</p>
                             </div>
 
                             <label class="flex items-center gap-2 text-sm">
@@ -274,7 +270,6 @@
                         </div>
                     </div>
 
-                    {{-- TERMS (FULL WIDTH) --}}
                     @if (Laravel\Jetstream\Jetstream::hasTermsAndPrivacyPolicyFeature())
                         <div class="xl:col-span-2 rounded-xl border border-gray-200 bg-white p-5">
                             <x-label for="terms">
@@ -288,7 +283,6 @@
                         </div>
                     @endif
 
-                    {{-- FOOT ACTIONS (FULL WIDTH) --}}
                     <div class="xl:col-span-2 flex items-center justify-between pt-2">
                         <a class="underline text-sm text-gray-600 hover:text-gray-900" href="{{ route('login') }}">
                             Già registrato?
@@ -299,11 +293,10 @@
                         </x-button>
                     </div>
 
-                </div>{{-- /grid --}}
+                </div>
 
             </form>
 
-            {{-- Toggle JS leggero (non rompe nulla) --}}
             <script>
                 (function() {
                     const form = document.getElementById('vendor-register-form');
@@ -318,6 +311,7 @@
 
                     function syncAccountType() {
                         const val = form.querySelector('input[name="account_type"]:checked')?.value;
+
                         if (val === 'PRIVATE') {
                             company.classList.add('hidden');
                             priv.classList.remove('hidden');
@@ -329,11 +323,15 @@
 
                     function syncOperational() {
                         if (!opSame || !opFields) return;
-                        if (opSame.checked) opFields.classList.add('hidden');
-                        else opFields.classList.remove('hidden');
+
+                        if (opSame.checked) {
+                            opFields.classList.add('hidden');
+                        } else {
+                            opFields.classList.remove('hidden');
+                        }
                     }
 
-                    accountRadios.forEach(r => r.addEventListener('change', syncAccountType));
+                    accountRadios.forEach(radio => radio.addEventListener('change', syncAccountType));
                     opSame?.addEventListener('change', syncOperational);
 
                     syncAccountType();

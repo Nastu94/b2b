@@ -4,7 +4,6 @@ namespace App\Livewire\Admin\Vendors;
 
 use Livewire\Component;
 use Livewire\Attributes\Layout;
-use App\Actions\Fortify\CreateNewUser;
 use App\Models\Category;
 use App\Models\VendorAccount;
 use App\Services\CreateVendorService;
@@ -16,6 +15,7 @@ use Illuminate\Validation\Rule;
 class VendorCreatePage extends Component
 {
     use AuthorizesRequests;
+
     public array $form = [
         // accesso
         'name' => '',
@@ -61,19 +61,18 @@ class VendorCreatePage extends Component
             abort(401);
         }
 
-        // Porta area admin
         abort_unless($user->can('admin.access'), 403);
 
-        // Policy: creazione vendor (usa vendors.manage)
         $this->authorize('create', VendorAccount::class);
 
-        // default un po’ più sensato
+        // Default iniziali coerenti con la registrazione pubblica.
         $this->form['legal_country'] = $this->form['legal_country'] ?: 'IT';
     }
 
     public function updatedFormOperationalSameAsLegal($value): void
     {
-        // se l’admin spunta "uguale", ripuliamo i campi operativi (evita dati inconsistenti)
+        // Se la sede operativa coincide con la legale, ripuliamo i campi operativi
+        // per evitare dati incoerenti nel form.
         if ((bool) $value === true) {
             $this->form['operational_country'] = '';
             $this->form['operational_region'] = '';
@@ -106,22 +105,23 @@ class VendorCreatePage extends Component
             'form.operational_same_as_legal' => ['boolean'],
         ];
 
-        // blocco COMPANY
+        // Blocco COMPANY.
         if ($this->form['account_type'] === 'COMPANY') {
             $rules['form.company_name'] = ['required', 'string', 'max:255'];
             $rules['form.legal_entity_type'] = ['nullable', 'string', 'max:255'];
             $rules['form.vat_number'] = ['required', 'string', 'max:50'];
 
-            // in company tax_code non obbligatorio (nel tuo register nemmeno c’è)
             $rules['form.tax_code'] = ['nullable', 'string', 'max:50'];
             $rules['form.first_name'] = ['nullable', 'string', 'max:255'];
             $rules['form.last_name'] = ['nullable', 'string', 'max:255'];
         }
 
-        // blocco PRIVATE
+        // Blocco PRIVATE.
         if ($this->form['account_type'] === 'PRIVATE') {
             $rules['form.first_name'] = ['required', 'string', 'max:255'];
             $rules['form.last_name'] = ['required', 'string', 'max:255'];
+
+            // Manteniamo il comportamento coerente con il form admin attuale.
             $rules['form.tax_code'] = ['nullable', 'string', 'max:50'];
 
             $rules['form.company_name'] = ['nullable', 'string', 'max:255'];
@@ -129,7 +129,7 @@ class VendorCreatePage extends Component
             $rules['form.vat_number'] = ['nullable', 'string', 'max:50'];
         }
 
-        // sede operativa (solo se NON uguale)
+        // Sede operativa.
         if (!($this->form['operational_same_as_legal'] ?? true)) {
             $rules['form.operational_country'] = ['nullable', 'string', 'max:255'];
             $rules['form.operational_region'] = ['nullable', 'string', 'max:255'];
@@ -137,7 +137,8 @@ class VendorCreatePage extends Component
             $rules['form.operational_postal_code'] = ['nullable', 'string', 'max:50'];
             $rules['form.operational_address_line1'] = ['nullable', 'string', 'max:255'];
         } else {
-            // se uguale, non validiamo e le lasciamo vuote (verranno copiate nel save)
+            // Se la sede operativa coincide con quella legale, i campi restano vuoti
+            // e verranno popolati nel save.
             $rules['form.operational_country'] = ['nullable'];
             $rules['form.operational_region'] = ['nullable'];
             $rules['form.operational_city'] = ['nullable'];
@@ -154,6 +155,7 @@ class VendorCreatePage extends Component
 
         $this->validate();
 
+        // Se la sede operativa coincide con la sede legale, copiamo i dati.
         if ($this->form['operational_same_as_legal']) {
             $this->form['operational_country'] = $this->form['legal_country'];
             $this->form['operational_region'] = $this->form['legal_region'];
@@ -174,7 +176,7 @@ class VendorCreatePage extends Component
         $this->authorize('create', VendorAccount::class);
 
         return view('livewire.admin.vendors.vendor-create-page', [
-            'categories' => Category::where('is_active', true)->orderBy('sort_order')->get(['id','name']),
+            'categories' => Category::where('is_active', true)->orderBy('sort_order')->get(['id', 'name']),
             'title' => 'Crea Vendor',
         ]);
     }

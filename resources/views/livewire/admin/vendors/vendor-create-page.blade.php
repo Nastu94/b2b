@@ -1,12 +1,10 @@
-{{-- resources/views/livewire/admin/vendors/vendor-create-page.blade.php --}}
 <div class="space-y-6">
 
-    {{-- Header --}}
     <div class="flex items-start justify-between gap-4">
         <div>
             <h1 class="text-2xl font-semibold text-slate-900">Crea Vendor</h1>
             <p class="mt-1 text-sm text-slate-500">
-                Compila il form per creare un nuovo account vendor (stessa struttura del register).
+                Compila il form per creare un nuovo account vendor.
             </p>
         </div>
 
@@ -16,17 +14,14 @@
         </a>
     </div>
 
-    {{-- Flash --}}
     @if (session('status'))
         <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800 text-sm">
             {{ session('status') }}
         </div>
     @endif
 
-    {{-- Form --}}
     <form wire:submit.prevent="save" class="space-y-6">
 
-        {{-- DATI ACCESSO --}}
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
             <h2 class="text-lg font-semibold text-slate-900">Dati accesso</h2>
 
@@ -60,7 +55,6 @@
             </div>
         </div>
 
-        {{-- TIPO + CATEGORIA --}}
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
             <h2 class="text-lg font-semibold text-slate-900">Tipo account e categoria</h2>
 
@@ -96,9 +90,12 @@
                     @error('form.category_id') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                 </div>
             </div>
+
+            <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                La modalità di servizio e il raggio operativo verranno configurati nei singoli servizi del vendor.
+            </div>
         </div>
 
-        {{-- DATI AZIENDA / PRIVATO --}}
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
             <h2 class="text-lg font-semibold text-slate-900">Dati anagrafici</h2>
 
@@ -157,7 +154,6 @@
             @endif
         </div>
 
-        {{-- SEDE LEGALE --}}
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
             <h2 class="text-lg font-semibold text-slate-900">Sede Legale</h2>
 
@@ -194,7 +190,6 @@
             </div>
         </div>
 
-        {{-- SEDE OPERATIVA --}}
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
             <div class="flex items-center justify-between gap-4">
                 <h2 class="text-lg font-semibold text-slate-900">Sede Operativa</h2>
@@ -244,7 +239,6 @@
             @endif
         </div>
 
-        {{-- Actions --}}
         <div class="flex justify-end">
             <button type="submit"
                     class="text-sm px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition">

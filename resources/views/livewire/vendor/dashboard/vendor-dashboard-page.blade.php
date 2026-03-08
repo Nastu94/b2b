@@ -20,7 +20,7 @@
                 Stato account
             </div>
             <div class="mt-2 text-lg font-semibold text-slate-900">
-                {{ $status }}
+                {{ $status === 'ACTIVE' ? 'Attivo' : 'Inattivo' }}
             </div>
         </div>
 

@@ -17,14 +17,14 @@ class CreateNewUser implements CreatesNewUsers
 
     public function create(array $input): User
     {
-        // 1) VALIDAZIONE BASE + CAMPI VENDOR
+        // Validazione base utente + campi vendor.
         Validator::make($input, [
             // Jetstream
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => $this->passwordRules(),
 
-            // Terms (se attivi)
+            // Terms
             'terms' => Jetstream::hasTermsAndPrivacyPolicyFeature()
                 ? ['accepted', 'required']
                 : ['sometimes'],
@@ -33,84 +33,106 @@ class CreateNewUser implements CreatesNewUsers
             'account_type' => ['required', Rule::in(['COMPANY', 'PRIVATE'])],
             'category_id' => ['required', 'integer', 'exists:categories,id'],
 
-            // Dati fiscali minimi (condizionali)
+            // Dati fiscali minimi
             'company_name' => ['nullable', 'string', 'max:255'],
             'vat_number' => ['nullable', 'string', 'max:50'],
             'legal_entity_type' => ['nullable', 'string', 'max:50'],
-
             'tax_code' => ['nullable', 'string', 'max:50'],
 
             // Sede legale minima
             'legal_city' => ['required', 'string', 'max:255'],
             'legal_postal_code' => ['required', 'string', 'max:20'],
             'legal_address_line1' => ['required', 'string', 'max:255'],
+
+            // Campi opzionali già presenti nel form
+            'legal_country' => ['nullable', 'string', 'max:2'],
+            'legal_region' => ['nullable', 'string', 'max:255'],
         ])->after(function ($validator) use ($input) {
             $type = $input['account_type'] ?? null;
 
+            // Azienda: ragione sociale + partita IVA obbligatorie.
             if ($type === 'COMPANY') {
-                // Azienda: ragione sociale + P.IVA obbligatorie
-                if (empty(trim((string)($input['company_name'] ?? '')))) {
-                    $validator->errors()->add('company_name', 'La ragione sociale è obbligatoria per un account azienda.');
+                if (empty(trim((string) ($input['company_name'] ?? '')))) {
+                    $validator->errors()->add(
+                        'company_name',
+                        'La ragione sociale è obbligatoria per un account azienda.'
+                    );
                 }
-                if (empty(trim((string)($input['vat_number'] ?? '')))) {
-                    $validator->errors()->add('vat_number', 'La partita IVA è obbligatoria per un account azienda.');
+
+                if (empty(trim((string) ($input['vat_number'] ?? '')))) {
+                    $validator->errors()->add(
+                        'vat_number',
+                        'La partita IVA è obbligatoria per un account azienda.'
+                    );
                 }
             }
 
+            // Privato: codice fiscale obbligatorio.
             if ($type === 'PRIVATE') {
-                // Privato: codice fiscale obbligatorio
-                if (empty(trim((string)($input['tax_code'] ?? '')))) {
-                    $validator->errors()->add('tax_code', 'Il codice fiscale è obbligatorio per un account privato.');
+                if (empty(trim((string) ($input['tax_code'] ?? '')))) {
+                    $validator->errors()->add(
+                        'tax_code',
+                        'Il codice fiscale è obbligatorio per un account privato.'
+                    );
                 }
             }
         })->validate();
 
-        // 2) CREA USER
+        // Crea user.
         $user = User::create([
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => Hash::make($input['password']),
         ]);
 
-        // 3) ASSEGNA RUOLO VENDOR
+        // Assegna ruolo vendor.
         $user->assignRole('vendor');
 
-        // 4) CREA VENDOR ACCOUNT
+        // Crea vendor account.
         $vendor = VendorAccount::create([
             'user_id' => $user->id,
             'category_id' => (int) $input['category_id'],
             'account_type' => $input['account_type'],
 
-            // fiscali
-            'company_name' => $input['account_type'] === 'COMPANY' ? ($input['company_name'] ?? null) : null,
-            'vat_number' => $input['account_type'] === 'COMPANY' ? ($input['vat_number'] ?? null) : null,
-            'legal_entity_type' => $input['account_type'] === 'COMPANY' ? ($input['legal_entity_type'] ?? null) : null,
+            // Dati fiscali
+            'company_name' => $input['account_type'] === 'COMPANY'
+                ? ($input['company_name'] ?? null)
+                : null,
+            'vat_number' => $input['account_type'] === 'COMPANY'
+                ? ($input['vat_number'] ?? null)
+                : null,
+            'legal_entity_type' => $input['account_type'] === 'COMPANY'
+                ? ($input['legal_entity_type'] ?? null)
+                : null,
+            'tax_code' => $input['account_type'] === 'PRIVATE'
+                ? ($input['tax_code'] ?? null)
+                : null,
 
-            'tax_code' => $input['account_type'] === 'PRIVATE' ? ($input['tax_code'] ?? null) : null,
-
-            // sede legale minima
-            'legal_country' => 'IT',
+            // Sede legale minima
+            'legal_country' => $input['legal_country'] ?? 'IT',
+            'legal_region' => $input['legal_region'] ?? null,
             'legal_city' => $input['legal_city'],
             'legal_postal_code' => $input['legal_postal_code'],
             'legal_address_line1' => $input['legal_address_line1'],
 
-            // operativa (per ora uguale)
+            // Per ora manteniamo la sede operativa uguale alla legale.
             'operational_same_as_legal' => true,
 
-            // stato
+            // Stato
             'status' => 'ACTIVE',
             'activated_at' => now(),
         ]);
 
-        // 5) GEOCODING: salva legal_lat/lng e, se operativa=legale, copia su operativa
+        // Geocoding della sede legale.
+        // Se la sede operativa coincide, copiamo le stesse coordinate.
         try {
             $coords = app(GeocodingService::class)->geocodeItaly([
                 'address_line1' => $vendor->legal_address_line1,
                 'address_line2' => $vendor->legal_address_line2,
-                'postal_code'   => $vendor->legal_postal_code,
-                'city'          => $vendor->legal_city,
-                'region'        => $vendor->legal_region,
-                'country'       => $vendor->legal_country ?? 'IT',
+                'postal_code' => $vendor->legal_postal_code,
+                'city' => $vendor->legal_city,
+                'region' => $vendor->legal_region,
+                'country' => $vendor->legal_country ?? 'IT',
             ]);
 
             if ($coords && ($coords['lat'] ?? null) && ($coords['lng'] ?? null)) {
@@ -127,7 +149,7 @@ class CreateNewUser implements CreatesNewUsers
                 $vendor->update($update);
             }
         } catch (\Throwable $e) {
-            // non blocchiamo registrazione: log utile per debug
+            // Il geocoding non deve bloccare la registrazione.
             report($e);
         }
 
