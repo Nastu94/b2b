@@ -1,3 +1,4 @@
+{{-- resources/views/livewire/vendor/offerings/manage-lead-times.blade.php --}}
 <div>
     {{-- Flash message --}}
     @if (session('status'))

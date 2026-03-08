@@ -1,3 +1,4 @@
+{{-- resources/views/layouts/vendor.blade.php --}}
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 
@@ -6,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ $title ?? 'Vendor' }} - Party Legacy</title>
+    <title>{{ $title ?? auth()->user()?->name }} - Party Legacy</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
@@ -47,6 +48,11 @@
                 <a href="{{ route('vendor.offerings') }}"
                     class="pl-sidebar-link {{ $is('vendor.offerings') ? 'pl-sidebar-link-active' : '' }}">
                     Servizi
+                </a>
+
+                <a href="{{ route('vendor.pricings') }}"
+                    class="pl-sidebar-link {{ $is('vendor.pricings') ? 'pl-sidebar-link-active' : '' }}">
+                    Listini
                 </a>
 
                 <a href="{{ route('vendor.bookings') }}"
