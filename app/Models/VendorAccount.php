@@ -166,7 +166,6 @@ class VendorAccount extends Model
     {
         return $this->hasMany(Booking::class);
     }
-<<<<<<< HEAD
 
     /**
      * Relazione con i listini base del vendor.
@@ -176,6 +175,3 @@ class VendorAccount extends Model
         return $this->hasMany(VendorOfferingPricing::class);
     }
 }
-=======
-}
->>>>>>> origin/main_vincenzo
