@@ -61,6 +61,16 @@ class OfferingContentCard extends Component
     public ?string $description = null;
 
     /**
+     * @var string
+     */
+    public string $service_mode = 'FIXED_LOCATION';
+
+    /**
+     * @var int|null
+     */
+    public ?int $service_radius_km = null;
+
+    /**
      * Upload cover (singolo file).
      *
      * @var mixed
@@ -111,7 +121,10 @@ class OfferingContentCard extends Component
         // Crea o recupera il profilo "owned" dal vendor
         $this->profile = VendorOfferingProfile::firstOrCreate(
             ['vendor_account_id' => $vendorId, 'offering_id' => $offeringId],
-            []
+            [
+                'service_mode' => 'FIXED_LOCATION',
+                'service_radius_km' => null,
+            ]
         );
 
         // Policy: il vendor può operare solo sul proprio profilo
@@ -120,6 +133,18 @@ class OfferingContentCard extends Component
         $this->title = $this->profile->title;
         $this->short_description = $this->profile->short_description;
         $this->description = $this->profile->description;
+        $this->service_mode = $this->profile->service_mode ?? 'FIXED_LOCATION';
+        $this->service_radius_km = $this->profile->service_radius_km !== null
+            ? (int) $this->profile->service_radius_km
+            : null;
+    }
+
+    public function updatedServiceMode($value): void
+    {
+        // Se il servizio è in sede, il raggio operativo non ha significato.
+        if ($value === 'FIXED_LOCATION') {
+            $this->service_radius_km = null;
+        }
     }
 
     /**
@@ -131,10 +156,27 @@ class OfferingContentCard extends Component
             'title' => 'nullable|string|max:255',
             'short_description' => 'nullable|string|max:255',
             'description' => 'nullable|string',
+            'service_mode' => 'required|in:FIXED_LOCATION,MOBILE',
+            'service_radius_km' => 'nullable|integer|min:1|max:500',
             'cover' => 'nullable|image|max:4096',
-            'gallery' => 'array|max:8',            // max 8 foto
+            'gallery' => 'array|max:8',
             'gallery.*' => 'image|max:4096',
         ]);
+
+        // Se il servizio è mobile, il raggio operativo è obbligatorio.
+        if ($this->service_mode === 'MOBILE' && $this->service_radius_km === null) {
+            $this->addError(
+                'service_radius_km',
+                'Il raggio operativo è obbligatorio quando la modalità di servizio è mobile.'
+            );
+
+            return;
+        }
+
+        // Se il servizio è in sede, il raggio operativo va salvato come null.
+        if ($this->service_mode === 'FIXED_LOCATION') {
+            $this->service_radius_km = null;
+        }
 
         // Policy: update profilo (ownership)
         $this->authorize('update', $this->profile);
@@ -146,6 +188,8 @@ class OfferingContentCard extends Component
             'title' => $this->title,
             'short_description' => $this->short_description,
             'description' => $this->description,
+            'service_mode' => $this->service_mode,
+            'service_radius_km' => $this->service_radius_km,
         ]);
 
         // Cover
@@ -187,6 +231,8 @@ class OfferingContentCard extends Component
 
             $fresh->update(['is_published' => true]);
         }
+
+        $this->profile = $this->profile->fresh();
 
         $this->dispatch('notify', message: 'Salvato');
     }

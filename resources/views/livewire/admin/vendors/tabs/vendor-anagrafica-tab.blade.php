@@ -15,7 +15,6 @@
 
     <form wire:submit.prevent="save" class="space-y-6">
 
-        {{-- Stato + categoria + tipo account --}}
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
             <div class="flex items-center justify-between gap-3">
                 <h2 class="text-lg font-semibold text-slate-900">Stato e categoria</h2>
@@ -32,8 +31,8 @@
                     <label class="text-sm text-slate-600">Status</label>
                     <select class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                             wire:model="form.status" @disabled(!$canEditNow)>
-                        <option value="ACTIVE">ACTIVE</option>
-                        <option value="INACTIVE">INACTIVE</option>
+                        <option value="ACTIVE">Attivo</option>
+                        <option value="INACTIVE">Inattivo</option>
                     </select>
                     @error('form.status') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                 </div>
@@ -42,8 +41,8 @@
                     <label class="text-sm text-slate-600">Tipo account</label>
                     <select class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                             wire:model.live="form.account_type" @disabled(!$canEditNow)>
-                        <option value="COMPANY">COMPANY</option>
-                        <option value="PRIVATE">PRIVATE</option>
+                        <option value="COMPANY">Azienda</option>
+                        <option value="PRIVATE">Privato</option>
                     </select>
                     @error('form.account_type') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                 </div>
@@ -60,16 +59,18 @@
                     @error('form.category_id') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                 </div>
             </div>
+
+            <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                La modalità di servizio e il raggio operativo vengono configurati nei singoli servizi del vendor.
+            </div>
         </div>
 
-        {{-- Dati anagrafici --}}
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
             <h2 class="text-lg font-semibold text-slate-900">Dati anagrafici</h2>
             <p class="mt-1 text-sm text-slate-500">
                 I campi mostrati dipendono dal tipo account selezionato.
             </p>
 
-            {{-- COMPANY --}}
             @if ($isCompany)
                 <div class="mt-5 rounded-xl border border-slate-200 p-4 bg-slate-50/40">
                     <div class="flex items-center justify-between">
@@ -115,7 +116,6 @@
                 </div>
             @endif
 
-            {{-- PRIVATE --}}
             @if ($isPrivate)
                 <div class="mt-5 rounded-xl border border-slate-200 p-4 bg-slate-50">
                     <div class="flex items-center justify-between">
@@ -160,7 +160,6 @@
             @endif
         </div>
 
-        {{-- Sede legale --}}
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
             <h2 class="text-lg font-semibold text-slate-900">Sede legale</h2>
 
@@ -207,7 +206,6 @@
             </div>
         </div>
 
-        {{-- Sede operativa --}}
         @php $sameAsLegal = (bool) ($form['operational_same_as_legal'] ?? false); @endphp
 
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
