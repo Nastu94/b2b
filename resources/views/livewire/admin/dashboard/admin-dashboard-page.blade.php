@@ -62,8 +62,8 @@
 
     <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden w-full">
 
-        <div class="hidden md:block w-full overflow-x-scroll">
-            <table class="w-full text-sm">
+        <div class="table-wrap table-wrap-fade">
+            <table class="pl-table pl-table-sticky-first">
                 <thead class="bg-slate-50 text-slate-600">
                     <tr>
                         <th class="text-left px-6 py-3">Vendor</th>

@@ -47,4 +47,15 @@ class VendorOfferingProfile extends Model
     {
         return $this->service_radius_km !== null && $this->service_radius_km > 0;
     }
+
+    public function getCoverImageUrlAttribute(): ?string
+    {
+        if (!$this->cover_image_path) {
+            return null;
+        }
+
+        return route('media.public', [
+            'path' => ltrim($this->cover_image_path, '/'),
+        ]);
+    }
 }

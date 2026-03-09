@@ -317,6 +317,8 @@ class VendorSearchService
                                 'service_mode' => $profile->service_mode ?? null,
                                 'service_radius_km' => $profile->service_radius_km ?? null,
                                 'is_published' => (bool) $profile->is_published,
+                                'cover_image_url' => $profile->cover_image_url,
+                                'cover_image_path' => $profile->cover_image_path,
                             ];
                         })->values();
 

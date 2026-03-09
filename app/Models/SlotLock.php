@@ -12,16 +12,27 @@ class SlotLock extends Model
     protected $fillable = [
         'vendor_account_id',
         'vendor_slot_id',
+        'offering_id',
         'date',
+        'distance_km',
+        'guests',
+        'quoted_amount',
+        'currency',
+        'pricing_breakdown',
         'status',
         'hold_token',
         'expires_at',
         'is_active',
         'created_by_user_id',
+        'booking_id',
     ];
 
     protected $casts = [
         'date' => 'date:Y-m-d',
+        'distance_km' => 'decimal:2',
+        'guests' => 'integer',
+        'quoted_amount' => 'decimal:2',
+        'pricing_breakdown' => 'array',
         'expires_at' => 'datetime',
         'is_active' => 'boolean',
     ];
@@ -34,5 +45,15 @@ class SlotLock extends Model
     public function vendorSlot(): BelongsTo
     {
         return $this->belongsTo(VendorSlot::class);
+    }
+
+    public function offering(): BelongsTo
+    {
+        return $this->belongsTo(Offering::class);
+    }
+
+    public function booking(): BelongsTo
+    {
+        return $this->belongsTo(Booking::class);
     }
 }
