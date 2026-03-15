@@ -5,11 +5,6 @@
     </div>
 
     <div class="p-6 space-y-4">
-        <div class="flex items-center justify-between">
-            <h1 class="text-2xl font-semibold">Booking #{{ $booking->id }}</h1>
-            <a href="{{ route('vendor.bookings') }}" class="px-3 py-2 bg-gray-100 rounded">← Indietro</a>
-        </div>
-
         <div class="bg-white shadow rounded-lg p-4 space-y-2">
             <div><strong>Stato:</strong> {{ $booking->status }}</div>
             <div><strong>Data:</strong> {{ $booking->event_date->format('d/m/Y') }}</div>

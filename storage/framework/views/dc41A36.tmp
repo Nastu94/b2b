@@ -5,6 +5,8 @@
     </div>
 
     <div class="p-6 space-y-4">
+       
+
         <div class="bg-white shadow rounded-lg p-4 space-y-2">
             <div><strong>Stato:</strong> <?php echo e($booking->status); ?></div>
             <div><strong>Data:</strong> <?php echo e($booking->event_date->format('d/m/Y')); ?></div>
