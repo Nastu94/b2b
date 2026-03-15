@@ -289,6 +289,33 @@ class VendorSearchService
         return Str::lower(preg_replace('/\s+/', ' ', $value));
     }
 
+    // Costruisce l'indirizzo effettivo del vendor dando priorità alla sede operativa.
+    private function buildEffectiveAddress(VendorAccount $vendor): array
+    {
+        $line1 = $vendor->operational_address_line1 ?: $vendor->legal_address_line1;
+        $line2 = $vendor->operational_address_line2 ?: $vendor->legal_address_line2;
+        $postalCode = $vendor->operational_postal_code ?: $vendor->legal_postal_code;
+        $city = $vendor->operational_city ?: $vendor->legal_city;
+        $region = $vendor->operational_region ?: $vendor->legal_region;
+
+        $addressParts = array_values(array_filter([
+            $line1,
+            $line2,
+        ], fn ($value) => !empty($value)));
+
+        $fullAddressParts = array_values(array_filter([
+            $line1,
+            $line2,
+            trim(implode(' ', array_filter([$postalCode, $city], fn ($value) => !empty($value)))),
+            $region,
+        ], fn ($value) => !empty($value)));
+
+        return [
+            'address' => !empty($addressParts) ? implode(', ', $addressParts) : null,
+            'full_address' => !empty($fullAddressParts) ? implode(', ', $fullAddressParts) : null,
+        ];
+    }
+
     // Raggruppa i vendor per categoria per semplificare il rendering lato frontend.
     private function groupVendorsByCategory(Collection $vendors): array
     {
@@ -322,11 +349,15 @@ class VendorSearchService
                             ];
                         })->values();
 
+                        $effectiveAddress = $this->buildEffectiveAddress($vendor);
+
                         $result = [
                             'id' => $vendor->id,
                             'company_name' => $vendor->company_name,
                             'city' => $vendor->effectiveCity(),
                             'phone' => $vendor->phone,
+                            'address' => $effectiveAddress['address'],
+                            'full_address' => $effectiveAddress['full_address'],
                             'offerings_count' => $filteredOfferings->count(),
                             'offerings' => $filteredOfferings,
                         ];

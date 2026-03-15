@@ -1,0 +1,114 @@
+<div class="p-6 space-y-4">
+    <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-semibold">Booking #<?php echo e($booking->id); ?></h1>
+        <a href="<?php echo e(route('vendor.bookings')); ?>" class="px-3 py-2 bg-gray-100 rounded">← Indietro</a>
+    </div>
+
+    <div class="p-6 space-y-4">
+        <div class="flex items-center justify-between">
+            <h1 class="text-2xl font-semibold">Booking #<?php echo e($booking->id); ?></h1>
+            <a href="<?php echo e(route('vendor.bookings')); ?>" class="px-3 py-2 bg-gray-100 rounded">← Indietro</a>
+        </div>
+
+        <div class="bg-white shadow rounded-lg p-4 space-y-2">
+            <div><strong>Stato:</strong> <?php echo e($booking->status); ?></div>
+            <div><strong>Data:</strong> <?php echo e($booking->event_date->format('d/m/Y')); ?></div>
+            <div><strong>Ordine PS:</strong> <?php echo e($booking->prestashop_order_id); ?> /
+                <?php echo e($booking->prestashop_order_line_id); ?></div>
+            <div><strong>Totale:</strong> <?php echo e($booking->total_amount); ?></div>
+
+            <div class="pt-2 space-y-1">
+                <strong>Cliente:</strong>
+
+                <div class="text-sm text-gray-700">
+                    <?php echo e(data_get($booking->customer_data, 'firstname')); ?>
+
+                    <?php echo e(data_get($booking->customer_data, 'lastname')); ?>
+
+                </div>
+
+                <div class="text-sm text-gray-700">
+                    <?php echo e(data_get($booking->customer_data, 'email')); ?>
+
+                </div>
+
+                <?php
+                    $phone =
+                        data_get($booking->customer_data, 'delivery_address.phone_mobile') ?:
+                        data_get($booking->customer_data, 'delivery_address.phone');
+                ?>
+
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($phone): ?>
+                    <div class="text-sm text-gray-700">
+                        <?php echo e($phone); ?>
+
+                    </div>
+                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+            </div>
+
+            <?php
+                $addr = data_get($booking->customer_data, 'delivery_address');
+            ?>
+
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(is_array($addr)): ?>
+                <div class="pt-2">
+                    <strong>Indirizzo evento:</strong>
+
+                    <div class="text-sm text-gray-700">
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!empty($addr['company'])): ?>
+                            <div><?php echo e($addr['company']); ?></div>
+                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!empty($addr['address_line1'])): ?>
+                            <div><?php echo e($addr['address_line1']); ?></div>
+                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!empty($addr['address_line2'])): ?>
+                            <div><?php echo e($addr['address_line2']); ?></div>
+                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+
+                        <div>
+                            <?php echo e($addr['postcode'] ?? ''); ?>
+
+                            <?php echo e($addr['city'] ?? ''); ?>
+
+                        </div>
+
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!empty($addr['state'])): ?>
+                            <div><?php echo e($addr['state']); ?></div>
+                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!empty($addr['country'])): ?>
+                            <div><?php echo e($addr['country']); ?></div>
+                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+        </div>
+
+        <div class="bg-white shadow rounded-lg p-4 space-y-3">
+            <label class="block text-sm font-medium">Note vendor</label>
+            <textarea wire:model="vendorNotes" class="w-full border rounded p-2" rows="3"></textarea>
+
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($booking->status === 'PENDING_VENDOR_CONFIRMATION'): ?>
+                <div class="flex gap-2">
+                    <button wire:click="confirm" class="px-4 py-2 bg-green-600 text-white rounded">
+                        Conferma
+                    </button>
+                </div>
+
+                <div class="border-t pt-3">
+                    <label class="block text-sm font-medium">Motivo rifiuto (opzionale)</label>
+                    <textarea wire:model="declineReason" class="w-full border rounded p-2" rows="3"></textarea>
+
+                    <button wire:click="decline" class="mt-2 px-4 py-2 bg-red-600 text-white rounded">
+                        Rifiuta
+                    </button>
+                </div>
+            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+        </div>
+
+    </div>
+
+</div>
+<?php /**PATH C:\laragon\www\b2b.partylegacy.it\resources\views/livewire/vendor/bookings/vendor-booking-show-page.blade.php ENDPATH**/ ?>

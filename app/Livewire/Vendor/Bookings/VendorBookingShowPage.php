@@ -2,9 +2,14 @@
 
 namespace App\Livewire\Vendor\Bookings;
 
+use App\Mail\PrenotazioneConfermata;
+use App\Mail\PrenotazioneConfermataVendor;
+use App\Mail\PrenotazioneRifiutata;
 use App\Models\Booking;
 use App\Models\SlotLock;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Livewire\Component;
 
 class VendorBookingShowPage extends Component
@@ -18,7 +23,6 @@ class VendorBookingShowPage extends Component
     {
         $this->booking = $booking;
 
-        // ✅ Coerente con BookingPolicy::view
         $this->authorize('view', $this->booking);
 
         $this->vendorNotes = $this->booking->vendor_notes;
@@ -26,7 +30,6 @@ class VendorBookingShowPage extends Component
 
     public function confirm(): void
     {
-        // ✅ Coerente con BookingPolicy::update (pending + owner)
         $this->authorize('update', $this->booking);
 
         DB::transaction(function () {
@@ -44,6 +47,12 @@ class VendorBookingShowPage extends Component
         });
 
         $this->booking->refresh();
+
+        // Email al cliente: prenotazione confermata con dati del vendor
+        $this->sendConfirmEmailToClient();
+
+        // Email al vendor: riepilogo conferma con dati del cliente
+        $this->sendConfirmEmailToVendor();
     }
 
     public function decline(): void
@@ -74,11 +83,77 @@ class VendorBookingShowPage extends Component
                 'decline_reason' => $this->declineReason,
                 'vendor_notes'   => $this->vendorNotes,
             ]);
-
-            // Step 4.3: qui aggiungeremo refund_request (prossimo passo)
         });
 
         $this->booking->refresh();
+
+        // Email al cliente: prenotazione rifiutata con eventuale motivo
+        $this->sendDeclineEmailToClient();
+    }
+
+    protected function sendConfirmEmailToClient(): void
+    {
+        $clientEmail = data_get($this->booking->customer_data, 'email');
+
+        if (empty($clientEmail)) {
+            Log::warning('BookingConfirm: email cliente mancante', ['booking_id' => $this->booking->id]);
+            return;
+        }
+
+        try {
+            $this->booking->loadMissing(['vendorAccount', 'offering', 'vendorSlot']);
+
+            Mail::to($clientEmail)->send(new PrenotazioneConfermata($this->booking));
+        } catch (\Throwable $e) {
+            Log::error('BookingConfirm: invio email cliente fallito', [
+                'booking_id' => $this->booking->id,
+                'error'      => $e->getMessage(),
+            ]);
+        }
+    }
+
+    protected function sendConfirmEmailToVendor(): void
+    {
+        $this->booking->loadMissing('vendorAccount');
+        $vendorEmail = $this->booking->vendorAccount?->billing_email
+            ?? $this->booking->vendorAccount?->pec_email;
+
+        if (empty($vendorEmail)) {
+            Log::warning('BookingConfirm: email vendor mancante', ['booking_id' => $this->booking->id]);
+            return;
+        }
+
+        try {
+            $this->booking->loadMissing(['offering', 'vendorSlot']);
+
+            Mail::to($vendorEmail)->send(new PrenotazioneConfermataVendor($this->booking));
+        } catch (\Throwable $e) {
+            Log::error('BookingConfirm: invio email vendor fallito', [
+                'booking_id' => $this->booking->id,
+                'error'      => $e->getMessage(),
+            ]);
+        }
+    }
+
+    protected function sendDeclineEmailToClient(): void
+    {
+        $clientEmail = data_get($this->booking->customer_data, 'email');
+
+        if (empty($clientEmail)) {
+            Log::warning('BookingDecline: email cliente mancante', ['booking_id' => $this->booking->id]);
+            return;
+        }
+
+        try {
+            $this->booking->loadMissing(['vendorAccount', 'offering', 'vendorSlot']);
+
+            Mail::to($clientEmail)->send(new PrenotazioneRifiutata($this->booking));
+        } catch (\Throwable $e) {
+            Log::error('BookingDecline: invio email cliente fallito', [
+                'booking_id' => $this->booking->id,
+                'error'      => $e->getMessage(),
+            ]);
+        }
     }
 
     public function render()
