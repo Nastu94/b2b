@@ -16,6 +16,7 @@ use RuntimeException;
 class AvailabilityService
 {
     private const TIMEZONE = 'Europe/Rome';
+    private array $contextCache = [];
 
     // Calcola la disponibilità su un range di date.
     public function getAvailability(
@@ -121,48 +122,55 @@ class AvailabilityService
         ?int $offeringId,
         CarbonImmutable $now
     ): array {
+        // Utilizza una cache in memoria per archiviare il contesto (slot, blackout, ecc.) e
+        // prevenire frammentazioni di query al database per lo stesso fornitore nella stessa richiesta.
+        $cacheKey = "{$vendorAccountId}_{$fromDate->toDateString()}_{$toDate->toDateString()}";
+
+        if (!isset($this->contextCache[$cacheKey])) {
+            /** @var Collection<int, VendorSlot> $slots */
+            $slots = VendorSlot::query()
+                ->where('vendor_account_id', $vendorAccountId)
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('label')
+                ->get(['id', 'slug', 'label', 'start_time', 'end_time']);
+
+            $weekly = VendorWeeklySchedule::query()
+                ->where('vendor_account_id', $vendorAccountId)
+                ->get(['vendor_slot_id', 'day_of_week', 'is_open'])
+                ->keyBy(fn ($row) => $row->vendor_slot_id . ':' . $row->day_of_week);
+
+            $leadTimes = VendorLeadTime::query()
+                ->where('vendor_account_id', $vendorAccountId)
+                ->get(['day_of_week', 'min_notice_hours', 'cutoff_time'])
+                ->keyBy('day_of_week');
+
+            $blackouts = VendorBlackout::query()
+                ->where('vendor_account_id', $vendorAccountId)
+                ->whereDate('date_from', '<=', $toDate->toDateString())
+                ->whereDate('date_to', '>=', $fromDate->toDateString())
+                ->get(['date_from', 'date_to', 'vendor_slot_id'])
+                ->all();
+
+            $lockedIndex = $this->buildLockedIndex(
+                vendorAccountId: $vendorAccountId,
+                fromDate: $fromDate,
+                toDate: $toDate,
+                now: $now
+            );
+
+            $this->contextCache[$cacheKey] = [
+                'slots' => $slots,
+                'weekly' => $weekly,
+                'leadTimes' => $leadTimes,
+                'blackouts' => $blackouts,
+                'lockedIndex' => $lockedIndex,
+            ];
+        }
+
         $profile = $this->loadOfferingProfile($vendorAccountId, $offeringId);
 
-        /** @var Collection<int, VendorSlot> $slots */
-        $slots = VendorSlot::query()
-            ->where('vendor_account_id', $vendorAccountId)
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->orderBy('label')
-            ->get(['id', 'slug', 'label', 'start_time', 'end_time']);
-
-        $weekly = VendorWeeklySchedule::query()
-            ->where('vendor_account_id', $vendorAccountId)
-            ->get(['vendor_slot_id', 'day_of_week', 'is_open'])
-            ->keyBy(fn ($row) => $row->vendor_slot_id . ':' . $row->day_of_week);
-
-        $leadTimes = VendorLeadTime::query()
-            ->where('vendor_account_id', $vendorAccountId)
-            ->get(['day_of_week', 'min_notice_hours', 'cutoff_time'])
-            ->keyBy('day_of_week');
-
-        $blackouts = VendorBlackout::query()
-            ->where('vendor_account_id', $vendorAccountId)
-            ->whereDate('date_from', '<=', $toDate->toDateString())
-            ->whereDate('date_to', '>=', $fromDate->toDateString())
-            ->get(['date_from', 'date_to', 'vendor_slot_id'])
-            ->all();
-
-        $lockedIndex = $this->buildLockedIndex(
-            vendorAccountId: $vendorAccountId,
-            fromDate: $fromDate,
-            toDate: $toDate,
-            now: $now
-        );
-
-        return [
-            'profile' => $profile,
-            'slots' => $slots,
-            'weekly' => $weekly,
-            'leadTimes' => $leadTimes,
-            'blackouts' => $blackouts,
-            'lockedIndex' => $lockedIndex,
-        ];
+        return array_merge($this->contextCache[$cacheKey], ['profile' => $profile]);
     }
 
     private function normalizeRange(string $from, string $to, int $maxDays): array

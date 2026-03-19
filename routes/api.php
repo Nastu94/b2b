@@ -17,6 +17,7 @@ Route::middleware('booking.bridge')->group(function () {
     // Ricerca vendor basata su:
     // - città selezionata
     // - data dell'evento
+    // - numero di invitati
     //
     // Il sistema restituisce:
     // - vendor disponibili per quella data

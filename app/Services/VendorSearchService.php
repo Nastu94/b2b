@@ -30,40 +30,78 @@ class VendorSearchService
             return $this->emptyResult($params['city'] ?? null, $date);
         }
 
-        $vendors = $this->buildBaseQuery($params)->get();
+        $cityCoordinates = $this->geocodingService->geocodeCity($params['city']);
 
-        if ($vendors->isEmpty()) {
+        $query = $this->buildBaseQuery($params);
+
+        // Filtro spaziale a database per scartare i vendor fuori raggio prima dell'idratazione dei modelli.
+        if ($cityCoordinates) {
+            $lng = sprintf('%F', (float) $cityCoordinates['lng']);
+            $lat = sprintf('%F', (float) $cityCoordinates['lat']);
+            $distSql = "(ST_Distance_Sphere(point(COALESCE(vendor_accounts.operational_lng, vendor_accounts.legal_lng), COALESCE(vendor_accounts.operational_lat, vendor_accounts.legal_lat)), point($lng, $lat)) / 1000)";
+
+            $query->selectRaw("vendor_accounts.*, $distSql as distance_km, (LOWER(legal_city) = ? OR LOWER(operational_city) = ?) as is_city_match", [$city, $city])
+                  ->where(function (Builder $q) use ($city, $distSql) {
+                      $q->whereRaw('LOWER(legal_city) = ?', [$city])
+                        ->orWhereRaw('LOWER(operational_city) = ?', [$city])
+                        ->orWhereHas('vendorOfferingProfiles', function ($profQ) use ($distSql) {
+                            $profQ->where('is_published', true)
+                                  ->whereNotNull('service_radius_km')
+                                  ->whereRaw("$distSql <= service_radius_km");
+                        });
+                  })
+                  ->orderByDesc('is_city_match')
+                  ->orderBy('distance_km')
+                  ->orderBy('vendor_accounts.id');
+        } else {
+            // Fallback nel caso in cui il geocoding non restituisca coordinate valide
+            $query->selectRaw("vendor_accounts.*, 1 as is_city_match, 0 as distance_km")
+                  ->where(function (Builder $q) use ($city) {
+                      $q->whereRaw('LOWER(legal_city) = ?', [$city])
+                        ->orWhereRaw('LOWER(operational_city) = ?', [$city]);
+                  })
+                  ->orderBy('vendor_accounts.id');
+        }
+
+        $matchedVendors = collect();
+
+        // Utilizza lazy() per caricare i modelli a blocchi (chunk), ottimizzando l'uso della memoria.
+        foreach ($query->lazy(50) as $vendor) {
+            // Assicura il corretto cast dei dati raw estratti tramite selectRaw
+            $vendor->is_city_match = (bool) $vendor->is_city_match;
+            $vendor->distance_km = $vendor->distance_km !== null ? round((float) $vendor->distance_km, 1) : null;
+
+            // Filtra i profili del vendor mantenendo solo quelli validi per la ricerca
+            $validProfiles = $vendor->vendorOfferingProfiles->filter(function ($profile) use ($vendor, $guests) {
+                return $this->profileIsValidForSearch($profile, $vendor, $guests);
+            })->values();
+
+            if ($validProfiles->isEmpty()) {
+                continue;
+            }
+
+            // Assegna i profili validati alla relazione per la formattazione JSON successiva
+            $vendor->setRelation('vendorOfferingProfiles', $validProfiles);
+
+            // Verifica la disponibilità effettiva del vendor per i parametri richiesti
+            if (! $this->vendorHasAnyAvailableSlot($vendor, $date, $guests)) {
+                continue;
+            }
+
+            $matchedVendors->push($vendor);
+
+            // Interrompe l'iterazione non appena viene raggiunto il numero di risultati richiesto ($limit)
+            if ($matchedVendors->count() >= $limit) {
+                break;
+            }
+        }
+
+        if ($matchedVendors->isEmpty()) {
             return $this->emptyResult($params['city'] ?? null, $date);
         }
 
-        $cityCoordinates = $this->geocodingService->geocodeCity($params['city']);
-
-        $matchedVendors = $vendors
-            ->map(function (VendorAccount $vendor) use ($city, $cityCoordinates, $guests, $date) {
-                return $this->prepareVendorForSearch(
-                    vendor: $vendor,
-                    searchedCity: $city,
-                    cityCoordinates: $cityCoordinates,
-                    guests: $guests,
-                    date: $date
-                );
-            })
-            ->filter()
-            ->sort(function (VendorAccount $a, VendorAccount $b) {
-                $aPriority = ($a->is_city_match ?? false) ? 0 : 1;
-                $bPriority = ($b->is_city_match ?? false) ? 0 : 1;
-
-                if ($aPriority !== $bPriority) {
-                    return $aPriority <=> $bPriority;
-                }
-
-                return ((float) ($a->distance_km ?? 999999)) <=> ((float) ($b->distance_km ?? 999999));
-            })
-            ->take($limit)
-            ->values();
-
         $hasOutsideCityResults = $matchedVendors->contains(function (VendorAccount $vendor) {
-            return ($vendor->is_city_match ?? false) === false;
+            return $vendor->is_city_match === false;
         });
 
         return [
@@ -76,52 +114,7 @@ class VendorSearchService
         ];
     }
 
-    private function prepareVendorForSearch(
-        VendorAccount $vendor,
-        string $searchedCity,
-        ?array $cityCoordinates,
-        ?int $guests,
-        string $date
-    ): ?VendorAccount {
-        $vendor->is_city_match = $this->vendorMatchesCity($vendor, $searchedCity);
-        $vendor->distance_km = null;
-
-        $lat = $vendor->effectiveLat();
-        $lng = $vendor->effectiveLng();
-
-        if ($vendor->is_city_match) {
-            $vendor->distance_km = 0.0;
-        } elseif ($cityCoordinates && $lat !== null && $lng !== null) {
-            $distance = $this->geocodingService->calculateDistance(
-                (float) $cityCoordinates['lat'],
-                (float) $cityCoordinates['lng'],
-                (float) $lat,
-                (float) $lng
-            );
-
-            $vendor->distance_km = round($distance, 1);
-        } else {
-            return null;
-        }
-
-        $validProfiles = $vendor->vendorOfferingProfiles
-            ->filter(function (VendorOfferingProfile $profile) use ($vendor, $guests) {
-                return $this->profileIsValidForSearch($profile, $vendor, $guests);
-            })
-            ->values();
-
-        if ($validProfiles->isEmpty()) {
-            return null;
-        }
-
-        $vendor->setRelation('vendorOfferingProfiles', $validProfiles);
-
-        if (! $this->vendorHasAnyAvailableSlot($vendor, $date, $guests)) {
-            return null;
-        }
-
-        return $vendor;
-    }
+    // ... Precedente funzione prepareVendorForSearch eliminata ...
 
    private function buildBaseQuery(array $params)
 {

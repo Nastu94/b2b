@@ -61,14 +61,6 @@ class SlotController extends Controller
                 offeringId: $offeringId,
                 guests: $guests
             );
-
-            $pricing = $bookingPricingService->resolveForBooking(
-                vendorAccountId: $vendorAccountId,
-                offeringId: $offeringId,
-                eventDate: $date,
-                distanceKm: $distanceKm,
-                guests: $guests,
-            );
         } catch (ValidationException $e) {
             throw $e;
         } catch (RuntimeException $e) {
@@ -85,7 +77,7 @@ class SlotController extends Controller
                 $date,
                 $distanceKm,
                 $guests,
-                $pricing
+                $bookingPricingService
             ): JsonResponse {
                 $now = CarbonImmutable::now();
                 $expiresAt = $now->addMinutes(self::HOLD_TTL_MINUTES);
@@ -101,15 +93,33 @@ class SlotController extends Controller
                     $activeLock = null;
                 }
 
+                // Riutilizza il pricing salvato nel database se esiste già un lock attivo,
+                // mantenendo la consistenza dei prezzi durante il checkout.
                 if ($activeLock) {
                     return $this->handleExistingActiveLockOnHold(
                         $activeLock,
                         $offeringId,
                         $distanceKm,
                         $guests,
-                        $pricing,
                         $now
                     );
+                }
+
+                // Calcola il pricing dinamicamente solo se è necessario creare un nuovo lock,
+                // ottimizzando i tempi di esecuzione e riducendo il carico sul servizio.
+                try {
+                    $pricing = $bookingPricingService->resolveForBooking(
+                        vendorAccountId: $vendorAccountId,
+                        offeringId: $offeringId,
+                        eventDate: $date,
+                        distanceKm: $distanceKm,
+                        guests: $guests,
+                    );
+                } catch (RuntimeException $e) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => $e->getMessage(),
+                    ], 422);
                 }
 
                 try {
@@ -143,7 +153,7 @@ class SlotController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'data' => $this->buildHoldResponseData($lock, $pricing, $now),
+                    'data' => $this->buildHoldResponseData($lock, $now),
                 ], 201);
             });
         } catch (Throwable $e) {
@@ -396,7 +406,6 @@ class SlotController extends Controller
         int $offeringId,
         ?float $distanceKm,
         ?int $guests,
-        array $pricing,
         CarbonImmutable $now
     ): JsonResponse {
         if (! $lock->isHold()) {
@@ -409,7 +418,7 @@ class SlotController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $this->buildHoldResponseData($lock, $pricing, $now),
+            'data' => $this->buildHoldResponseData($lock, $now),
         ], 200);
     }
 
@@ -437,9 +446,10 @@ class SlotController extends Controller
         return (string) $left === (string) $right;
     }
 
-    private function buildHoldResponseData(SlotLock $lock, array $pricing, CarbonImmutable $now): array
+    private function buildHoldResponseData(SlotLock $lock, CarbonImmutable $now): array
     {
         $expiresAt = $lock->expires_at ? CarbonImmutable::parse($lock->expires_at) : null;
+        $breakdown = $lock->pricing_breakdown ?? [];
 
         return [
             'hold_token' => $lock->hold_token,
@@ -448,10 +458,10 @@ class SlotController extends Controller
             'ttl_seconds' => $expiresAt ? max(0, $now->diffInSeconds($expiresAt, false)) : 0,
             'pricing' => [
                 'offering_id' => $lock->offering_id,
-                'base_price' => $pricing['base_price'] ?? null,
-                'final_price' => $pricing['final_price'] ?? null,
-                'currency' => $pricing['currency'] ?? null,
-                'breakdown' => $pricing['breakdown'] ?? [],
+                'base_price' => $breakdown['base_price'] ?? null,
+                'final_price' => $lock->quoted_amount,
+                'currency' => $lock->currency,
+                'breakdown' => $breakdown['breakdown'] ?? [],
             ],
         ];
     }
