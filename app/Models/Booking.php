@@ -3,14 +3,25 @@
 namespace App\Models;
 
 use App\Mail\NuovaPrenotazioneVendor;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Throwable;
 
 class Booking extends Model
 {
     use SoftDeletes;
+
+    // Stati booking
+    public const STATUS_PENDING_VENDOR_CONFIRMATION = 'PENDING_VENDOR_CONFIRMATION';
+    public const STATUS_CONFIRMED = 'CONFIRMED';
+    public const STATUS_DECLINED = 'DECLINED';
+    public const STATUS_CANCELLED = 'CANCELLED';
+    public const STATUS_REFUNDED = 'REFUNDED';
+    public const STATUS_EXPIRED = 'EXPIRED';
 
     protected $fillable = [
         'vendor_account_id',
@@ -35,93 +46,198 @@ class Booking extends Model
     ];
 
     protected $casts = [
-        'event_date'        => 'date',
-        'distance_km'       => 'decimal:2',
-        'guests'            => 'integer',
-        'customer_data'     => 'array',
-        'total_amount'      => 'decimal:2',
+        'event_date' => 'date',
+        'distance_km' => 'decimal:2',
+        'guests' => 'integer',
+        'customer_data' => 'array',
+        'total_amount' => 'decimal:2',
         'pricing_breakdown' => 'array',
-        'paid_at'           => 'datetime',
-        'confirmed_at'      => 'datetime',
-        'declined_at'       => 'datetime',
+        'paid_at' => 'datetime',
+        'confirmed_at' => 'datetime',
+        'declined_at' => 'datetime',
     ];
 
-    /**
-     * Dopo la creazione di un nuovo booking inviamo la notifica email al vendor.
-     * Usiamo created (post-persist) così il booking ha già l'id e tutte le relazioni
-     * sono caricabili senza rischi.
-     */
-    protected static function boot(): void
+    protected static function booted(): void
     {
-        parent::boot();
-
-        static::created(function (Booking $booking) {
-            static::notifyVendorNewBooking($booking);
+        static::created(function (Booking $booking): void {
+            $booking->notifyVendorNewBookingAfterCommit();
         });
     }
 
-    protected static function notifyVendorNewBooking(Booking $booking): void
-    {
-        try {
-            $booking->loadMissing(['vendorAccount', 'offering', 'vendorSlot']);
+    // ─── Relazioni ─────────────────────────────────────────
 
-            $vendorEmail = $booking->vendorAccount?->billing_email
-                ?? $booking->vendorAccount?->pec_email;
-
-            if (empty($vendorEmail)) {
-                Log::warning('NuovaPrenotazione: email vendor mancante', [
-                    'booking_id'        => $booking->id,
-                    'vendor_account_id' => $booking->vendor_account_id,
-                ]);
-                return;
-            }
-
-            Mail::to($vendorEmail)->send(new NuovaPrenotazioneVendor($booking));
-        } catch (\Throwable $e) {
-            // Non blocchiamo il flusso se l'email fallisce — logghiamo e andiamo avanti
-            Log::error('NuovaPrenotazione: invio email vendor fallito', [
-                'booking_id' => $booking->id,
-                'error'      => $e->getMessage(),
-            ]);
-        }
-    }
-
-    // ─── Relazioni ───────────────────────────────────────────────────────────
-
-    public function vendorAccount()
+    public function vendorAccount(): BelongsTo
     {
         return $this->belongsTo(VendorAccount::class);
     }
 
-    public function offering()
+    public function offering(): BelongsTo
     {
         return $this->belongsTo(Offering::class);
     }
 
-    public function slotLock()
+    public function slotLock(): BelongsTo
     {
         return $this->belongsTo(SlotLock::class);
     }
 
-    public function vendorSlot()
+    public function vendorSlot(): BelongsTo
     {
         return $this->belongsTo(VendorSlot::class);
     }
 
-    // ─── Scope ───────────────────────────────────────────────────────────────
+    // ─── Stato ─────────────────────────────────────────────
 
-    public function scopePending($query)
+    public function isPendingVendorConfirmation(): bool
     {
-        return $query->where('status', 'PENDING_VENDOR_CONFIRMATION');
+        return $this->status === self::STATUS_PENDING_VENDOR_CONFIRMATION;
     }
 
-    public function scopeConfirmed($query)
+    public function isConfirmed(): bool
     {
-        return $query->where('status', 'CONFIRMED');
+        return $this->status === self::STATUS_CONFIRMED;
     }
 
-    public function scopeUpcoming($query)
+    public function isDeclined(): bool
     {
-        return $query->where('event_date', '>=', now()->toDateString());
+        return $this->status === self::STATUS_DECLINED;
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === self::STATUS_CANCELLED;
+    }
+
+    public function isRefunded(): bool
+    {
+        return $this->status === self::STATUS_REFUNDED;
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->status === self::STATUS_EXPIRED;
+    }
+
+    public function markConfirmed(?string $vendorNotes = null): void
+    {
+        $this->status = self::STATUS_CONFIRMED;
+        $this->confirmed_at = now();
+
+        if ($vendorNotes !== null) {
+            $this->vendor_notes = $vendorNotes;
+        }
+
+        $this->save();
+    }
+
+    public function markDeclined(?string $reason = null, ?string $vendorNotes = null): void
+    {
+        $this->status = self::STATUS_DECLINED;
+        $this->declined_at = now();
+
+        if ($reason !== null) {
+            $this->decline_reason = $reason;
+        }
+
+        if ($vendorNotes !== null) {
+            $this->vendor_notes = $vendorNotes;
+        }
+
+        $this->save();
+    }
+
+    public function markCancelled(?string $vendorNotes = null): void
+    {
+        $this->status = self::STATUS_CANCELLED;
+
+        if ($vendorNotes !== null) {
+            $this->vendor_notes = $vendorNotes;
+        }
+
+        $this->save();
+    }
+
+    public function markRefunded(?string $vendorNotes = null): void
+    {
+        $this->status = self::STATUS_REFUNDED;
+
+        if ($vendorNotes !== null) {
+            $this->vendor_notes = $vendorNotes;
+        }
+
+        $this->save();
+    }
+
+    public function markExpired(?string $vendorNotes = null): void
+    {
+        $this->status = self::STATUS_EXPIRED;
+
+        if ($vendorNotes !== null) {
+            $this->vendor_notes = $vendorNotes;
+        }
+
+        $this->save();
+    }
+
+    // ─── Scope ─────────────────────────────────────────────
+
+    public function scopePending(Builder $query): Builder
+    {
+        return $query->where('status', self::STATUS_PENDING_VENDOR_CONFIRMATION);
+    }
+
+    public function scopeConfirmed(Builder $query): Builder
+    {
+        return $query->where('status', self::STATUS_CONFIRMED);
+    }
+
+    public function scopeUpcoming(Builder $query): Builder
+    {
+        return $query->whereDate('event_date', '>=', now()->toDateString());
+    }
+
+    // ─── Notifica vendor ───────────────────────────────────
+
+    public function notifyVendorNewBookingAfterCommit(): void
+    {
+        $this->loadMissing(['vendorAccount', 'offering', 'vendorSlot']);
+
+        $vendorEmail = $this->vendorAccount?->billing_email
+            ?: $this->vendorAccount?->pec_email;
+
+        if (! $vendorEmail) {
+            Log::warning('Booking vendor email mancante', [
+                'booking_id' => $this->id,
+                'vendor_account_id' => $this->vendor_account_id,
+            ]);
+
+            return;
+        }
+
+        try {
+            $connection = $this->getConnection();
+
+            if ($connection) {
+                $connection->afterCommit(function () use ($vendorEmail): void {
+                    try {
+                        Mail::to($vendorEmail)->send(new NuovaPrenotazioneVendor($this));
+                    } catch (Throwable $e) {
+                        Log::error('Invio email nuova prenotazione fallito', [
+                            'booking_id' => $this->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                });
+
+                return;
+            }
+
+            Mail::to($vendorEmail)->send(new NuovaPrenotazioneVendor($this));
+        } catch (Throwable $e) {
+            Log::error('Invio email nuova prenotazione fallito', [
+                'booking_id' => $this->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

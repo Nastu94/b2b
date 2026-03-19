@@ -2,52 +2,126 @@
 
 namespace App\Services;
 
+use App\Models\SlotLock;
 use App\Models\VendorBlackout;
 use App\Models\VendorLeadTime;
+use App\Models\VendorOfferingProfile;
 use App\Models\VendorSlot;
 use App\Models\VendorWeeklySchedule;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
-use App\Models\SlotLock;
+use InvalidArgumentException;
+use RuntimeException;
 
 class AvailabilityService
 {
-    private string $tz = 'Europe/Rome';
+    private const TIMEZONE = 'Europe/Rome';
 
-    /**
-     * Disponibilità per vendor in un range di date, per tutti gli slot attivi.
-     *
-     * Output:
-     * [
-     *   'YYYY-MM-DD' => [
-     *     [
-     *       'vendor_slot_id' => 1,
-     *       'slug' => 'evening',
-     *       'label' => 'Sera',
-     *       'start_time' => '20:00:00',
-     *       'end_time' => '23:00:00',
-     *       'status' => 'AVAILABLE' | 'BLOCKED',
-     *       'reason' => null | 'LEAD_TIME' | 'SCHEDULE' | 'BLACKOUT' | 'BOOKED',
-     *     ],
-     *     ...
-     *   ],
-     * ]
-     */
-    public function getAvailability(int $vendorAccountId, string $from, string $to, int $maxDays = 90): array
-    {
-        $fromDate = CarbonImmutable::createFromFormat('Y-m-d', $from, $this->tz)->startOfDay();
-        $toDate   = CarbonImmutable::createFromFormat('Y-m-d', $to, $this->tz)->startOfDay();
+    // Calcola la disponibilità su un range di date.
+    public function getAvailability(
+        int $vendorAccountId,
+        string $from,
+        string $to,
+        int $maxDays = 90,
+        ?int $offeringId = null,
+        ?int $guests = null
+    ): array {
+        [$fromDate, $toDate] = $this->normalizeRange($from, $to, $maxDays);
+        $now = CarbonImmutable::now(self::TIMEZONE);
 
-        if ($toDate->lessThan($fromDate)) {
-            throw new \InvalidArgumentException('Invalid date range: to < from');
+        $context = $this->buildContext(
+            vendorAccountId: $vendorAccountId,
+            fromDate: $fromDate,
+            toDate: $toDate,
+            offeringId: $offeringId,
+            now: $now
+        );
+
+        $out = [];
+
+        for ($date = $fromDate; $date->lessThanOrEqualTo($toDate); $date = $date->addDay()) {
+            $dayKey = $date->toDateString();
+            $dayOfWeek = (int) $date->dayOfWeek;
+
+            $out[$dayKey] = [];
+
+            foreach ($context['slots'] as $slot) {
+                $result = $this->evaluateSlotAvailability(
+                    slot: $slot,
+                    date: $date,
+                    dayOfWeek: $dayOfWeek,
+                    now: $now,
+                    weekly: $context['weekly'],
+                    leadTimes: $context['leadTimes'],
+                    blackouts: $context['blackouts'],
+                    lockedIndex: $context['lockedIndex'],
+                    profile: $context['profile'],
+                    guests: $guests
+                );
+
+                $out[$dayKey][] = $this->row(
+                    slot: $slot,
+                    status: $result['status'],
+                    reason: $result['reason']
+                );
+            }
         }
 
-        $daysCount = $fromDate->diffInDays($toDate) + 1;
-        if ($daysCount > $maxDays) {
-            throw new \InvalidArgumentException("Date range too large (max {$maxDays} days)");
+        return $out;
+    }
+
+    // Verifica puntuale usata da hold e validazioni.
+    public function assertSlotBookable(
+        int $vendorAccountId,
+        int $vendorSlotId,
+        string $date,
+        ?int $offeringId = null,
+        ?int $guests = null
+    ): void {
+        $targetDate = CarbonImmutable::createFromFormat('Y-m-d', $date, self::TIMEZONE)->startOfDay();
+        $now = CarbonImmutable::now(self::TIMEZONE);
+
+        $context = $this->buildContext(
+            vendorAccountId: $vendorAccountId,
+            fromDate: $targetDate,
+            toDate: $targetDate,
+            offeringId: $offeringId,
+            now: $now
+        );
+
+        /** @var VendorSlot|null $slot */
+        $slot = $context['slots']->firstWhere('id', $vendorSlotId);
+
+        if (! $slot) {
+            throw new RuntimeException('Slot non valido o non attivo');
         }
 
-        $now = CarbonImmutable::now($this->tz);
+        $result = $this->evaluateSlotAvailability(
+            slot: $slot,
+            date: $targetDate,
+            dayOfWeek: (int) $targetDate->dayOfWeek,
+            now: $now,
+            weekly: $context['weekly'],
+            leadTimes: $context['leadTimes'],
+            blackouts: $context['blackouts'],
+            lockedIndex: $context['lockedIndex'],
+            profile: $context['profile'],
+            guests: $guests
+        );
+
+        if ($result['status'] !== 'AVAILABLE') {
+            throw new RuntimeException($this->reasonToMessage($result['reason']));
+        }
+    }
+
+    private function buildContext(
+        int $vendorAccountId,
+        CarbonImmutable $fromDate,
+        CarbonImmutable $toDate,
+        ?int $offeringId,
+        CarbonImmutable $now
+    ): array {
+        $profile = $this->loadOfferingProfile($vendorAccountId, $offeringId);
 
         /** @var Collection<int, VendorSlot> $slots */
         $slots = VendorSlot::query()
@@ -57,20 +131,16 @@ class AvailabilityService
             ->orderBy('label')
             ->get(['id', 'slug', 'label', 'start_time', 'end_time']);
 
-        // Weekly schedule: chiave "vendor_slot_id:day_of_week"
-        // Default: CHIUSO se record mancante (come tua logica)
         $weekly = VendorWeeklySchedule::query()
             ->where('vendor_account_id', $vendorAccountId)
             ->get(['vendor_slot_id', 'day_of_week', 'is_open'])
-            ->keyBy(fn($r) => $r->vendor_slot_id . ':' . $r->day_of_week);
+            ->keyBy(fn ($row) => $row->vendor_slot_id . ':' . $row->day_of_week);
 
-        // Lead time per giorno: fallback 48h se non esiste record
         $leadTimes = VendorLeadTime::query()
             ->where('vendor_account_id', $vendorAccountId)
             ->get(['day_of_week', 'min_notice_hours', 'cutoff_time'])
             ->keyBy('day_of_week');
 
-        // Blackouts nel range
         $blackouts = VendorBlackout::query()
             ->where('vendor_account_id', $vendorAccountId)
             ->whereDate('date_from', '<=', $toDate->toDateString())
@@ -78,57 +148,134 @@ class AvailabilityService
             ->get(['date_from', 'date_to', 'vendor_slot_id'])
             ->all();
 
-        $out = [];
+        $lockedIndex = $this->buildLockedIndex(
+            vendorAccountId: $vendorAccountId,
+            fromDate: $fromDate,
+            toDate: $toDate,
+            now: $now
+        );
 
-        for ($d = $fromDate; $d->lessThanOrEqualTo($toDate); $d = $d->addDay()) {
-            $dayKey = $d->toDateString();
-            $dow = (int) $d->dayOfWeek; // 0=Sunday..6=Saturday (coerente con le tue migration)
+        return [
+            'profile' => $profile,
+            'slots' => $slots,
+            'weekly' => $weekly,
+            'leadTimes' => $leadTimes,
+            'blackouts' => $blackouts,
+            'lockedIndex' => $lockedIndex,
+        ];
+    }
 
-            $lead = $leadTimes->get($dow);
-            $minNoticeHours = (int) ($lead->min_notice_hours ?? 48);
-            $cutoffTime = $lead->cutoff_time ? substr((string) $lead->cutoff_time, 0, 8) : null;
+    private function normalizeRange(string $from, string $to, int $maxDays): array
+    {
+        $fromDate = CarbonImmutable::createFromFormat('Y-m-d', $from, self::TIMEZONE)->startOfDay();
+        $toDate = CarbonImmutable::createFromFormat('Y-m-d', $to, self::TIMEZONE)->startOfDay();
 
-            $out[$dayKey] = [];
-
-            foreach ($slots as $slot) {
-                // Momento reale di inizio evento = data + start_time (o 00:00 se null)
-                $startTime = $slot->start_time ? substr((string) $slot->start_time, 0, 8) : '00:00:00';
-                $eventMoment = $d->setTimeFromTimeString($startTime);
-
-                // 1) LEAD_TIME (PDF: fuori lead time => BLOCKED(LEAD_TIME))
-                if (!$this->passesLeadTimePdf($now, $eventMoment, $minNoticeHours, $cutoffTime)) {
-                    $out[$dayKey][] = $this->row($slot, 'BLOCKED', 'LEAD_TIME');
-                    continue;
-                }
-
-                // 2) SCHEDULE (PDF: se slot non previsto dal template => BLOCKED(SCHEDULE))
-                if (!$this->isOpenBySchedule($weekly, (int) $slot->id, $dow)) {
-                    $out[$dayKey][] = $this->row($slot, 'BLOCKED', 'SCHEDULE');
-                    continue;
-                }
-
-                // 3) BLACKOUT (PDF: se blackout => BLOCKED(BLACKOUT))
-                if ($this->isBlackouted($blackouts, $d, (int) $slot->id)) {
-                    $out[$dayKey][] = $this->row($slot, 'BLOCKED', 'BLACKOUT');
-                    continue;
-                }
-
-                // 4) BOOKED / HOLD (PDF)
-                if ($this->isSlotLocked(
-                    $vendorAccountId,
-                    (int) $slot->id,
-                    $dayKey,
-                    $now
-                )) {
-                    $out[$dayKey][] = $this->row($slot, 'BLOCKED', 'BOOKED');
-                    continue;
-                }
-
-                $out[$dayKey][] = $this->row($slot, 'AVAILABLE', null);
-            }
+        if ($toDate->lessThan($fromDate)) {
+            throw new InvalidArgumentException('Invalid date range: to < from');
         }
 
-        return $out;
+        $daysCount = $fromDate->diffInDays($toDate) + 1;
+
+        if ($daysCount > $maxDays) {
+            throw new InvalidArgumentException("Date range too large (max {$maxDays} days)");
+        }
+
+        return [$fromDate, $toDate];
+    }
+
+    private function loadOfferingProfile(int $vendorAccountId, ?int $offeringId): ?VendorOfferingProfile
+    {
+        if ($offeringId === null) {
+            return null;
+        }
+
+        return VendorOfferingProfile::query()
+            ->where('vendor_account_id', $vendorAccountId)
+            ->where('offering_id', $offeringId)
+            ->first();
+    }
+
+    private function evaluateSlotAvailability(
+        VendorSlot $slot,
+        CarbonImmutable $date,
+        int $dayOfWeek,
+        CarbonImmutable $now,
+        Collection $weekly,
+        Collection $leadTimes,
+        array $blackouts,
+        array $lockedIndex,
+        ?VendorOfferingProfile $profile,
+        ?int $guests
+    ): array {
+        $lead = $leadTimes->get($dayOfWeek);
+        $minNoticeHours = (int) ($lead->min_notice_hours ?? 48);
+        $cutoffTime = $lead && $lead->cutoff_time
+            ? substr((string) $lead->cutoff_time, 0, 8)
+            : null;
+
+        $startTime = $slot->start_time
+            ? substr((string) $slot->start_time, 0, 8)
+            : '00:00:00';
+
+        $eventMoment = $date->setTimeFromTimeString($startTime);
+
+        if (! $this->passesLeadTime($now, $eventMoment, $minNoticeHours, $cutoffTime)) {
+            return ['status' => 'BLOCKED', 'reason' => 'LEAD_TIME'];
+        }
+
+        if (! $this->isOpenBySchedule($weekly, (int) $slot->id, $dayOfWeek)) {
+            return ['status' => 'BLOCKED', 'reason' => 'SCHEDULE'];
+        }
+
+        if ($this->isBlackouted($blackouts, $date, (int) $slot->id)) {
+            return ['status' => 'BLOCKED', 'reason' => 'BLACKOUT'];
+        }
+
+        if ($this->isSlotLockedFromIndex($lockedIndex, $date->toDateString(), (int) $slot->id)) {
+            return ['status' => 'BLOCKED', 'reason' => 'BOOKED'];
+        }
+
+        if ($this->profileExceedsCapacity($profile, $guests)) {
+            return ['status' => 'BLOCKED', 'reason' => 'CAPACITY'];
+        }
+
+        return ['status' => 'AVAILABLE', 'reason' => null];
+    }
+
+    private function buildLockedIndex(
+        int $vendorAccountId,
+        CarbonImmutable $fromDate,
+        CarbonImmutable $toDate,
+        CarbonImmutable $now
+    ): array {
+        $locks = SlotLock::query()
+            ->where('vendor_account_id', $vendorAccountId)
+            ->whereDate('date', '>=', $fromDate->toDateString())
+            ->whereDate('date', '<=', $toDate->toDateString())
+            ->where('is_active', true)
+            ->where(function ($query) use ($now) {
+                $query->where('status', SlotLock::STATUS_BOOKED)
+                    ->orWhere(function ($subQuery) use ($now) {
+                        $subQuery->where('status', SlotLock::STATUS_HOLD)
+                            ->where('expires_at', '>', $now);
+                    });
+            })
+            ->get(['vendor_slot_id', 'date']);
+
+        $index = [];
+
+        foreach ($locks as $lock) {
+            $day = substr((string) $lock->date, 0, 10);
+            $slotId = (int) $lock->vendor_slot_id;
+            $index[$day][$slotId] = true;
+        }
+
+        return $index;
+    }
+
+    private function isSlotLockedFromIndex(array $lockedIndex, string $date, int $vendorSlotId): bool
+    {
+        return isset($lockedIndex[$date][$vendorSlotId]);
     }
 
     private function row(VendorSlot $slot, string $status, ?string $reason): array
@@ -144,23 +291,20 @@ class AvailabilityService
         ];
     }
 
-    private function isOpenBySchedule(Collection $weeklyKeyed, int $vendorSlotId, int $dow): bool
+    private function isOpenBySchedule(Collection $weeklyKeyed, int $vendorSlotId, int $dayOfWeek): bool
     {
-        $rec = $weeklyKeyed->get($vendorSlotId . ':' . $dow);
+        $record = $weeklyKeyed->get($vendorSlotId . ':' . $dayOfWeek);
 
-        // default closed
-        return (bool) ($rec?->is_open ?? false);
+        return (bool) ($record?->is_open ?? false);
     }
 
     private function isBlackouted(array $blackouts, CarbonImmutable $date, int $vendorSlotId): bool
     {
         $day = $date->toDateString();
 
-        foreach ($blackouts as $b) {
-            // range date match
-            if ($b->date_from <= $day && $b->date_to >= $day) {
-                // vendor_slot_id null => tutti gli slot
-                if ($b->vendor_slot_id === null || (int) $b->vendor_slot_id === $vendorSlotId) {
+        foreach ($blackouts as $blackout) {
+            if ($blackout->date_from <= $day && $blackout->date_to >= $day) {
+                if ($blackout->vendor_slot_id === null || (int) $blackout->vendor_slot_id === $vendorSlotId) {
                     return true;
                 }
             }
@@ -169,29 +313,20 @@ class AvailabilityService
         return false;
     }
 
-    /**
-     * Implementazione LEAD_TIME coerente con PDF:
-     * - min_notice_hours: ora deve essere almeno N ore prima del MOMENTO evento (data+start_time)
-     * - cutoff_time (opzionale): prenotazioni per il giorno D entro cutoff del giorno D-1
-     *   (esempio PDF: prenotazioni per domani entro le 18:00 di oggi)
-     */
-    private function passesLeadTimePdf(
+    private function passesLeadTime(
         CarbonImmutable $now,
         CarbonImmutable $eventMoment,
         int $minNoticeHours,
         ?string $cutoffTime
     ): bool {
-        // 1) min_notice_hours
         if ($now->diffInMinutes($eventMoment, false) < ($minNoticeHours * 60)) {
             return false;
         }
 
-        // 2) cutoff_time applicato al giorno precedente all'evento (se evento da domani in poi)
         if ($cutoffTime) {
             $eventDate = $eventMoment->startOfDay();
             $today = $now->startOfDay();
 
-            // solo eventi futuri (>= domani). Se eventDate == today, cutoff non ha molto senso.
             if ($eventDate->greaterThan($today)) {
                 $cutoffDay = $eventDate->subDay();
                 $cutoffMoment = $cutoffDay->setTimeFromTimeString($cutoffTime);
@@ -205,34 +340,44 @@ class AvailabilityService
         return true;
     }
 
-    /**
-     * Stub: fino alla Fase 2 (locks), non blocchiamo mai per BOOKED.
-     * Quando introduciamo slot_locks + unique constraint, qui diventa un check reale.
-     */
-    private function isBookedStubFalse(): bool
+    private function profileExceedsCapacity(?VendorOfferingProfile $profile, ?int $guests): bool
     {
-        return false;
+        if (! $profile || $guests === null) {
+            return false;
+        }
+
+        if (method_exists($profile, 'isFixedLocationService') && ! $profile->isFixedLocationService()) {
+            return false;
+        }
+
+        if (
+            ! method_exists($profile, 'isFixedLocationService')
+            && isset($profile->service_mode)
+            && $profile->service_mode !== 'FIXED_LOCATION'
+        ) {
+            return false;
+        }
+
+        if (method_exists($profile, 'exceedsCapacity')) {
+            return $profile->exceedsCapacity($guests);
+        }
+
+        if (! isset($profile->max_guests) || $profile->max_guests === null) {
+            return false;
+        }
+
+        return $guests > (int) $profile->max_guests;
     }
 
-    private function isSlotLocked(
-    int $vendorAccountId,
-    int $vendorSlotId,
-    string $date,
-    CarbonImmutable $now
-): bool {
-
-    return SlotLock::query()
-        ->where('vendor_account_id', $vendorAccountId)
-        ->where('vendor_slot_id', $vendorSlotId)
-        ->whereDate('date', $date)
-        ->where('is_active', true)
-        ->where(function ($q) use ($now) {
-            $q->where('status', 'BOOKED')
-              ->orWhere(function ($sub) use ($now) {
-                  $sub->where('status', 'HOLD')
-                      ->where('expires_at', '>', $now);
-              });
-        })
-        ->exists();
-}
+    private function reasonToMessage(?string $reason): string
+    {
+        return match ($reason) {
+            'LEAD_TIME' => 'Slot non prenotabile per vincolo di anticipo minimo',
+            'SCHEDULE' => 'Slot non disponibile nel calendario vendor',
+            'BLACKOUT' => 'Slot non disponibile per blackout vendor',
+            'BOOKED' => 'Slot non disponibile',
+            'CAPACITY' => 'Numero ospiti non supportato per questo servizio',
+            default => 'Slot non disponibile',
+        };
+    }
 }

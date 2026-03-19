@@ -14,7 +14,7 @@ class AdminBookingShowPage extends Component
     public function mount(Booking $booking): void
     {
         $this->booking = $booking;
-        $this->authorize('view', $this->booking); // admin ok
+        $this->authorize('view', $this->booking);
     }
 
     public function deleteBooking(): void
@@ -24,27 +24,22 @@ class AdminBookingShowPage extends Component
         DB::transaction(function () {
             $b = Booking::lockForUpdate()->withTrashed()->findOrFail($this->booking->id);
 
-            // Rilascia lock se presente
             if ($b->slot_lock_id) {
                 $lock = SlotLock::lockForUpdate()->find($b->slot_lock_id);
-                if ($lock) {
-                    $lock->update([
-                        'status'    => 'CANCELLED',
-                        'is_active' => false,
-                    ]);
+
+                if ($lock && $lock->is_active) {
+                    $lock->markCancelled();
                 }
             }
 
-            $b->delete(); // Soft delete
+            $b->delete();
         });
 
-        // Redirect alla lista admin
         $this->redirect(route('admin.bookings', ['tab' => 'all']), navigate: true);
     }
 
     public function render()
     {
-        // ricarico con relazioni per pagina
         $booking = Booking::with(['vendorAccount', 'vendorSlot', 'slotLock'])
             ->withTrashed()
             ->findOrFail($this->booking->id);

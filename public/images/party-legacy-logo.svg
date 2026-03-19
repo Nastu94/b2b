@@ -1,65 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" width="200" height="40">
   <defs>
-    <radialGradient id="iconGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" style="stop-color:#94A3B8;stop-opacity:0.25"/>
-      <stop offset="100%" style="stop-color:#0F1724;stop-opacity:0"/>
+    <radialGradient id="g08" cx="12%" cy="50%" r="35%">
+      <stop offset="0%" stop-color="#C9A060" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#111827" stop-opacity="0"/>
     </radialGradient>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&amp;family=Cormorant+Upright:ital,wght@1,300&amp;display=swap');
-    </style>
+    <clipPath id="pill">
+      <rect x="0" y="0" width="200" height="40" rx="20"/>
+    </clipPath>
   </defs>
-
-  <!-- Background: fully rounded pill -->
-  <rect x="0" y="0" width="200" height="40" rx="20" ry="20" fill="#0F1724"/>
-
-  <!-- Subtle corner arc decorations -->
-  <circle cx="0"   cy="0"  r="35" fill="none" stroke="#ffffff" stroke-width="0.4" opacity="0.06"/>
-  <circle cx="200" cy="40" r="35" fill="none" stroke="#ffffff" stroke-width="0.4" opacity="0.04"/>
-
-  <!-- CROWN ICON -->
-  <circle cx="21" cy="20" r="14" fill="url(#iconGlow)"/>
-  <circle cx="21" cy="20" r="13" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.4"/>
-  <circle cx="21" cy="20" r="11" fill="#1a2640" opacity="0.7"/>
-
-  <path d="M 12 23 Q 21 17 30 23" fill="none" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/>
-  <line x1="12" y1="23" x2="14" y2="14" stroke="#ffffff" stroke-width="1.1" stroke-linecap="round"/>
-  <line x1="21" y1="17" x2="21" y2="11" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/>
-  <line x1="30" y1="23" x2="28" y2="14" stroke="#ffffff" stroke-width="1.1" stroke-linecap="round"/>
-  <circle cx="14" cy="13.5" r="1.2" fill="#ffffff"/>
-  <circle cx="21" cy="10.5" r="1.5" fill="#ffffff"/>
-  <circle cx="28" cy="13.5" r="1.2" fill="#ffffff"/>
-  <rect x="10.5" y="23" width="21" height="3.2" rx="1.6" fill="#ffffff" opacity="0.88"/>
-
-  <!-- Confetti -->
-  <rect x="8"  y="7"  width="2"   height="2"   rx="0.4" fill="#ffffff" transform="rotate(15,9,8)"    opacity="0.45"/>
-  <rect x="29" y="6"  width="2"   height="2"   rx="0.4" fill="#CBD5E1" transform="rotate(-10,30,7)"  opacity="0.55"/>
-  <rect x="5"  y="19" width="1.5" height="1.5" rx="0.3" fill="#ffffff"                               opacity="0.35"/>
-  <rect x="33" y="18" width="1.5" height="1.5" rx="0.3" fill="#CBD5E1"                               opacity="0.35"/>
-  <rect x="10" y="31" width="1.8" height="1.8" rx="0.3" fill="#ffffff" transform="rotate(10,11,32)"  opacity="0.35"/>
-  <rect x="29" y="30" width="1.8" height="1.8" rx="0.3" fill="#CBD5E1" transform="rotate(-15,30,31)" opacity="0.35"/>
-  <text x="6"  y="12" font-size="2.5" fill="#ffffff" opacity="0.35">✦</text>
-  <text x="31" y="11" font-size="2"   fill="#ffffff" opacity="0.3">✦</text>
-
-  <!-- WORDMARK -->
-  <text
-    x="40" y="21"
-    font-family="'Cinzel', 'Trajan Pro', 'Times New Roman', serif"
-    font-size="14"
-    font-weight="700"
-    letter-spacing="2.5"
-    fill="#ffffff"
-  >PARTY</text>
-
-  <line x1="40" y1="23.5" x2="195" y2="23.5" stroke="#ffffff" stroke-width="0.35" opacity="0.25"/>
-
-  <text
-    x="41" y="33"
-    font-family="'Cormorant Upright', 'Cormorant Garamond', 'Didot', serif"
-    font-size="9.5"
-    font-weight="300"
-    font-style="italic"
-    letter-spacing="5"
-    fill="#CBD5E1"
-    opacity="0.85"
-  >LEGACY</text>
+  <rect x="0" y="0" width="200" height="40" rx="20" fill="#111827"/>
+  <rect x="0" y="0" width="200" height="40" rx="20" fill="url(#g08)"/>
+  <rect x="0" y="0" width="200" height="40" rx="20" fill="none" stroke="#C9A060" stroke-width="0.5" opacity="0.3"/>
+  <rect x="0" y="0" width="7" height="40" fill="#C9A060" opacity="0.95" clip-path="url(#pill)"/>
+  <path d="M 17 24 Q 25 18 33 24" fill="none" stroke="#C9A060" stroke-width="1.1" stroke-linecap="round"/>
+  <line x1="17" y1="24" x2="19" y2="16" stroke="#C9A060" stroke-width="1" stroke-linecap="round"/>
+  <line x1="25" y1="19" x2="25" y2="12" stroke="#C9A060" stroke-width="1.1" stroke-linecap="round"/>
+  <line x1="33" y1="24" x2="31" y2="16" stroke="#C9A060" stroke-width="1" stroke-linecap="round"/>
+  <circle cx="19" cy="15.5" r="1.2" fill="#D5B484"/>
+  <circle cx="25" cy="11.5" r="1.5" fill="#D5B484"/>
+  <circle cx="31" cy="15.5" r="1.2" fill="#D5B484"/>
+  <rect x="15.5" y="24" width="19" height="2.8" rx="1.4" fill="#C9A060" opacity="0.9"/>
+  <text x="47" y="16" font-family="'Cinzel','Trajan Pro','Times New Roman',serif" font-size="15" font-weight="700" letter-spacing="3.5" fill="#D5B484">PARTY</text>
+  <text x="48" y="31" font-family="'Cinzel','Trajan Pro','Times New Roman',serif" font-size="9" font-weight="700" letter-spacing="5" fill="#C9A060">LEGACY</text>
 </svg>

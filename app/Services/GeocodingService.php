@@ -4,22 +4,25 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class GeocodingService
 {
-    // Geocoding principale per il contesto Italia.
-    // Accetta sia indirizzi completi sia dati parziali.
-    //
-    // Chiavi supportate:
-    // - address_line1
-    // - address_line2
-    // - postal_code
-    // - city
-    // - region
-    //
-    // Restituisce:
-    // - ['lat' => float, 'lng' => float]
-    // - null se non trova un risultato affidabile
+    private const COUNTRY = 'Italia';
+    private const COUNTRY_CODE = 'it';
+
+    private const CACHE_TTL_DAYS = 30;
+    private const NOT_FOUND_CACHE_HOURS = 12;
+
+    private const REQUEST_TIMEOUT_SECONDS = 10;
+    private const REQUEST_RETRIES = 2;
+    private const REQUEST_RETRY_SLEEP_MS = 300;
+
+    private const RESULTS_LIMIT = 5;
+    private const MIN_CONFIDENCE_SCORE = 40.0;
+
+    // Geocoding principale per indirizzi italiani.
     public function geocodeItaly(array $addr): ?array
     {
         $address1 = $this->clean($addr['address_line1'] ?? null);
@@ -28,43 +31,47 @@ class GeocodingService
         $city = $this->clean($addr['city'] ?? null);
         $region = $this->clean($addr['region'] ?? null);
 
-        // Senza città non possiamo costruire una ricerca affidabile.
         if ($city === null) {
             return null;
         }
 
         $street = $this->buildStreet($address1, $address2);
 
-        // Prima proviamo ricerche strutturate.
-        // Sono più affidabili delle query testuali libere quando i campi sono separati.
+        $context = [
+            'city' => $city,
+            'region' => $region,
+            'postal_code' => $postalCode,
+            'street' => $street,
+        ];
+
         $structuredAttempts = [
             [
                 'street' => $street,
                 'postalcode' => $postalCode,
                 'city' => $city,
                 'state' => $region,
-                'country' => 'Italia',
+                'country' => self::COUNTRY,
             ],
             [
                 'street' => $street,
                 'city' => $city,
                 'state' => $region,
-                'country' => 'Italia',
+                'country' => self::COUNTRY,
             ],
             [
                 'postalcode' => $postalCode,
                 'city' => $city,
                 'state' => $region,
-                'country' => 'Italia',
+                'country' => self::COUNTRY,
             ],
             [
                 'city' => $city,
                 'state' => $region,
-                'country' => 'Italia',
+                'country' => self::COUNTRY,
             ],
             [
                 'city' => $city,
-                'country' => 'Italia',
+                'country' => self::COUNTRY,
             ],
         ];
 
@@ -75,37 +82,25 @@ class GeocodingService
                 continue;
             }
 
-            $result = $this->searchStructuredCached($params, [
-                'city' => $city,
-                'region' => $region,
-                'postal_code' => $postalCode,
-                'street' => $street,
-            ]);
+            $result = $this->searchStructuredCached($params, $context);
 
             if ($result !== null) {
                 return $result;
             }
         }
 
-        // Se le ricerche strutturate non bastano, usiamo fallback testuali.
-        // Questo aiuta in casi in cui Nominatim indicizza meglio la query libera.
         $textAttempts = [
-            $this->buildQuery([$street, $postalCode, $city, $region, 'Italia']),
-            $this->buildQuery([$street, $city, $region, 'Italia']),
-            $this->buildQuery([$postalCode, $city, $region, 'Italia']),
-            $this->buildQuery([$city, $region, 'Italia']),
-            $this->buildQuery([$city, 'Italia']),
+            $this->buildQuery([$street, $postalCode, $city, $region, self::COUNTRY]),
+            $this->buildQuery([$street, $city, $region, self::COUNTRY]),
+            $this->buildQuery([$postalCode, $city, $region, self::COUNTRY]),
+            $this->buildQuery([$city, $region, self::COUNTRY]),
+            $this->buildQuery([$city, self::COUNTRY]),
         ];
 
         $textAttempts = array_values(array_unique(array_filter($textAttempts)));
 
         foreach ($textAttempts as $query) {
-            $result = $this->searchTextCached($query, [
-                'city' => $city,
-                'region' => $region,
-                'postal_code' => $postalCode,
-                'street' => $street,
-            ]);
+            $result = $this->searchTextCached($query, $context);
 
             if ($result !== null) {
                 return $result;
@@ -115,8 +110,7 @@ class GeocodingService
         return null;
     }
 
-    // Metodo dedicato al caso "solo città".
-    // È utile quando dobbiamo usare la città come punto geografico di fallback.
+    // Geocoding città.
     public function geocodeCity(string $city, ?string $region = null): ?array
     {
         return $this->geocodeItaly([
@@ -125,7 +119,7 @@ class GeocodingService
         ]);
     }
 
-    // Calcola la distanza in chilometri tra due punti GPS.
+    // Distanza in km con formula Haversine.
     public function calculateDistance(float $lat1, float $lng1, float $lat2, float $lng2): float
     {
         $earthRadius = 6371.0;
@@ -133,86 +127,124 @@ class GeocodingService
         $dLat = deg2rad($lat2 - $lat1);
         $dLng = deg2rad($lng2 - $lng1);
 
-        $a = sin($dLat / 2) * sin($dLat / 2) +
-            cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-            sin($dLng / 2) * sin($dLng / 2);
+        $a = sin($dLat / 2) * sin($dLat / 2)
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2))
+            * sin($dLng / 2) * sin($dLng / 2);
 
         $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
 
         return $earthRadius * $c;
     }
 
-    // Esegue una ricerca strutturata su Nominatim e ne seleziona il miglior risultato.
     private function searchStructuredCached(array $params, array $context): ?array
     {
-        $cacheKey = 'geocode:nominatim:it:structured:' . sha1(json_encode($params));
+        $cacheKey = 'geocode:nominatim:it:structured:' . $this->stableHash($params);
 
-        return Cache::remember($cacheKey, now()->addDays(30), function () use ($params, $context) {
-            $response = Http::withHeaders($this->buildHeaders())
-                ->timeout(10)
-                ->retry(2, 300)
-                ->get('https://nominatim.openstreetmap.org/search', array_merge([
-                    'format' => 'jsonv2',
-                    'limit' => 5,
-                    'countrycodes' => 'it',
-                    'addressdetails' => 1,
-                    'dedupe' => 1,
-                ], $params));
+        return $this->rememberGeocodeResult($cacheKey, function () use ($params, $context) {
+            $results = $this->performSearch(array_merge([
+                'format' => 'jsonv2',
+                'limit' => self::RESULTS_LIMIT,
+                'countrycodes' => self::COUNTRY_CODE,
+                'addressdetails' => 1,
+                'dedupe' => 1,
+            ], $params));
 
-            if (!$response->ok()) {
-                return null;
+            if ($results === null) {
+                return ['cacheable' => false, 'value' => null];
             }
 
-            $data = $response->json();
-
-            if (!is_array($data) || empty($data)) {
-                return null;
-            }
-
-            return $this->extractBestCoordinates($data, $context);
+            return [
+                'cacheable' => true,
+                'value' => $this->extractBestCoordinates($results, $context),
+            ];
         });
     }
 
-    // Esegue una ricerca testuale su Nominatim e ne seleziona il miglior risultato.
     private function searchTextCached(string $query, array $context): ?array
     {
-        $normalizedQuery = mb_strtolower(preg_replace('/\s+/', ' ', trim($query)));
+        $normalizedQuery = $this->normalizeForMatch($query) ?? $query;
         $cacheKey = 'geocode:nominatim:it:text:' . sha1($normalizedQuery);
 
-        return Cache::remember($cacheKey, now()->addDays(30), function () use ($query, $context) {
+        return $this->rememberGeocodeResult($cacheKey, function () use ($query, $context) {
+            $results = $this->performSearch([
+                'q' => $query,
+                'format' => 'jsonv2',
+                'limit' => self::RESULTS_LIMIT,
+                'countrycodes' => self::COUNTRY_CODE,
+                'addressdetails' => 1,
+                'dedupe' => 1,
+            ]);
+
+            if ($results === null) {
+                return ['cacheable' => false, 'value' => null];
+            }
+
+            return [
+                'cacheable' => true,
+                'value' => $this->extractBestCoordinates($results, $context),
+            ];
+        });
+    }
+
+    private function rememberGeocodeResult(string $cacheKey, callable $resolver): ?array
+    {
+        if (Cache::has($cacheKey)) {
+            return Cache::get($cacheKey);
+        }
+
+        $resolved = $resolver();
+
+        if (! is_array($resolved) || ! array_key_exists('cacheable', $resolved)) {
+            return null;
+        }
+
+        if (($resolved['cacheable'] ?? false) !== true) {
+            return $resolved['value'] ?? null;
+        }
+
+        $value = $resolved['value'] ?? null;
+        $ttl = $value !== null
+            ? now()->addDays(self::CACHE_TTL_DAYS)
+            : now()->addHours(self::NOT_FOUND_CACHE_HOURS);
+
+        Cache::put($cacheKey, $value, $ttl);
+
+        return $value;
+    }
+
+    private function performSearch(array $queryParams): ?array
+    {
+        try {
             $response = Http::withHeaders($this->buildHeaders())
-                ->timeout(10)
-                ->retry(2, 300)
-                ->get('https://nominatim.openstreetmap.org/search', [
-                    'q' => $query,
-                    'format' => 'jsonv2',
-                    'limit' => 5,
-                    'countrycodes' => 'it',
-                    'addressdetails' => 1,
-                    'dedupe' => 1,
+                ->timeout(self::REQUEST_TIMEOUT_SECONDS)
+                ->retry(self::REQUEST_RETRIES, self::REQUEST_RETRY_SLEEP_MS)
+                ->get('https://nominatim.openstreetmap.org/search', $queryParams);
+
+            if (! $response->ok()) {
+                Log::warning('Geocoding provider response non OK', [
+                    'status' => $response->status(),
                 ]);
 
-            if (!$response->ok()) {
                 return null;
             }
 
             $data = $response->json();
 
-            if (!is_array($data) || empty($data)) {
+            if (! is_array($data) || empty($data)) {
                 return null;
             }
 
-            return $this->extractBestCoordinates($data, $context);
-        });
+            return $data;
+        } catch (Throwable $e) {
+            Log::warning('Geocoding provider call fallita', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 
-    // Seleziona il risultato migliore tra più candidati.
-    // La logica è prudente:
-    // - preferisce città coerente
-    // - preferisce CAP coerente
-    // - preferisce regione coerente
-    // - premia la presenza della via quando richiesta
-    // - usa importanza e place_rank come criterio secondario
+    // Sceglie il candidato migliore.
     private function extractBestCoordinates(array $results, array $context): ?array
     {
         $city = $this->normalizeForMatch($context['city'] ?? null);
@@ -226,21 +258,27 @@ class GeocodingService
             $lat = $result['lat'] ?? null;
             $lon = $result['lon'] ?? null;
 
-            if (!is_numeric($lat) || !is_numeric($lon)) {
+            if (! is_numeric($lat) || ! is_numeric($lon)) {
+                continue;
+            }
+
+            $lat = (float) $lat;
+            $lng = (float) $lon;
+
+            if (! $this->areCoordinatesValid($lat, $lng)) {
                 continue;
             }
 
             $score = $this->scoreResult($result, $city, $region, $postalCode, $street);
 
-            // Scartiamo risultati troppo deboli per evitare coordinate fuorvianti.
-            if ($score < 40) {
+            if ($score < self::MIN_CONFIDENCE_SCORE) {
                 continue;
             }
 
             $scored[] = [
                 'score' => $score,
-                'lat' => (float) $lat,
-                'lng' => (float) $lon,
+                'lat' => $lat,
+                'lng' => $lng,
             ];
         }
 
@@ -248,9 +286,7 @@ class GeocodingService
             return null;
         }
 
-        usort($scored, function (array $a, array $b) {
-            return $b['score'] <=> $a['score'];
-        });
+        usort($scored, fn (array $a, array $b) => $b['score'] <=> $a['score']);
 
         return [
             'lat' => $scored[0]['lat'],
@@ -258,7 +294,6 @@ class GeocodingService
         ];
     }
 
-    // Attribuisce un punteggio al risultato Nominatim.
     private function scoreResult(
         array $result,
         ?string $expectedCity,
@@ -305,7 +340,6 @@ class GeocodingService
             ? (float) $result['place_rank']
             : 0.0;
 
-        // La città è il vincolo più importante.
         if ($expectedCity !== null) {
             if ($candidateCity === $expectedCity) {
                 $score += 50;
@@ -316,7 +350,6 @@ class GeocodingService
             }
         }
 
-        // La regione aiuta a distinguere città omonime.
         if ($expectedRegion !== null) {
             if ($candidateRegion === $expectedRegion) {
                 $score += 20;
@@ -327,7 +360,6 @@ class GeocodingService
             }
         }
 
-        // Il CAP è un ottimo segnale quando disponibile.
         if ($expectedPostalCode !== null) {
             if ($candidatePostalCode === $expectedPostalCode) {
                 $score += 20;
@@ -336,7 +368,6 @@ class GeocodingService
             }
         }
 
-        // Se l'input contiene una via, premiamo risultati che contengono una strada coerente.
         if ($expectedStreet !== null) {
             if ($candidateStreet !== null && $this->streetLooksCompatible($expectedStreet, $candidateStreet)) {
                 $score += 20;
@@ -346,7 +377,6 @@ class GeocodingService
                 $score -= 8;
             }
         } else {
-            // Nel caso città-only, premiamo entità amministrative o urbane sensate.
             if (in_array($type, ['city', 'town', 'village', 'administrative'], true)) {
                 $score += 10;
             }
@@ -356,15 +386,12 @@ class GeocodingService
             }
         }
 
-        // Importanza e place rank aiutano a discriminare tra più risultati simili.
         $score += min($importance * 10, 5);
         $score += min($placeRank / 10, 5);
 
         return $score;
     }
 
-    // Verifica compatibilità "morbida" tra due nomi strada.
-    // Serve a tollerare abbreviazioni e differenze minori di scrittura.
     private function streetLooksCompatible(string $expectedStreet, string $candidateStreet): bool
     {
         $expectedTokens = $this->tokenizeForMatch($expectedStreet);
@@ -376,8 +403,6 @@ class GeocodingService
 
         $intersection = array_intersect($expectedTokens, $candidateTokens);
 
-        // Consideriamo compatibile una strada se condivide almeno due token
-        // o tutti i token quando la stringa è molto corta.
         if (count($expectedTokens) <= 2) {
             return count($intersection) >= count($expectedTokens);
         }
@@ -385,7 +410,6 @@ class GeocodingService
         return count($intersection) >= 2;
     }
 
-    // Costruisce gli header HTTP richiesti da Nominatim.
     private function buildHeaders(): array
     {
         return [
@@ -394,7 +418,6 @@ class GeocodingService
         ];
     }
 
-    // Costruisce la stringa strada unendo address_line1 e address_line2.
     private function buildStreet(?string $address1, ?string $address2): ?string
     {
         $street = $this->buildQuery([$address1, $address2]);
@@ -402,7 +425,6 @@ class GeocodingService
         return $street !== '' ? $street : null;
     }
 
-    // Costruisce una query testuale pulita.
     private function buildQuery(array $parts): string
     {
         $parts = array_filter(array_map([$this, 'clean'], $parts));
@@ -410,15 +432,13 @@ class GeocodingService
         return trim(implode(', ', $parts));
     }
 
-    // Rimuove i valori null o vuoti da un array associativo.
     private function filterEmpty(array $values): array
     {
-        return array_filter($values, function ($value) {
+        return array_filter($values, static function ($value) {
             return $value !== null && $value !== '';
         });
     }
 
-    // Pulisce una stringa mantenendo solo un formato coerente.
     private function clean(?string $value): ?string
     {
         if ($value === null) {
@@ -431,12 +451,11 @@ class GeocodingService
             return null;
         }
 
-        $value = preg_replace('/\s+/', ' ', $value);
+        $value = (string) preg_replace('/\s+/', ' ', $value);
 
         return $value !== '' ? $value : null;
     }
 
-    // Normalizza una stringa per confronti tolleranti.
     private function normalizeForMatch(?string $value): ?string
     {
         $value = $this->clean($value);
@@ -446,15 +465,13 @@ class GeocodingService
         }
 
         $value = mb_strtolower($value);
+        $value = (string) preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $value);
+        $value = (string) preg_replace('/\s+/', ' ', $value);
+        $value = trim($value);
 
-        // Rimuoviamo la maggior parte della punteggiatura per confronti più robusti.
-        $value = preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $value);
-        $value = preg_replace('/\s+/', ' ', $value);
-
-        return trim($value) !== '' ? trim($value) : null;
+        return $value !== '' ? $value : null;
     }
 
-    // Normalizza il CAP per confronti esatti.
     private function normalizePostalCode(?string $value): ?string
     {
         $value = $this->clean($value);
@@ -463,12 +480,11 @@ class GeocodingService
             return null;
         }
 
-        $value = preg_replace('/\D+/', '', $value);
+        $value = (string) preg_replace('/\D+/', '', $value);
 
         return $value !== '' ? $value : null;
     }
 
-    // Tokenizza una stringa normalizzata per confronti su parole chiave.
     private function tokenizeForMatch(?string $value): array
     {
         $normalized = $this->normalizeForMatch($value);
@@ -479,7 +495,6 @@ class GeocodingService
 
         $tokens = explode(' ', $normalized);
 
-        // Rimuoviamo token troppo corti e parole molto comuni delle strade.
         $stopWords = [
             'via',
             'viale',
@@ -502,9 +517,37 @@ class GeocodingService
         ];
 
         $tokens = array_filter($tokens, function ($token) use ($stopWords) {
-            return mb_strlen($token) >= 2 && !in_array($token, $stopWords, true);
+            return mb_strlen($token) >= 2 && ! in_array($token, $stopWords, true);
         });
 
         return array_values(array_unique($tokens));
+    }
+
+    private function stableHash(array $payload): string
+    {
+        $normalized = $this->sortArrayRecursively($payload);
+
+        return sha1(json_encode($normalized, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+
+    private function sortArrayRecursively(array $data): array
+    {
+        ksort($data);
+
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                $data[$key] = $this->sortArrayRecursively($value);
+            }
+        }
+
+        return $data;
+    }
+
+    private function areCoordinatesValid(float $lat, float $lng): bool
+    {
+        return $lat >= -90
+            && $lat <= 90
+            && $lng >= -180
+            && $lng <= 180;
     }
 }

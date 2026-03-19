@@ -46,6 +46,7 @@
             @enderror
         </div>
 
+        {{-- Raggio operativo: visibile solo per MOBILE --}}
         <div>
             <label class="text-xs font-medium text-gray-700">Raggio operativo (km)</label>
             <input
@@ -57,6 +58,33 @@
                 class="mt-1 w-full rounded border-gray-300 disabled:bg-gray-100 disabled:text-gray-500"
             />
             @error('service_radius_km')
+                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
+        </div>
+
+        {{-- Capacita' massima ospiti: visibile solo per FIXED_LOCATION --}}
+        <div>
+            <label class="text-xs font-medium text-gray-700">
+                Capacità massima ospiti
+                <span class="text-gray-400 font-normal">(opzionale)</span>
+            </label>
+            <input
+                type="number"
+                min="1"
+                max="9999"
+                wire:model.defer="max_guests"
+                @if($service_mode !== 'FIXED_LOCATION') disabled @endif
+                placeholder="Es. 100"
+                class="mt-1 w-full rounded border-gray-300 disabled:bg-gray-100 disabled:text-gray-500"
+            />
+            <p class="mt-1 text-xs text-gray-400">
+                @if($service_mode === 'FIXED_LOCATION')
+                    Se impostato, gli slot risulteranno non disponibili per richieste con più ospiti.
+                @else
+                    Non applicabile per servizi mobile.
+                @endif
+            </p>
+            @error('max_guests')
                 <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
             @enderror
         </div>
@@ -82,7 +110,6 @@
                     src="{{ route('media.public', ['path' => $profile->cover_image_path]) }}"
                     alt="Cover"
                 >
-
                 <button
                     type="button"
                     wire:click="removeCover"
