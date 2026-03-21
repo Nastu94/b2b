@@ -127,7 +127,7 @@ class VendorSearchService
             'category:id,name,slug,prestashop_category_id',
             'vendorOfferingProfiles' => function ($query) {
                 $query->where('is_published', true)
-                    ->with('offering:id,name,slug');
+                    ->with(['offering:id,name,slug', 'images']);
             },
         ]);
 
@@ -272,7 +272,7 @@ class VendorSearchService
             ->map(function (Collection $group) {
                 $firstVendor = $group->first();
 
-                return [
+               return [
                     'category' => [
                         'id' => $firstVendor?->category?->id,
                         'name' => $firstVendor?->category?->name,
@@ -281,7 +281,27 @@ class VendorSearchService
                     ],
                     'vendors' => $group->map(function (VendorAccount $vendor) {
                         $offerings = $vendor->vendorOfferingProfiles
-                            ->map(function (VendorOfferingProfile $profile) {
+                            ->map(function (VendorOfferingProfile $profile) {   // Mappa le immagini del profilo in un formato più adatto alla risposta JSON
+                                $images = collect($profile->images ?? [])
+                                    ->map(function ($image) {
+                                        $path = (string) ($image->path ?? '');
+
+                                        if ($path === '') {
+                                            return null;
+                                        }
+
+                                        return [
+                                            'id' => (int) $image->id,
+                                            'url' => route('media.public', [
+                                                'path' => ltrim($path, '/'),
+                                            ]),
+                                            'path' => $path,
+                                            'sort_order' => isset($image->sort_order) ? (int) $image->sort_order : null,
+                                        ];
+                                    })
+                                    ->filter()
+                                    ->values();
+
                                 return [
                                     'vendor_offering_profile_id' => $profile->id,
                                     'offering_id' => $profile->offering_id,
@@ -296,6 +316,7 @@ class VendorSearchService
                                     'is_published' => (bool) $profile->is_published,
                                     'cover_image_url' => $profile->cover_image_url,
                                     'cover_image_path' => $profile->cover_image_path,
+                                    'images' => $images,
                                 ];
                             })
                             ->values();

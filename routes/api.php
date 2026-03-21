@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Auth\MeController;
 use App\Http\Controllers\Api\VendorSearchController;
 use App\Http\Controllers\Api\AvailabilityController;
 use App\Http\Controllers\Api\SlotController;
+use App\Http\Controllers\Api\VendorCatalogController;
 
 Route::middleware('auth:sanctum')->get('/user', MeController::class);
 
@@ -27,6 +28,11 @@ Route::middleware('booking.bridge')->group(function () {
     // Se non esistono vendor disponibili nella città selezionata,
     // il sistema restituisce i vendor più vicini ordinati per distanza.
     Route::get('/vendors/search', [VendorSearchController::class, 'search']);
+
+    // Recupera tutti i vendor per il catalogo, indipendentemente dalla disponibilità.
+    Route::get('/vendors/catalog', [VendorCatalogController::class, 'index']);
+    // Recupera i dettagli di un vendor specifico, inclusi servizi e disponibilità.
+    Route::get('/vendors/{vendor}', [VendorCatalogController::class, 'show']);
 
     // Recupera la disponibilità degli slot per uno specifico vendor
     // in un intervallo di date.
