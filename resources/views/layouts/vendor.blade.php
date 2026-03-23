@@ -36,28 +36,33 @@
             {{-- Navigation --}}
             <nav class="p-4 space-y-1 flex-1">
                 <a href="{{ route('vendor.dashboard') }}"
-                    class="pl-sidebar-link {{ $is('vendor.dashboard') ? 'pl-sidebar-link-active' : '' }}">
-                    Dashboard
+                    class="pl-sidebar-link {{ $is('vendor.dashboard') ? 'pl-sidebar-link-active' : '' }} flex items-center gap-3">
+                    <x-app-icon name="home" class="w-5 h-5" />
+                    <span>Dashboard</span>
                 </a>
 
                 <a href="{{ route('vendor.profile') }}"
-                    class="pl-sidebar-link {{ $is('vendor.profile') ? 'pl-sidebar-link-active' : '' }}">
-                    Profilo
+                    class="pl-sidebar-link {{ $is('vendor.profile') ? 'pl-sidebar-link-active' : '' }} flex items-center gap-3">
+                    <x-app-icon name="user-circle" class="w-5 h-5" />
+                    <span>Profilo</span>
                 </a>
 
                 <a href="{{ route('vendor.offerings') }}"
-                    class="pl-sidebar-link {{ $is('vendor.offerings') ? 'pl-sidebar-link-active' : '' }}">
-                    Servizi
+                    class="pl-sidebar-link {{ $is('vendor.offerings') ? 'pl-sidebar-link-active' : '' }} flex items-center gap-3">
+                    <x-app-icon name="briefcase" class="w-5 h-5" />
+                    <span>Servizi</span>
                 </a>
 
                 <a href="{{ route('vendor.pricings') }}"
-                    class="pl-sidebar-link {{ $is('vendor.pricings') ? 'pl-sidebar-link-active' : '' }}">
-                    Listini
+                    class="pl-sidebar-link {{ $is('vendor.pricings') ? 'pl-sidebar-link-active' : '' }} flex items-center gap-3">
+                    <x-app-icon name="banknotes" class="w-5 h-5" />
+                    <span>Listini</span>
                 </a>
 
                 <a href="{{ route('vendor.bookings') }}"
-                    class="pl-sidebar-link {{ $is('vendor.bookings') ? 'pl-sidebar-link-active' : '' }}">
-                    Prenotazioni
+                    class="pl-sidebar-link {{ $is('vendor.bookings') ? 'pl-sidebar-link-active' : '' }} flex items-center gap-3">
+                    <x-app-icon name="calendar-days" class="w-5 h-5" />
+                    <span>Prenotazioni</span>
                 </a>
             </nav>
 
@@ -69,10 +74,19 @@
 
                 <form method="POST" action="{{ route('logout') }}" class="mt-3">
                     @csrf
-                    <button type="submit" class="pl-btn-logout">
-                        Logout
+                    <button type="submit" class="pl-btn-logout inline-flex items-center gap-2">
+                        <x-app-icon name="arrow-left-on-rectangle" class="w-5 h-5" />
+                        <span>Logout</span>
                     </button>
                 </form>
+
+                <div class="mt-3 pt-3 border-t border-slate-700">
+                    <button type="button" title="Prossimamente"
+                        class="inline-flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                        <x-app-icon name="star" class="w-5 h-5" />
+                        <span>Passa a Premium</span>
+                    </button>
+                </div>
             </div>
         </aside>
 

@@ -54,13 +54,6 @@
                             € {{ number_format($b->total_amount ?? 0, 2, ',', '.') }}
                         </div>
                     </div>
-
-                    <div>
-                        <div class="text-slate-500">Pagamento</div>
-                        <div class="font-medium text-slate-900">
-                            {{ $b->paid_at ? $b->paid_at->format('d/m/Y H:i') : '—' }}
-                        </div>
-                    </div>
                 </div>
             </div>
 

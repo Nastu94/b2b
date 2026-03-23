@@ -20,11 +20,6 @@ use App\Livewire\Vendor\Offerings\ManageOfferingsTabs;
 use App\Livewire\Vendor\Pricings\ManagePricingsTabs;
 use App\Livewire\Vendor\Profile\VendorProfilePage;
 
-// Test / Dev
-use App\Models\Offering;
-use App\Services\GeocodingService;
-use App\Services\VendorSearchService;
-
 Route::get('/', function () {
     return view('welcome');
 })->name('home');

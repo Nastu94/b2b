@@ -7,11 +7,6 @@
 }
 
 @layer components {
-  /* =========
-     LAYOUT
-     ========= */
-
-  /* Sidebar (tema home: slate scuro) */
   .pl-sidebar {
     @apply bg-slate-900 text-slate-100 border-r border-slate-800;
   }
@@ -32,7 +27,6 @@
     @apply bg-white text-slate-800 font-medium;
   }
 
-  /* Topbar */
   .pl-topbar {
     @apply bg-white/70 backdrop-blur border-b border-slate-200;
   }
@@ -44,11 +38,6 @@
   .pl-topbar-muted {
     @apply text-slate-500 text-sm;
   }
-
-
-  /* =========
-     BUTTONS
-     ========= */
 
   .pl-btn {
     @apply inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition;
@@ -66,18 +55,73 @@
     @apply w-full inline-flex items-center justify-center rounded-xl px-4 py-2 bg-white text-slate-800 border border-blue-200 hover:bg-blue-50 transition font-medium;
   }
 
+  .table-wrap {
+    @apply relative overflow-x-auto rounded-2xl bg-white;
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 transparent;
+  }
+
+  .table-wrap::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  .table-wrap::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .table-wrap::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 9999px;
+  }
+
+  .table-wrap-fade::before,
+  .table-wrap-fade::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 16px;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .table-wrap-fade::before {
+    left: 0;
+    background: linear-gradient(to right, white, transparent);
+  }
+
+  .table-wrap-fade::after {
+    right: 0;
+    background: linear-gradient(to left, white, transparent);
+  }
+
+  .pl-table {
+    @apply min-w-full text-sm text-slate-700;
+    position: relative;
+    z-index: 2;
+  }
+
+  .pl-table thead th {
+    @apply sticky top-0 bg-white text-slate-500 font-medium z-20;
+  }
+
+  .pl-table-sticky-first th:first-child,
+  .pl-table-sticky-first td:first-child {
+    @apply sticky left-0 bg-white z-10;
+  }
+
+  .pl-table-sticky-first thead th:first-child {
+    @apply z-30;
+  }
 }
 
 @layer utilities {
   .scrollbar-hide {
     -ms-overflow-style: none;
-    /* IE/Edge legacy */
     scrollbar-width: none;
-    /* Firefox */
   }
 
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
-    /* Chrome/Safari */
   }
 }

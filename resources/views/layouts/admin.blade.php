@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -15,7 +16,7 @@
     <div class="h-screen w-full flex overflow-hidden">
 
         @php
-            $is = fn ($name) => request()->routeIs($name);
+            $is = fn($name) => request()->routeIs($name);
         @endphp
 
         <aside class="w-64 shrink-0 pl-sidebar flex flex-col">
@@ -26,13 +27,15 @@
 
             <nav class="p-4 space-y-1 flex-1">
                 <a href="{{ route('admin.dashboard') }}"
-                   class="pl-sidebar-link {{ $is('admin.dashboard') ? 'pl-sidebar-link-active' : '' }}">
-                    Dashboard
+                    class="pl-sidebar-link {{ $is('admin.dashboard') ? 'pl-sidebar-link-active' : '' }} flex items-center gap-3">
+                    <x-app-icon name="home" class="w-5 h-5" />
+                    <span>Dashboard</span>
                 </a>
 
-                 <a href="{{ route('admin.bookings') }}"
-                   class="pl-sidebar-link {{ $is('admin.bookings*') ? 'pl-sidebar-link-active' : '' }}">
-                    Prenotazioni
+                <a href="{{ route('admin.bookings') }}"
+                    class="pl-sidebar-link {{ $is('admin.bookings*') ? 'pl-sidebar-link-active' : '' }} flex items-center gap-3">
+                    <x-app-icon name="calendar-days" class="w-5 h-5" />
+                    <span>Prenotazioni</span>
                 </a>
             </nav>
 
@@ -41,9 +44,9 @@
 
                 <form method="POST" action="{{ route('logout') }}" class="mt-3">
                     @csrf
-                    <button type="submit"
-                        class="pl-btn-logout">
-                        Logout
+                    <button type="submit" class="pl-btn-logout inline-flex items-center gap-2">
+                        <x-app-icon name="arrow-left-on-rectangle" class="w-5 h-5" />
+                        <span>Logout</span>
                     </button>
                 </form>
             </div>
@@ -69,4 +72,5 @@
 
     @livewireScripts
 </body>
+
 </html>

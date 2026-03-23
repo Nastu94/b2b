@@ -26,18 +26,17 @@ class AdminBookingsList extends Component
         $this->authorize('delete', $booking);
 
         DB::transaction(function () use ($booking) {
-            // se la booking occupa uno slot, rilascia lock così torna disponibile
-            if ($booking->slot_lock_id) {
-                $lock = SlotLock::lockForUpdate()->find($booking->slot_lock_id);
-                if ($lock) {
-                    $lock->update([
-                        'status' => 'CANCELLED',
-                        'is_active' => false,
-                    ]);
+            $lockedBooking = Booking::lockForUpdate()->findOrFail($booking->id);
+
+            if ($lockedBooking->slot_lock_id) {
+                $lock = SlotLock::lockForUpdate()->find($lockedBooking->slot_lock_id);
+
+                if ($lock && $lock->is_active) {
+                    $lock->markCancelled();
                 }
             }
 
-            $booking->delete(); // SoftDeletes
+            $lockedBooking->delete();
         });
 
         session()->flash('success', 'Prenotazione eliminata.');

@@ -19,14 +19,15 @@
                 <nav class="-mb-px flex gap-8" aria-label="Tabs">
 
                     <button type="button" wire:click="setTab('pending')"
-                        class="whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition {{ $tab === 'pending' ? 'border-slate-800 text-slate-900' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700' }}">
-                        In attesa
+                        class="inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition {{ $tab === 'pending' ? 'border-slate-800 text-slate-900' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700' }}">
+                        <x-app-icon name="clock" class="w-4 h-4" />
+                        <span>In attesa</span>
                     </button>
 
-
                     <button type="button" wire:click="setTab('confirmed')"
-                        class="whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition {{ $tab === 'confirmed' ? 'border-slate-800 text-slate-900' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700' }}">
-                        Confermate
+                        class="inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition {{ $tab === 'confirmed' ? 'border-slate-800 text-slate-900' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700' }}">
+                        <x-app-icon name="check-circle" class="w-4 h-4" />
+                        <span>Confermate</span>
                     </button>
 
                 </nav>

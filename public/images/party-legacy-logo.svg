@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" width="200" height="40">
+  <defs>
+    <radialGradient id="g08" cx="12%" cy="50%" r="35%">
+      <stop offset="0%" stop-color="#C9A060" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#111827" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="pill">
+      <rect x="0" y="0" width="200" height="40" rx="20"/>
+    </clipPath>
+  </defs>
+  <rect x="0" y="0" width="200" height="40" rx="20" fill="#111827"/>
+  <rect x="0" y="0" width="200" height="40" rx="20" fill="url(#g08)"/>
+  <rect x="0" y="0" width="200" height="40" rx="20" fill="none" stroke="#C9A060" stroke-width="0.5" opacity="0.3"/>
+  <rect x="0" y="0" width="7" height="40" fill="#C9A060" opacity="0.95" clip-path="url(#pill)"/>
+  <path d="M 17 24 Q 25 18 33 24" fill="none" stroke="#C9A060" stroke-width="1.1" stroke-linecap="round"/>
+  <line x1="17" y1="24" x2="19" y2="16" stroke="#C9A060" stroke-width="1" stroke-linecap="round"/>
+  <line x1="25" y1="19" x2="25" y2="12" stroke="#C9A060" stroke-width="1.1" stroke-linecap="round"/>
+  <line x1="33" y1="24" x2="31" y2="16" stroke="#C9A060" stroke-width="1" stroke-linecap="round"/>
+  <circle cx="19" cy="15.5" r="1.2" fill="#D5B484"/>
+  <circle cx="25" cy="11.5" r="1.5" fill="#D5B484"/>
+  <circle cx="31" cy="15.5" r="1.2" fill="#D5B484"/>
+  <rect x="15.5" y="24" width="19" height="2.8" rx="1.4" fill="#C9A060" opacity="0.9"/>
+  <text x="47" y="16" font-family="'Cinzel','Trajan Pro','Times New Roman',serif" font-size="15" font-weight="700" letter-spacing="3.5" fill="#D5B484">PARTY</text>
+  <text x="48" y="31" font-family="'Cinzel','Trajan Pro','Times New Roman',serif" font-size="9" font-weight="700" letter-spacing="5" fill="#C9A060">LEGACY</text>
+</svg>

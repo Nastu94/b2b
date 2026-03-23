@@ -27,7 +27,7 @@
                 </div>
             </div>
         @empty
-            <div class="p-4 text-gray-600">Nessuna richiesta pendente 🎉</div>
+            <div class="p-4 text-gray-600">Nessuna richiesta pendente </div>
         @endforelse
     </div>
 

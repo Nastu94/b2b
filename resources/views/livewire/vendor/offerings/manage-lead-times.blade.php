@@ -1,4 +1,3 @@
-{{-- resources/views/livewire/vendor/offerings/manage-lead-times.blade.php --}}
 <div>
     {{-- Flash message --}}
     @if (session('status'))
@@ -22,29 +21,22 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
-                @foreach($days as $day => $label)
+                @foreach ($days as $day => $label)
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-3 font-medium text-gray-800">
                             {{ $label }}
                         </td>
                         <td class="px-4 py-3 text-center">
-                            <input
-                                type="number"
-                                wire:model="leadTimes.{{ $day }}.min_notice_hours"
-                                min="0"
-                                max="720"
-                                class="w-20 text-center border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                            />
+                            <input type="number" wire:model="leadTimes.{{ $day }}.min_notice_hours"
+                                min="0" max="720"
+                                class="w-20 text-center border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500" />
                             @error("leadTimes.{$day}.min_notice_hours")
                                 <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                             @enderror
                         </td>
                         <td class="px-4 py-3 text-center">
-                            <input
-                                type="time"
-                                wire:model="leadTimes.{{ $day }}.cutoff_time"
-                                class="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                            />
+                            <input type="time" wire:model="leadTimes.{{ $day }}.cutoff_time"
+                                class="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500" />
                             @error("leadTimes.{$day}.cutoff_time")
                                 <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                             @enderror
@@ -56,12 +48,10 @@
     </div>
 
     <div class="mt-4 flex items-center gap-3">
-        <button
-            wire:click="save"
-            type="button"
-            class="px-4 py-2 bg-slate-600 text-white text-sm font-medium rounded-lg hover:bg-slate-700"
-        >
-            Salva preavvisi
+        <button wire:click="save" type="button"
+            class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+            <x-app-icon name="check" class="w-4 h-4" />
+            <span>Salva</span>
         </button>
         <span class="text-xs text-gray-400">
             Es. Sabato: 72h — Lunedì: 48h

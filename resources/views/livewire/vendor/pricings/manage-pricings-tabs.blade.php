@@ -18,11 +18,8 @@
                     Servizio da configurare
                 </label>
 
-                <select
-                    id="selectedOfferingId"
-                    wire:model.live="selectedOfferingId"
-                    class="block w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300"
-                >
+                <select id="selectedOfferingId" wire:model.live="selectedOfferingId"
+                    class="block w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300">
                     <option value="">-- Seleziona un servizio --</option>
 
                     @foreach ($offerings as $offering)
@@ -53,15 +50,18 @@
                             <span class="font-medium text-slate-700">Listino base:</span>
 
                             @if ($this->pricingStatus === 'active')
-                                <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                                <span
+                                    class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
                                     Configurato
                                 </span>
                             @elseif ($this->pricingStatus === 'inactive')
-                                <span class="inline-flex items-center rounded-full bg-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700">
+                                <span
+                                    class="inline-flex items-center rounded-full bg-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700">
                                     Inattivo
                                 </span>
                             @else
-                                <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
+                                <span
+                                    class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
                                     Da creare
                                 </span>
                             @endif
@@ -80,22 +80,32 @@
     <div class="bg-white shadow rounded-lg">
         @php
             $tabs = [
-                'base-pricing' => 'Listino base',
-                'pricing-rules' => 'Regole',
-                'pricing-summary' => 'Riepilogo',
-                'pricing-simulation' => 'Simulazione',
+                'base-pricing' => [
+                    'label' => 'Listino base',
+                    'icon' => 'banknotes',
+                ],
+                'pricing-rules' => [
+                    'label' => 'Regole',
+                    'icon' => 'adjustments-horizontal',
+                ],
+                'pricing-summary' => [
+                    'label' => 'Riepilogo',
+                    'icon' => 'document-text',
+                ],
+                'pricing-simulation' => [
+                    'label' => 'Simulazione',
+                    'icon' => 'calculator',
+                ],
             ];
         @endphp
 
         <div class="border-b border-slate-200 px-6">
             <nav class="-mb-px flex flex-wrap gap-8" aria-label="Tabs">
-                @foreach ($tabs as $tabKey => $tabLabel)
-                    <button
-                        type="button"
-                        wire:click="selectTab('{{ $tabKey }}')"
-                        class="whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition {{ $activeTab === $tabKey ? 'border-slate-800 text-slate-900' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700' }}"
-                    >
-                        {{ $tabLabel }}
+                @foreach ($tabs as $tabKey => $tab)
+                    <button type="button" wire:click="selectTab('{{ $tabKey }}')"
+                        class="inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition {{ $activeTab === $tabKey ? 'border-slate-800 text-slate-900' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700' }}">
+                        <x-app-icon :name="$tab['icon']" class="w-4 h-4" />
+                        <span>{{ $tab['label'] }}</span>
                     </button>
                 @endforeach
             </nav>
@@ -110,33 +120,25 @@
             @else
                 @switch($activeTab)
                     @case('base-pricing')
-                        <livewire:vendor.pricings.tabs.pricing-base-tab
-                            :vendor-account-id="$vendorAccount->id"
-                            :offering-id="$selectedOfferingId"
-                            :pricing-id="$selectedPricingId"
-                            :key="'pricing-base-tab-'.$vendorAccount->id.'-'.$selectedOfferingId.'-'.($selectedPricingId ?? 'new')"
-                        />
+                        <livewire:vendor.pricings.tabs.pricing-base-tab :vendor-account-id="$vendorAccount->id" :offering-id="$selectedOfferingId" :pricing-id="$selectedPricingId"
+                            :key="'pricing-base-tab-' .
+                                $vendorAccount->id .
+                                '-' .
+                                $selectedOfferingId .
+                                '-' .
+                                ($selectedPricingId ?? 'new')" />
                     @break
 
                     @case('pricing-rules')
-                        <livewire:vendor.pricings.tabs.pricing-rules-tab
-                            :pricing-id="$selectedPricingId"
-                            :key="'pricing-rules-tab-'.($selectedPricingId ?? 'missing')"
-                        />
+                        <livewire:vendor.pricings.tabs.pricing-rules-tab :pricing-id="$selectedPricingId" :key="'pricing-rules-tab-' . ($selectedPricingId ?? 'missing')" />
                     @break
 
                     @case('pricing-summary')
-                        <livewire:vendor.pricings.tabs.pricing-summary-tab
-                            :pricing-id="$selectedPricingId"
-                            :key="'pricing-summary-tab-'.($selectedPricingId ?? 'missing')"
-                        />
+                        <livewire:vendor.pricings.tabs.pricing-summary-tab :pricing-id="$selectedPricingId" :key="'pricing-summary-tab-' . ($selectedPricingId ?? 'missing')" />
                     @break
 
                     @case('pricing-simulation')
-                        <livewire:vendor.pricings.tabs.pricing-simulation-tab
-                            :pricing-id="$selectedPricingId"
-                            :key="'pricing-simulation-tab-'.($selectedPricingId ?? 'missing')"
-                        />
+                        <livewire:vendor.pricings.tabs.pricing-simulation-tab :pricing-id="$selectedPricingId" :key="'pricing-simulation-tab-' . ($selectedPricingId ?? 'missing')" />
                     @break
                 @endswitch
             @endif

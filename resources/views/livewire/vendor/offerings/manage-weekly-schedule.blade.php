@@ -60,10 +60,11 @@
             <button
                 wire:click="save"
                 type="button"
-                class="px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-700"
-            >
-                Salva template settimanale
-            </button>
+               class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+>
+    <x-app-icon name="check" class="w-4 h-4" />
+    <span>Salva</span>
+</button>
             <span class="text-xs text-gray-400">
                 Le modifiche saranno visibili subito nel calendario disponibilità.
             </span>

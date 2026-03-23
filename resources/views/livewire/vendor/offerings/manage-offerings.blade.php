@@ -1,6 +1,6 @@
 {{-- resources/views/livewire/vendor/offerings/manage-offerings.blade.php --}}
 <div class="max-w-4xl mx-auto">
-    
+
     <div class="bg-white shadow-sm rounded-lg p-6">
         <h2 class="text-lg font-semibold">I miei servizi</h2>
         <p class="text-sm text-gray-600 mt-1">
@@ -25,8 +25,9 @@
 
             <div class="mt-6 flex justify-end">
                 <button type="submit"
-                    class="inline-flex items-center px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700">
-                    Salva
+                    class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+                    <x-app-icon name="check" class="w-4 h-4" />
+                    <span>Salva</span>
                 </button>
             </div>
         </form>

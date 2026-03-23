@@ -16,26 +16,36 @@ class AvailabilityController extends Controller
     {
         $validated = $request->validate([
             'vendor_account_id' => 'required|integer|exists:vendor_accounts,id',
-            'from' => 'required|date_format:Y-m-d',
-            'to' => 'required|date_format:Y-m-d',
+            'from'              => 'required|date_format:Y-m-d',
+            'to'                => 'required|date_format:Y-m-d',
+            // offering_id e guests sono opzionali ma necessari per il controllo capacita'
+            'offering_id'       => 'nullable|integer|exists:offerings,id',
+            'guests'            => 'nullable|integer|min:1',
         ]);
 
         try {
             $availability = $this->availabilityService->getAvailability(
-                $validated['vendor_account_id'],
-                $validated['from'],
-                $validated['to']
+                vendorAccountId: (int) $validated['vendor_account_id'],
+                from:            $validated['from'],
+                to:              $validated['to'],
+                offeringId:      isset($validated['offering_id']) ? (int) $validated['offering_id'] : null,
+                guests:          isset($validated['guests']) ? (int) $validated['guests'] : null,
             );
 
             return response()->json([
                 'success' => true,
-                'data' => $availability,
+                'data'    => $availability,
             ], 200);
 
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'error'   => $e->getMessage(),
+            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }

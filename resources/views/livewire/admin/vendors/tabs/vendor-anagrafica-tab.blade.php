@@ -30,33 +30,39 @@
                 <div>
                     <label class="text-sm text-slate-600">Status</label>
                     <select class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                            wire:model="form.status" @disabled(!$canEditNow)>
+                        wire:model="form.status" @disabled(!$canEditNow)>
                         <option value="ACTIVE">Attivo</option>
                         <option value="INACTIVE">Inattivo</option>
                     </select>
-                    @error('form.status') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                    @error('form.status')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div>
                     <label class="text-sm text-slate-600">Tipo account</label>
                     <select class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                            wire:model.live="form.account_type" @disabled(!$canEditNow)>
+                        wire:model.live="form.account_type" @disabled(!$canEditNow)>
                         <option value="COMPANY">Azienda</option>
                         <option value="PRIVATE">Privato</option>
                     </select>
-                    @error('form.account_type') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                    @error('form.account_type')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div>
                     <label class="text-sm text-slate-600">Categoria</label>
                     <select class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                            wire:model="form.category_id" @disabled(!$canEditNow)>
+                        wire:model="form.category_id" @disabled(!$canEditNow)>
                         <option value="">—</option>
                         @foreach ($categories as $c)
                             <option value="{{ $c['id'] }}">{{ $c['name'] }}</option>
                         @endforeach
                     </select>
-                    @error('form.category_id') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                    @error('form.category_id')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
             </div>
 
@@ -75,7 +81,8 @@
                 <div class="mt-5 rounded-xl border border-slate-200 p-4 bg-slate-50/40">
                     <div class="flex items-center justify-between">
                         <h3 class="text-sm font-semibold text-slate-900">Azienda</h3>
-                        <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700">
+                        <span
+                            class="text-xs px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700">
                             COMPANY
                         </span>
                     </div>
@@ -84,33 +91,41 @@
                         <div class="md:col-span-2">
                             <label class="text-sm text-slate-600">Ragione sociale</label>
                             <input type="text"
-                                   class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                                   wire:model="form.company_name" @disabled(!$canEditNow)>
-                            @error('form.company_name') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                                class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                                wire:model="form.company_name" @disabled(!$canEditNow)>
+                            @error('form.company_name')
+                                <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div>
                             <label class="text-sm text-slate-600">Forma giuridica</label>
                             <input type="text"
-                                   class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                                   wire:model="form.legal_entity_type" @disabled(!$canEditNow)>
-                            @error('form.legal_entity_type') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                                class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                                wire:model="form.legal_entity_type" @disabled(!$canEditNow)>
+                            @error('form.legal_entity_type')
+                                <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div>
                             <label class="text-sm text-slate-600">P.IVA</label>
                             <input type="text"
-                                   class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                                   wire:model="form.vat_number" @disabled(!$canEditNow)>
-                            @error('form.vat_number') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                                class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                                wire:model="form.vat_number" @disabled(!$canEditNow)>
+                            @error('form.vat_number')
+                                <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="md:col-span-2">
                             <label class="text-sm text-slate-600">Codice fiscale</label>
                             <input type="text"
-                                   class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                                   wire:model="form.tax_code" @disabled(!$canEditNow)>
-                            @error('form.tax_code') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                                class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                                wire:model="form.tax_code" @disabled(!$canEditNow)>
+                            @error('form.tax_code')
+                                <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
                     </div>
                 </div>
@@ -120,7 +135,8 @@
                 <div class="mt-5 rounded-xl border border-slate-200 p-4 bg-slate-50">
                     <div class="flex items-center justify-between">
                         <h3 class="text-sm font-semibold text-slate-900">Privato</h3>
-                        <span class="text-xs px-2 py-0.5 rounded-full bg-slate-200 border border-slate-300 text-slate-700">
+                        <span
+                            class="text-xs px-2 py-0.5 rounded-full bg-slate-200 border border-slate-300 text-slate-700">
                             PRIVATE
                         </span>
                     </div>
@@ -129,25 +145,31 @@
                         <div>
                             <label class="text-sm text-slate-600">Nome</label>
                             <input type="text"
-                                   class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                                   wire:model="form.first_name" @disabled(!$canEditNow)>
-                            @error('form.first_name') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                                class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                                wire:model="form.first_name" @disabled(!$canEditNow)>
+                            @error('form.first_name')
+                                <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div>
                             <label class="text-sm text-slate-600">Cognome</label>
                             <input type="text"
-                                   class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                                   wire:model="form.last_name" @disabled(!$canEditNow)>
-                            @error('form.last_name') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                                class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                                wire:model="form.last_name" @disabled(!$canEditNow)>
+                            @error('form.last_name')
+                                <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="md:col-span-2">
                             <label class="text-sm text-slate-600">Codice fiscale</label>
                             <input type="text"
-                                   class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                                   wire:model="form.tax_code" @disabled(!$canEditNow)>
-                            @error('form.tax_code') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                                class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                                wire:model="form.tax_code" @disabled(!$canEditNow)>
+                            @error('form.tax_code')
+                                <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
                     </div>
                 </div>
@@ -167,41 +189,51 @@
                 <div>
                     <label class="text-sm text-slate-600">Paese</label>
                     <input type="text"
-                           class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           wire:model="form.legal_country" @disabled(!$canEditNow)>
-                    @error('form.legal_country') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                        class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                        wire:model="form.legal_country" @disabled(!$canEditNow)>
+                    @error('form.legal_country')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div>
                     <label class="text-sm text-slate-600">Regione</label>
                     <input type="text"
-                           class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           wire:model="form.legal_region" @disabled(!$canEditNow)>
-                    @error('form.legal_region') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                        class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                        wire:model="form.legal_region" @disabled(!$canEditNow)>
+                    @error('form.legal_region')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div>
                     <label class="text-sm text-slate-600">Città</label>
                     <input type="text"
-                           class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           wire:model="form.legal_city" @disabled(!$canEditNow)>
-                    @error('form.legal_city') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                        class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                        wire:model="form.legal_city" @disabled(!$canEditNow)>
+                    @error('form.legal_city')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div>
                     <label class="text-sm text-slate-600">CAP</label>
                     <input type="text"
-                           class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           wire:model="form.legal_postal_code" @disabled(!$canEditNow)>
-                    @error('form.legal_postal_code') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                        class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                        wire:model="form.legal_postal_code" @disabled(!$canEditNow)>
+                    @error('form.legal_postal_code')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div class="md:col-span-2">
                     <label class="text-sm text-slate-600">Indirizzo</label>
                     <input type="text"
-                           class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           wire:model="form.legal_address_line1" @disabled(!$canEditNow)>
-                    @error('form.legal_address_line1') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                        class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                        wire:model="form.legal_address_line1" @disabled(!$canEditNow)>
+                    @error('form.legal_address_line1')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
             </div>
         </div>
@@ -213,14 +245,14 @@
                 <div>
                     <h2 class="text-lg font-semibold text-slate-900">Sede operativa</h2>
                     <p class="mt-1 text-sm text-slate-500">
-                        Se “Uguale alla sede legale” è attivo, i campi operativi vengono copiati e non sono modificabili.
+                        Se “Uguale alla sede legale” è attivo, i campi operativi vengono copiati e non sono
+                        modificabili.
                     </p>
                 </div>
 
                 <label class="inline-flex items-center gap-2 text-sm text-slate-700 mt-1">
-                    <input type="checkbox"
-                           class="rounded border-slate-300 text-slate-900 focus:ring-slate-400"
-                           wire:model.live="form.operational_same_as_legal" @disabled(!$canEditNow)>
+                    <input type="checkbox" class="rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+                        wire:model.live="form.operational_same_as_legal" @disabled(!$canEditNow)>
                     Uguale alla sede legale
                 </label>
             </div>
@@ -229,41 +261,51 @@
                 <div>
                     <label class="text-sm text-slate-600">Paese</label>
                     <input type="text"
-                           class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           wire:model="form.operational_country" @disabled($sameAsLegal || !$canEditNow)>
-                    @error('form.operational_country') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                        class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                        wire:model="form.operational_country" @disabled($sameAsLegal || !$canEditNow)>
+                    @error('form.operational_country')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div>
                     <label class="text-sm text-slate-600">Regione</label>
                     <input type="text"
-                           class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           wire:model="form.operational_region" @disabled($sameAsLegal || !$canEditNow)>
-                    @error('form.operational_region') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                        class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                        wire:model="form.operational_region" @disabled($sameAsLegal || !$canEditNow)>
+                    @error('form.operational_region')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div>
                     <label class="text-sm text-slate-600">Città</label>
                     <input type="text"
-                           class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           wire:model="form.operational_city" @disabled($sameAsLegal || !$canEditNow)>
-                    @error('form.operational_city') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                        class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                        wire:model="form.operational_city" @disabled($sameAsLegal || !$canEditNow)>
+                    @error('form.operational_city')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div>
                     <label class="text-sm text-slate-600">CAP</label>
                     <input type="text"
-                           class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           wire:model="form.operational_postal_code" @disabled($sameAsLegal || !$canEditNow)>
-                    @error('form.operational_postal_code') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                        class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                        wire:model="form.operational_postal_code" @disabled($sameAsLegal || !$canEditNow)>
+                    @error('form.operational_postal_code')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div class="md:col-span-2">
                     <label class="text-sm text-slate-600">Indirizzo</label>
                     <input type="text"
-                           class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           wire:model="form.operational_address_line1" @disabled($sameAsLegal || !$canEditNow)>
-                    @error('form.operational_address_line1') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                        class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                        wire:model="form.operational_address_line1" @disabled($sameAsLegal || !$canEditNow)>
+                    @error('form.operational_address_line1')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
             </div>
         </div>
@@ -272,8 +314,9 @@
             @can('update', $vendorAccount)
                 @if ($editing ?? false)
                     <button type="submit"
-                            class="inline-flex items-center px-4 py-2 bg-slate-600 text-white rounded hover:bg-slate-700">
-                        Salva
+                        class="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded hover:bg-slate-800">
+                        <x-app-icon name="check" class="w-4 h-4" />
+                        <span>Salva</span>
                     </button>
                 @endif
             @endcan

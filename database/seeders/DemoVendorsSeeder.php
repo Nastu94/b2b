@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Booking;
 use App\Models\Category;
 use App\Models\Offering;
 use App\Models\SlotLock;
@@ -9,6 +10,8 @@ use App\Models\User;
 use App\Models\VendorAccount;
 use App\Models\VendorBlackout;
 use App\Models\VendorLeadTime;
+use App\Models\VendorOfferingPricing;
+use App\Models\VendorOfferingPricingRule;
 use App\Models\VendorOfferingProfile;
 use App\Models\VendorSlot;
 use App\Models\VendorWeeklySchedule;
@@ -38,6 +41,27 @@ class DemoVendorsSeeder extends Seeder
         $demoVendorIds = VendorAccount::whereIn('user_id', $demoVendorUserIds)->pluck('id')->toArray();
 
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+
+        $this->command->info('Cancellazione pricing rules...');
+        if (!empty($demoVendorIds)) {
+            $pricingIds = VendorOfferingPricing::whereIn('vendor_account_id', $demoVendorIds)
+                ->pluck('id')
+                ->toArray();
+
+            if (!empty($pricingIds)) {
+                VendorOfferingPricingRule::whereIn('vendor_offering_pricing_id', $pricingIds)->delete();
+            }
+        }
+
+        $this->command->info('Cancellazione vendor pricings...');
+        if (!empty($demoVendorIds)) {
+            VendorOfferingPricing::whereIn('vendor_account_id', $demoVendorIds)->delete();
+        }
+
+        $this->command->info('Cancellazione bookings...');
+        if (!empty($demoVendorIds)) {
+            Booking::whereIn('vendor_account_id', $demoVendorIds)->delete();
+        }
 
         $this->command->info('Cancellazione vendor offering profiles...');
         if (!empty($demoVendorIds)) {
@@ -86,7 +110,7 @@ class DemoVendorsSeeder extends Seeder
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         $this->command->info('Database pulito (admin protetto)');
-        $this->command->info('Creazione vendor demo con offering coerenti e modalità realistiche...');
+        $this->command->info('Creazione vendor demo con offering coerenti, modalità realistiche e pricing demo...');
 
         $vendors = [
             [
@@ -279,15 +303,26 @@ class DemoVendorsSeeder extends Seeder
                     ? ($profile->service_radius_km . ' km')
                     : 'n/a';
 
+                $maxGuestsLabel = $profile->max_guests !== null
+                    ? $profile->max_guests
+                    : 'n/a';
+
+                $pricing = VendorOfferingPricing::query()
+                    ->where('vendor_account_id', $vendor->id)
+                    ->where('offering_id', $profile->offering_id)
+                    ->first();
+
+                $basePriceLabel = $pricing ? number_format((float) $pricing->base_price, 2, ',', '.') . ' EUR' : 'n/a';
+
                 $this->command->info(
-                    "{$category->name}: {$data['company_name']} - {$profile->offering->name} - mode: {$profile->service_mode}, radius: {$radiusLabel}"
+                    "{$category->name}: {$data['company_name']} - {$profile->offering->name} - mode: {$profile->service_mode}, radius: {$radiusLabel}, max_guests: {$maxGuestsLabel}, base_price: {$basePriceLabel}"
                 );
             }
 
             $count++;
         }
 
-        $this->command->info("Creati {$count} vendor con offerings");
+        $this->command->info("Creati {$count} vendor con offerings e pricing");
     }
 
     private function createSlots(VendorAccount $vendor): void
@@ -380,16 +415,110 @@ class DemoVendorsSeeder extends Seeder
                 'cover_image_path' => null,
                 'service_mode' => $definition['service_mode'],
                 'service_radius_km' => $definition['service_radius_km'],
+                'max_guests' => $definition['max_guests'] ?? null,
                 'is_published' => true,
             ]);
 
             $profile->load('offering');
+
+            $this->createPricingForProfile($vendor, $profile, $category->slug);
+
             $createdProfiles[] = $profile;
         }
 
         $this->command->info("Creati " . count($createdProfiles) . " offering profiles");
 
         return $createdProfiles;
+    }
+
+    private function createPricingForProfile(VendorAccount $vendor, VendorOfferingProfile $profile, string $categorySlug): void
+    {
+        $basePrice = $this->resolveBasePriceForOffering(
+            $categorySlug,
+            $profile->offering?->name ?? ''
+        );
+
+        $pricing = VendorOfferingPricing::create([
+            'vendor_account_id' => $vendor->id,
+            'offering_id' => $profile->offering_id,
+            'is_active' => true,
+            'price_type' => 'FIXED',
+            'base_price' => $basePrice,
+            'currency' => 'EUR',
+            'service_radius_km' => $profile->isMobileService() ? $profile->service_radius_km : null,
+            'distance_pricing_mode' => $profile->isMobileService()
+                ? 'NOT_AVAILABLE_OUTSIDE_RADIUS'
+                : 'INCLUDED',
+            'notes_internal' => 'Seeder demo',
+        ]);
+
+        $this->createWeekendSurchargeRule($pricing);
+    }
+
+    private function createWeekendSurchargeRule(VendorOfferingPricing $pricing): void
+    {
+        VendorOfferingPricingRule::create([
+            'vendor_offering_pricing_id' => $pricing->id,
+            'name' => 'Maggiorazione weekend',
+            'is_active' => true,
+            'priority' => 10,
+            'rule_type' => 'SURCHARGE',
+            'adjustment_type' => 'PERCENT',
+            'adjustment_value' => 20.00,
+            'override_price' => null,
+            'starts_at' => null,
+            'ends_at' => null,
+            'weekdays' => [5, 6], // venerdì e sabato
+            'min_quantity' => null,
+            'max_quantity' => null,
+            'is_exclusive' => false,
+            'conditions' => [],
+            'notes_internal' => 'Seeder demo: +20% nel weekend',
+        ]);
+    }
+
+    private function resolveBasePriceForOffering(string $categorySlug, string $offeringName): float
+    {
+        $prices = [
+            'animazione-bambini' => [
+                'Animatore / Truccabimbi' => 180.00,
+                'Gonfiabili e strutture ludiche' => 250.00,
+            ],
+            'animazione-teen-party' => [
+                'DJ set con animatore' => 260.00,
+                'Silent disco' => 320.00,
+            ],
+            'animazione-adulti-feste-private' => [
+                'DJ set personalizzato' => 350.00,
+                'Cena con delitto' => 700.00,
+            ],
+            'addio-al-celibato-nubilato' => [
+                'Spogliarellista personalizzato' => 300.00,
+                'Yacht party' => 1500.00,
+            ],
+            'eventi-aziendali' => [
+                'Presentatore / Speaker' => 500.00,
+                'Photo booth / 360° booth' => 650.00,
+            ],
+            'compleanni-adulti' => [
+                'DJ set' => 280.00,
+                'Noleggio sala privata' => 900.00,
+            ],
+            'matrimoni-ed-eventi-eleganti' => [
+                'DJ matrimonio' => 900.00,
+                'Open bar show' => 1200.00,
+            ],
+            'servizi-di-supporto' => [
+                'Noleggio palco' => 800.00,
+                'Catering' => 450.00,
+            ],
+            'format-premium-esperienze-esclusive' => [
+                'Party su yacht' => 2500.00,
+                'Rooftop party' => 1800.00,
+            ],
+        ];
+
+        return (float) ($prices[$categorySlug][$offeringName] ?? 250.00);
     }
 
     private function getOfferingDefinitionsForCategory(string $categorySlug): array
@@ -400,11 +529,13 @@ class DemoVendorsSeeder extends Seeder
                     'offering_name' => 'Animatore / Truccabimbi',
                     'service_mode' => 'MOBILE',
                     'service_radius_km' => 25,
+                    'max_guests' => null,
                 ],
                 [
                     'offering_name' => 'Gonfiabili e strutture ludiche',
                     'service_mode' => 'MOBILE',
                     'service_radius_km' => 25,
+                    'max_guests' => null,
                 ],
             ],
             'animazione-teen-party' => [
@@ -412,11 +543,13 @@ class DemoVendorsSeeder extends Seeder
                     'offering_name' => 'DJ set con animatore',
                     'service_mode' => 'MOBILE',
                     'service_radius_km' => 35,
+                    'max_guests' => null,
                 ],
                 [
                     'offering_name' => 'Silent disco',
                     'service_mode' => 'MOBILE',
                     'service_radius_km' => 35,
+                    'max_guests' => null,
                 ],
             ],
             'animazione-adulti-feste-private' => [
@@ -424,11 +557,13 @@ class DemoVendorsSeeder extends Seeder
                     'offering_name' => 'DJ set personalizzato',
                     'service_mode' => 'MOBILE',
                     'service_radius_km' => 120,
+                    'max_guests' => null,
                 ],
                 [
                     'offering_name' => 'Cena con delitto',
                     'service_mode' => 'FIXED_LOCATION',
                     'service_radius_km' => null,
+                    'max_guests' => 60,
                 ],
             ],
             'addio-al-celibato-nubilato' => [
@@ -436,11 +571,13 @@ class DemoVendorsSeeder extends Seeder
                     'offering_name' => 'Spogliarellista personalizzato',
                     'service_mode' => 'MOBILE',
                     'service_radius_km' => 40,
+                    'max_guests' => null,
                 ],
                 [
                     'offering_name' => 'Yacht party',
                     'service_mode' => 'FIXED_LOCATION',
                     'service_radius_km' => null,
+                    'max_guests' => 18,
                 ],
             ],
             'eventi-aziendali' => [
@@ -448,11 +585,13 @@ class DemoVendorsSeeder extends Seeder
                     'offering_name' => 'Presentatore / Speaker',
                     'service_mode' => 'MOBILE',
                     'service_radius_km' => 80,
+                    'max_guests' => null,
                 ],
                 [
                     'offering_name' => 'Photo booth / 360° booth',
                     'service_mode' => 'MOBILE',
                     'service_radius_km' => 80,
+                    'max_guests' => null,
                 ],
             ],
             'compleanni-adulti' => [
@@ -460,11 +599,13 @@ class DemoVendorsSeeder extends Seeder
                     'offering_name' => 'DJ set',
                     'service_mode' => 'MOBILE',
                     'service_radius_km' => 30,
+                    'max_guests' => null,
                 ],
                 [
                     'offering_name' => 'Noleggio sala privata',
                     'service_mode' => 'FIXED_LOCATION',
                     'service_radius_km' => null,
+                    'max_guests' => 70,
                 ],
             ],
             'matrimoni-ed-eventi-eleganti' => [
@@ -472,11 +613,13 @@ class DemoVendorsSeeder extends Seeder
                     'offering_name' => 'DJ matrimonio',
                     'service_mode' => 'MOBILE',
                     'service_radius_km' => 120,
+                    'max_guests' => null,
                 ],
                 [
                     'offering_name' => 'Open bar show',
                     'service_mode' => 'MOBILE',
                     'service_radius_km' => 120,
+                    'max_guests' => null,
                 ],
             ],
             'servizi-di-supporto' => [
@@ -484,11 +627,13 @@ class DemoVendorsSeeder extends Seeder
                     'offering_name' => 'Noleggio palco',
                     'service_mode' => 'MOBILE',
                     'service_radius_km' => 90,
+                    'max_guests' => null,
                 ],
                 [
                     'offering_name' => 'Catering',
                     'service_mode' => 'MOBILE',
                     'service_radius_km' => 60,
+                    'max_guests' => null,
                 ],
             ],
             'format-premium-esperienze-esclusive' => [
@@ -496,11 +641,13 @@ class DemoVendorsSeeder extends Seeder
                     'offering_name' => 'Party su yacht',
                     'service_mode' => 'FIXED_LOCATION',
                     'service_radius_km' => null,
+                    'max_guests' => 20,
                 ],
                 [
                     'offering_name' => 'Rooftop party',
                     'service_mode' => 'FIXED_LOCATION',
                     'service_radius_km' => null,
+                    'max_guests' => 80,
                 ],
             ],
         ];

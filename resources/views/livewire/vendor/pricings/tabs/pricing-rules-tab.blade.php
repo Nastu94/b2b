@@ -25,9 +25,9 @@
             <button
                 type="button"
                 wire:click="startCreate"
-                class="inline-flex items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
-            >
-                Nuova regola
+                class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+                <x-app-icon name="plus" class="w-4 h-4" />
+                <span>Nuova regola</span>
             </button>
         </div>
 
