@@ -7,7 +7,7 @@
             </p>
         </div>
 
-        @if($profile->is_published)
+        @if ($profile->is_published)
             <span class="text-[11px] px-2 py-1 rounded-full bg-green-50 text-green-700 border border-green-100">
                 PUBBLICATO
             </span>
@@ -49,14 +49,9 @@
         {{-- Raggio operativo: visibile solo per MOBILE --}}
         <div>
             <label class="text-xs font-medium text-gray-700">Raggio operativo (km)</label>
-            <input
-                type="number"
-                min="1"
-                max="500"
-                wire:model.defer="service_radius_km"
-                @if($service_mode !== 'MOBILE') disabled @endif
-                class="mt-1 w-full rounded border-gray-300 disabled:bg-gray-100 disabled:text-gray-500"
-            />
+            <input type="number" min="1" max="500" wire:model.defer="service_radius_km"
+                @if ($service_mode !== 'MOBILE') disabled @endif
+                class="mt-1 w-full rounded border-gray-300 disabled:bg-gray-100 disabled:text-gray-500" />
             @error('service_radius_km')
                 <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
             @enderror
@@ -68,17 +63,11 @@
                 Capacità massima ospiti
                 <span class="text-gray-400 font-normal">(opzionale)</span>
             </label>
-            <input
-                type="number"
-                min="1"
-                max="9999"
-                wire:model.defer="max_guests"
-                @if($service_mode !== 'FIXED_LOCATION') disabled @endif
-                placeholder="Es. 100"
-                class="mt-1 w-full rounded border-gray-300 disabled:bg-gray-100 disabled:text-gray-500"
-            />
+            <input type="number" min="1" max="9999" wire:model.defer="max_guests"
+                @if ($service_mode !== 'FIXED_LOCATION') disabled @endif placeholder="Es. 100"
+                class="mt-1 w-full rounded border-gray-300 disabled:bg-gray-100 disabled:text-gray-500" />
             <p class="mt-1 text-xs text-gray-400">
-                @if($service_mode === 'FIXED_LOCATION')
+                @if ($service_mode === 'FIXED_LOCATION')
                     Se impostato, gli slot risulteranno non disponibili per richieste con più ospiti.
                 @else
                     Non applicabile per servizi mobile.
@@ -104,18 +93,11 @@
                 <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
             @enderror
 
-            @if($profile->cover_image_path)
-                <img
-                    class="mt-3 rounded-lg border"
-                    src="{{ route('media.public', ['path' => $profile->cover_image_path]) }}"
-                    alt="Cover"
-                >
-                <button
-                    type="button"
-                    wire:click="removeCover"
-                    wire:loading.attr="disabled"
-                    class="mt-2 text-xs text-red-600 hover:underline disabled:opacity-50"
-                >
+            @if ($profile->cover_image_path)
+                <img class="mt-3 rounded-lg border"
+                    src="{{ route('media.public', ['path' => $profile->cover_image_path]) }}" alt="Cover">
+                <button type="button" wire:click="removeCover" wire:loading.attr="disabled"
+                    class="mt-2 text-xs text-red-600 hover:underline disabled:opacity-50">
                     Rimuovi cover
                 </button>
             @endif
@@ -133,21 +115,14 @@
         </div>
     </div>
 
-    @if($profile->images->count())
+    @if ($profile->images->count())
         <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-            @foreach($profile->images as $img)
+            @foreach ($profile->images as $img)
                 <div class="relative">
-                    <img
-                        class="rounded-lg border"
-                        src="{{ route('media.public', ['path' => $img->path]) }}"
-                        alt=""
-                    >
-                    <button
-                        type="button"
-                        wire:click="deleteImage({{ $img->id }})"
-                        wire:loading.attr="disabled"
-                        class="absolute top-1 right-1 text-xs bg-red-600 text-white px-2 py-1 rounded disabled:opacity-50"
-                    >
+                    <img class="rounded-lg border" src="{{ route('media.public', ['path' => $img->path]) }}"
+                        alt="">
+                    <button type="button" wire:click="deleteImage({{ $img->id }})" wire:loading.attr="disabled"
+                        class="absolute top-1 right-1 text-xs bg-red-600 text-white px-2 py-1 rounded disabled:opacity-50">
                         X
                     </button>
                 </div>
@@ -156,13 +131,10 @@
     @endif
 
     <div class="mt-4 flex items-center justify-end">
-        <button
-            type="button"
-            wire:click="save"
-            wire:loading.attr="disabled"
-            class="px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-white text-sm disabled:opacity-50"
-        >
-            Salva
+        <button type="button" wire:click="save" wire:loading.attr="disabled"
+            class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+            <x-app-icon name="check" class="w-4 h-4" />
+            <span>Salva</span>
         </button>
     </div>
 </div>

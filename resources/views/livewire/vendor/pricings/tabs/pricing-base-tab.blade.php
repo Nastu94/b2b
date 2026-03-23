@@ -18,11 +18,8 @@
             {{-- Stato listino --}}
             <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <label class="flex items-center gap-3">
-                    <input
-                        type="checkbox"
-                        wire:model="form.is_active"
-                        class="rounded border-slate-300 text-slate-900 focus:ring-slate-400"
-                    >
+                    <input type="checkbox" wire:model="form.is_active"
+                        class="rounded border-slate-300 text-slate-900 focus:ring-slate-400">
 
                     <span class="text-sm font-medium text-slate-700">
                         Listino attivo
@@ -44,13 +41,8 @@
                     Valuta
                 </label>
 
-                <input
-                    id="currency"
-                    type="text"
-                    wire:model.defer="form.currency"
-                    maxlength="3"
-                    class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300"
-                >
+                <input id="currency" type="text" wire:model.defer="form.currency" maxlength="3"
+                    class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300">
 
                 @error('form.currency')
                     <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
@@ -63,11 +55,8 @@
                     Tipo prezzo
                 </label>
 
-                <select
-                    id="price_type"
-                    wire:model.defer="form.price_type"
-                    class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300"
-                >
+                <select id="price_type" wire:model.defer="form.price_type"
+                    class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300">
                     @foreach ($this->options['priceTypes'] as $option)
                         <option value="{{ $option['value'] }}">
                             {{ $option['label'] }}
@@ -86,14 +75,8 @@
                     Prezzo base
                 </label>
 
-                <input
-                    id="base_price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    wire:model.defer="form.base_price"
-                    class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300"
-                >
+                <input id="base_price" type="number" step="0.01" min="0" wire:model.defer="form.base_price"
+                    class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300">
 
                 @error('form.base_price')
                     <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
@@ -106,14 +89,9 @@
                     Raggio di servizio (km)
                 </label>
 
-                <input
-                    id="service_radius_km"
-                    type="number"
-                    step="0.01"
-                    min="0"
+                <input id="service_radius_km" type="number" step="0.01" min="0"
                     wire:model.defer="form.service_radius_km"
-                    class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300"
-                >
+                    class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300">
 
                 <p class="mt-2 text-xs text-slate-500">
                     Lascia vuoto se non vuoi impostare un limite di raggio in questa fase.
@@ -130,11 +108,8 @@
                     Gestione distanza
                 </label>
 
-                <select
-                    id="distance_pricing_mode"
-                    wire:model.defer="form.distance_pricing_mode"
-                    class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300"
-                >
+                <select id="distance_pricing_mode" wire:model.defer="form.distance_pricing_mode"
+                    class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300">
                     @foreach ($this->options['distanceModes'] as $option)
                         <option value="{{ $option['value'] }}">
                             {{ $option['label'] }}
@@ -154,12 +129,8 @@
                 Note interne
             </label>
 
-            <textarea
-                id="notes_internal"
-                rows="4"
-                wire:model.defer="form.notes_internal"
-                class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300"
-            ></textarea>
+            <textarea id="notes_internal" rows="4" wire:model.defer="form.notes_internal"
+                class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300"></textarea>
 
             <p class="mt-2 text-xs text-slate-500">
                 Campo visibile solo in gestione interna, utile per annotazioni operative.
@@ -172,11 +143,13 @@
 
         {{-- Azioni --}}
         <div class="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
-            <button
-                type="submit"
-                class="inline-flex items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
-            >
-                {{ $pricingId ? 'Aggiorna listino base' : 'Crea listino base' }}
+            <button type="submit"
+                class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800">
+                <x-app-icon :name="$pricingId ? 'check' : 'plus'" class="w-4 h-4" />
+
+                <span>
+                    {{ $pricingId ? 'Aggiorna listino base' : 'Crea listino base' }}
+                </span>
             </button>
         </div>
     </form>

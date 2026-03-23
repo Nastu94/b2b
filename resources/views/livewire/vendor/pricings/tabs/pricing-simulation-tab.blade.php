@@ -19,12 +19,8 @@
                             Data evento
                         </label>
 
-                        <input
-                            id="simulation_event_date"
-                            type="date"
-                            wire:model.defer="simulation.event_date"
-                            class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300"
-                        >
+                        <input id="simulation_event_date" type="date" wire:model.defer="simulation.event_date"
+                            class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300">
 
                         <p class="mt-2 text-xs text-slate-500">
                             Serve per simulare eventuali regole con intervalli di date.
@@ -40,11 +36,8 @@
                             Giorno della settimana
                         </label>
 
-                        <select
-                            id="simulation_weekday"
-                            wire:model.defer="simulation.weekday"
-                            class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300"
-                        >
+                        <select id="simulation_weekday" wire:model.defer="simulation.weekday"
+                            class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300">
                             <option value="">-- Automatico / non specificato --</option>
                             <option value="1">Lunedì</option>
                             <option value="2">Martedì</option>
@@ -69,14 +62,9 @@
                             Distanza (km)
                         </label>
 
-                        <input
-                            id="simulation_distance_km"
-                            type="number"
-                            step="0.01"
-                            min="0"
+                        <input id="simulation_distance_km" type="number" step="0.01" min="0"
                             wire:model.defer="simulation.distance_km"
-                            class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300"
-                        >
+                            class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300">
 
                         <p class="mt-2 text-xs text-slate-500">
                             Utile per testare regole collegate al raggio o a fasce di distanza.
@@ -92,13 +80,9 @@
                             Anticipo prenotazione (giorni)
                         </label>
 
-                        <input
-                            id="simulation_lead_days"
-                            type="number"
-                            min="0"
+                        <input id="simulation_lead_days" type="number" min="0"
                             wire:model.defer="simulation.lead_days"
-                            class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300"
-                        >
+                            class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300">
 
                         <p class="mt-2 text-xs text-slate-500">
                             Indica quanti giorni prima dell'evento viene effettuata la prenotazione.
@@ -114,16 +98,12 @@
                             Numero ospiti
                         </label>
 
-                        <input
-                            id="simulation_guests"
-                            type="number"
-                            min="1"
-                            wire:model.defer="simulation.guests"
-                            class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300"
-                        >
+                        <input id="simulation_guests" type="number" min="1" wire:model.defer="simulation.guests"
+                            class="block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-slate-400 focus:ring-slate-300">
 
                         <p class="mt-2 text-xs text-slate-500">
-                            Serve per verificare eventuali regole che dipendono dalla capienza o dal numero di partecipanti.
+                            Serve per verificare eventuali regole che dipendono dalla capienza o dal numero di
+                            partecipanti.
                         </p>
 
                         @error('simulation.guests')
@@ -133,19 +113,16 @@
                 </div>
 
                 <div class="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
-                    <button
-                        type="button"
-                        wire:click="resetSimulation"
-                        class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                    >
-                        Reset
+                    <button type="button" wire:click="resetSimulation"
+                        class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+                        <x-app-icon name="arrow-path" class="w-4 h-4" />
+                        <span>Reset</span>
                     </button>
 
-                    <button
-                        type="submit"
-                        class="inline-flex items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
-                    >
-                        Simula
+                    <button type="submit"
+                        class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800">
+                        <x-app-icon name="play" class="w-4 h-4" />
+                        <span>Simula</span>
                     </button>
                 </div>
             </form>
@@ -209,12 +186,15 @@
                                 </div>
                             </div>
 
-                            <div class="rounded-lg border px-4 py-3 {{ $this->hasResolvedPriceDifference() ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50' }}">
-                                <div class="text-xs font-medium uppercase tracking-wide {{ $this->hasResolvedPriceDifference() ? 'text-emerald-700' : 'text-slate-500' }}">
+                            <div
+                                class="rounded-lg border px-4 py-3 {{ $this->hasResolvedPriceDifference() ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50' }}">
+                                <div
+                                    class="text-xs font-medium uppercase tracking-wide {{ $this->hasResolvedPriceDifference() ? 'text-emerald-700' : 'text-slate-500' }}">
                                     Prezzo finale simulato
                                 </div>
 
-                                <div class="mt-2 text-lg font-semibold {{ $this->hasResolvedPriceDifference() ? 'text-emerald-700' : 'text-slate-900' }}">
+                                <div
+                                    class="mt-2 text-lg font-semibold {{ $this->hasResolvedPriceDifference() ? 'text-emerald-700' : 'text-slate-900' }}">
                                     {{ $this->formattedResolvedPrice() }}
                                 </div>
                             </div>
@@ -241,7 +221,8 @@
                                                 </div>
 
                                                 <div class="text-right font-semibold text-slate-900">
-                                                    {{ number_format((float) ($step['amount'] ?? 0), 2, ',', '.') }} {{ $this->pricing?->currencyCode() ?? 'EUR' }}
+                                                    {{ number_format((float) ($step['amount'] ?? 0), 2, ',', '.') }}
+                                                    {{ $this->pricing?->currencyCode() ?? 'EUR' }}
                                                 </div>
                                             </div>
                                         @elseif (($step['type'] ?? null) === 'override')
@@ -252,13 +233,15 @@
                                                     </div>
 
                                                     <div class="mt-1 text-xs text-slate-500">
-                                                        {{ $step['label'] ?? 'Override prezzo' }} · Priorità {{ $step['priority'] ?? '-' }}
+                                                        {{ $step['label'] ?? 'Override prezzo' }} · Priorità
+                                                        {{ $step['priority'] ?? '-' }}
                                                     </div>
                                                 </div>
 
                                                 <div class="text-right">
                                                     <div class="font-semibold text-emerald-700">
-                                                        {{ number_format((float) ($step['amount'] ?? 0), 2, ',', '.') }} {{ $this->pricing?->currencyCode() ?? 'EUR' }}
+                                                        {{ number_format((float) ($step['amount'] ?? 0), 2, ',', '.') }}
+                                                        {{ $this->pricing?->currencyCode() ?? 'EUR' }}
                                                     </div>
                                                 </div>
                                             </div>
@@ -277,12 +260,15 @@
                                                 </div>
 
                                                 <div class="text-right">
-                                                    <div class="font-semibold {{ ((float) ($step['delta'] ?? 0)) >= 0 ? 'text-emerald-700' : 'text-red-700' }}">
+                                                    <div
+                                                        class="font-semibold {{ ((float) ($step['delta'] ?? 0)) >= 0 ? 'text-emerald-700' : 'text-red-700' }}">
                                                         {{ $this->formatDelta($step['delta'] ?? 0) }}
                                                     </div>
 
                                                     <div class="mt-1 text-xs text-slate-500">
-                                                        Totale: {{ number_format((float) ($step['result_price'] ?? 0), 2, ',', '.') }} {{ $this->pricing?->currencyCode() ?? 'EUR' }}
+                                                        Totale:
+                                                        {{ number_format((float) ($step['result_price'] ?? 0), 2, ',', '.') }}
+                                                        {{ $this->pricing?->currencyCode() ?? 'EUR' }}
                                                     </div>
                                                 </div>
                                             </div>
@@ -326,7 +312,8 @@
                     @endif
 
                     @if ($this->matchingRules->isEmpty())
-                        <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        <div
+                            class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                             Nessuna regola risulta compatibile con i dati inseriti.
                         </div>
                     @else
@@ -344,12 +331,14 @@
                                                 {{ $rule->name }}
                                             </div>
 
-                                            <span class="inline-flex items-center rounded-full bg-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700">
+                                            <span
+                                                class="inline-flex items-center rounded-full bg-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700">
                                                 Priorità {{ $rule->priority }}
                                             </span>
 
                                             @if ($rule->isExclusive())
-                                                <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
+                                                <span
+                                                    class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
                                                     Esclusiva
                                                 </span>
                                             @endif
@@ -368,7 +357,8 @@
                     @if ($this->simulationNotes() !== [])
                         <div class="mt-4 space-y-3">
                             @foreach ($this->simulationNotes() as $note)
-                                <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                                <div
+                                    class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
                                     {{ $note }}
                                 </div>
                             @endforeach

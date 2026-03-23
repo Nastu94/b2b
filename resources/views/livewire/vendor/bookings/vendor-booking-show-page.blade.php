@@ -81,8 +81,10 @@
 
             @if ($booking->status === 'PENDING_VENDOR_CONFIRMATION')
                 <div class="flex gap-2">
-                    <button wire:click="confirm" class="px-4 py-2 bg-green-600 text-white rounded">
-                        Conferma
+                    <button wire:click="confirm"
+                        class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
+                        <x-app-icon name="check-circle" class="w-4 h-4" />
+                        <span>Conferma</span>
                     </button>
                 </div>
 
@@ -90,8 +92,10 @@
                     <label class="block text-sm font-medium">Motivo rifiuto (opzionale)</label>
                     <textarea wire:model="declineReason" class="w-full border rounded p-2" rows="3"></textarea>
 
-                    <button wire:click="decline" class="mt-2 px-4 py-2 bg-red-600 text-white rounded">
-                        Rifiuta
+                    <button wire:click="decline"
+                        class="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">
+                        <x-app-icon name="x-circle" class="w-4 h-4" />
+                        <span>Rifiuta</span>
                     </button>
                 </div>
             @endif

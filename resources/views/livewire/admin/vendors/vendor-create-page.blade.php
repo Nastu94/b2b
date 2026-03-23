@@ -9,8 +9,9 @@
         </div>
 
         <a href="{{ route('admin.dashboard') }}"
-           class="text-sm px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50">
-            ← Torna alla dashboard
+            class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-slate-900 text-white bg-slate-900 hover:bg-slate-800">
+            <x-app-icon name="arrow-left" class="w-4 h-4" />
+            <span>Torna alla dashboard</span>
         </a>
     </div>
 
@@ -29,28 +30,34 @@
                 <div>
                     <label class="text-sm text-slate-600">Nome Account</label>
                     <input type="text" wire:model="form.name"
-                           class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400">
-                    @error('form.name') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                        class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400">
+                    @error('form.name')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div>
                     <label class="text-sm text-slate-600">Email</label>
                     <input type="email" wire:model="form.email"
-                           class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400">
-                    @error('form.email') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                        class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400">
+                    @error('form.email')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div>
                     <label class="text-sm text-slate-600">Password</label>
                     <input type="password" wire:model="form.password"
-                           class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400">
-                    @error('form.password') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                        class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400">
+                    @error('form.password')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div>
                     <label class="text-sm text-slate-600">Conferma Password</label>
                     <input type="password" wire:model="form.password_confirmation"
-                           class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400">
+                        class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400">
                 </div>
             </div>
         </div>
@@ -74,20 +81,24 @@
                         </label>
                     </div>
 
-                    @error('form.account_type') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                    @error('form.account_type')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div class="md:col-span-2">
                     <label class="text-sm text-slate-600">Categoria Servizio</label>
                     <select wire:model="form.category_id"
-                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400">
+                        class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400">
                         <option value="">—</option>
-                        @foreach($categories as $category)
+                        @foreach ($categories as $category)
                             <option value="{{ $category->id }}">{{ $category->name }}</option>
                         @endforeach
                     </select>
 
-                    @error('form.category_id') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                    @error('form.category_id')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
             </div>
 
@@ -99,56 +110,73 @@
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
             <h2 class="text-lg font-semibold text-slate-900">Dati anagrafici</h2>
 
-            @if($form['account_type'] === 'COMPANY')
+            @if ($form['account_type'] === 'COMPANY')
                 <div class="mt-4 border border-slate-200 rounded-lg p-4 bg-slate-50/40">
                     <div class="font-semibold text-slate-900 mb-3">Dati Azienda</div>
 
                     <label class="text-sm text-slate-600">Ragione Sociale</label>
                     <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           type="text" wire:model="form.company_name" placeholder="Es. Party Legacy SRL">
-                    @error('form.company_name') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                        type="text" wire:model="form.company_name" placeholder="Es. Party Legacy SRL">
+                    @error('form.company_name')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
 
                     <div class="mt-3">
                         <label class="text-sm text-slate-600">Forma Giuridica</label>
-                        <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                               type="text" wire:model="form.legal_entity_type" placeholder="Es. SRL, SNC...">
-                        @error('form.legal_entity_type') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                        <input
+                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                            type="text" wire:model="form.legal_entity_type" placeholder="Es. SRL, SNC...">
+                        @error('form.legal_entity_type')
+                            <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                        @enderror
                     </div>
 
                     <div class="mt-3">
                         <label class="text-sm text-slate-600">Partita IVA</label>
-                        <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                               type="text" wire:model="form.vat_number" placeholder="IT...">
-                        @error('form.vat_number') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                        <input
+                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                            type="text" wire:model="form.vat_number" placeholder="IT...">
+                        @error('form.vat_number')
+                            <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                        @enderror
                     </div>
                 </div>
             @endif
 
-            @if($form['account_type'] === 'PRIVATE')
+            @if ($form['account_type'] === 'PRIVATE')
                 <div class="mt-4 border border-slate-200 rounded-lg p-4 bg-slate-50">
                     <div class="font-semibold text-slate-900 mb-3">Dati Privato</div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                             <label class="text-sm text-slate-600">Nome</label>
-                            <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                                   type="text" wire:model="form.first_name" placeholder="Nome">
-                            @error('form.first_name') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                            <input
+                                class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                                type="text" wire:model="form.first_name" placeholder="Nome">
+                            @error('form.first_name')
+                                <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div>
                             <label class="text-sm text-slate-600">Cognome</label>
-                            <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                                   type="text" wire:model="form.last_name" placeholder="Cognome">
-                            @error('form.last_name') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                            <input
+                                class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                                type="text" wire:model="form.last_name" placeholder="Cognome">
+                            @error('form.last_name')
+                                <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
                     </div>
 
                     <div class="mt-3">
                         <label class="text-sm text-slate-600">Codice Fiscale</label>
-                        <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                               type="text" wire:model="form.tax_code" placeholder="Codice fiscale">
-                        @error('form.tax_code') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                        <input
+                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                            type="text" wire:model="form.tax_code" placeholder="Codice fiscale">
+                        @error('form.tax_code')
+                            <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                        @enderror
                     </div>
                 </div>
             @endif
@@ -161,31 +189,31 @@
                 <div>
                     <label class="text-sm text-slate-600">Nazione</label>
                     <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           type="text" wire:model="form.legal_country" placeholder="IT">
+                        type="text" wire:model="form.legal_country" placeholder="IT">
                 </div>
 
                 <div>
                     <label class="text-sm text-slate-600">Provincia / Regione</label>
                     <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           type="text" wire:model="form.legal_region" placeholder="Es. MI / Lombardia">
+                        type="text" wire:model="form.legal_region" placeholder="Es. MI / Lombardia">
                 </div>
 
                 <div>
                     <label class="text-sm text-slate-600">Città</label>
                     <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           type="text" wire:model="form.legal_city" placeholder="Milano">
+                        type="text" wire:model="form.legal_city" placeholder="Milano">
                 </div>
 
                 <div>
                     <label class="text-sm text-slate-600">CAP</label>
                     <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           type="text" wire:model="form.legal_postal_code" placeholder="20100">
+                        type="text" wire:model="form.legal_postal_code" placeholder="20100">
                 </div>
 
                 <div class="md:col-span-2">
                     <label class="text-sm text-slate-600">Indirizzo</label>
                     <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                           type="text" wire:model="form.legal_address_line1" placeholder="Via...">
+                        type="text" wire:model="form.legal_address_line1" placeholder="Via...">
                 </div>
             </div>
         </div>
@@ -200,36 +228,41 @@
                 </label>
             </div>
 
-            @if(!($form['operational_same_as_legal'] ?? true))
+            @if (!($form['operational_same_as_legal'] ?? true))
                 <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label class="text-sm text-slate-600">Nazione</label>
-                        <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                               type="text" wire:model="form.operational_country" placeholder="IT">
+                        <input
+                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                            type="text" wire:model="form.operational_country" placeholder="IT">
                     </div>
 
                     <div>
                         <label class="text-sm text-slate-600">Provincia / Regione</label>
-                        <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                               type="text" wire:model="form.operational_region" placeholder="Provincia/Regione">
+                        <input
+                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                            type="text" wire:model="form.operational_region" placeholder="Provincia/Regione">
                     </div>
 
                     <div>
                         <label class="text-sm text-slate-600">Città</label>
-                        <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                               type="text" wire:model="form.operational_city" placeholder="Città">
+                        <input
+                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                            type="text" wire:model="form.operational_city" placeholder="Città">
                     </div>
 
                     <div>
                         <label class="text-sm text-slate-600">CAP</label>
-                        <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                               type="text" wire:model="form.operational_postal_code" placeholder="CAP">
+                        <input
+                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                            type="text" wire:model="form.operational_postal_code" placeholder="CAP">
                     </div>
 
                     <div class="md:col-span-2">
                         <label class="text-sm text-slate-600">Indirizzo</label>
-                        <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                               type="text" wire:model="form.operational_address_line1" placeholder="Indirizzo">
+                        <input
+                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                            type="text" wire:model="form.operational_address_line1" placeholder="Indirizzo">
                     </div>
                 </div>
             @else
@@ -241,8 +274,9 @@
 
         <div class="flex justify-end">
             <button type="submit"
-                    class="text-sm px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition">
-                Crea Vendor
+                class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition">
+                <x-app-icon name="plus" class="w-4 h-4" />
+                <span>Crea Vendor</span>
             </button>
         </div>
 
