@@ -24,7 +24,7 @@
         @endphp
 
         <div class="w-full">
-            <form method="POST" action="{{ route('register') }}" id="vendor-register-form"
+            <form method="POST" action="{{ route('register') }}" id="vendor-register-form" enctype="multipart/form-data"
                 class="w-full max-w-6xl mx-auto space-y-6">
                 @csrf
 
@@ -104,6 +104,13 @@
                                     @endforeach
                                 </select>
                             </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <x-label for="profile_image" value="Logo / Immagine Copertina (Opzionale)" />
+                            <input id="profile_image" type="file" name="profile_image" accept="image/*"
+                                class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100 border border-gray-200 rounded-md p-2" />
+                            <p class="mt-1 text-xs text-gray-500">Questa immagine verrà mostrata sulla tua Vetrina PrestaShop.</p>
                         </div>
 
                         <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">

@@ -5,6 +5,7 @@ namespace App\Livewire\Vendor;
 use App\Models\Offering;
 use App\Models\VendorOfferingImage;
 use App\Models\VendorOfferingProfile;
+use App\Services\PrestashopProductSyncService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -14,8 +15,8 @@ use Livewire\WithFileUploads;
 /**
  * Componente per gestione contenuti (testi + immagini) per una singola offering.
  *
- * Aggiunto: max_guests — capacita' massima ospiti per servizi FIXED_LOCATION.
- * Il campo e' visibile e modificabile solo quando service_mode = FIXED_LOCATION.
+ * Aggiunto: max_guests — capacità massima ospiti per servizi FIXED_LOCATION.
+ * Il campo è visibile e modificabile solo quando service_mode = FIXED_LOCATION.
  * Viene azzerato automaticamente quando si passa a MOBILE.
  */
 class OfferingContentCard extends Component
@@ -38,7 +39,7 @@ class OfferingContentCard extends Component
     public string $service_mode = 'FIXED_LOCATION';
     public ?int $service_radius_km = null;
 
-    // Capacita' massima ospiti — solo per FIXED_LOCATION, null = nessun limite
+    // Capacità massima ospiti — solo per FIXED_LOCATION, null = nessun limite
     public ?int $max_guests = null;
 
     public $cover = null;
@@ -72,27 +73,27 @@ class OfferingContentCard extends Component
         $this->profile = VendorOfferingProfile::firstOrCreate(
             ['vendor_account_id' => $vendorId, 'offering_id' => $offeringId],
             [
-                'service_mode'      => 'FIXED_LOCATION',
+                'service_mode' => 'FIXED_LOCATION',
                 'service_radius_km' => null,
-                'max_guests'        => null,
+                'max_guests' => null,
             ]
         );
 
         $this->authorize('update', $this->profile);
 
-        $this->title             = $this->profile->title;
+        $this->title = $this->profile->title;
         $this->short_description = $this->profile->short_description;
-        $this->description       = $this->profile->description;
-        $this->service_mode      = $this->profile->service_mode ?? 'FIXED_LOCATION';
+        $this->description = $this->profile->description;
+        $this->service_mode = $this->profile->service_mode ?? 'FIXED_LOCATION';
         $this->service_radius_km = $this->profile->service_radius_km !== null
             ? (int) $this->profile->service_radius_km
             : null;
-        $this->max_guests        = $this->profile->max_guests !== null
+        $this->max_guests = $this->profile->max_guests !== null
             ? (int) $this->profile->max_guests
             : null;
     }
 
-    // Quando si cambia modalita' di servizio azzera i campi non applicabili
+    // Quando si cambia modalità di servizio azzera i campi non applicabili
     public function updatedServiceMode($value): void
     {
         if ($value === 'FIXED_LOCATION') {
@@ -101,22 +102,22 @@ class OfferingContentCard extends Component
 
         if ($value === 'MOBILE') {
             $this->service_radius_km = null;
-            $this->max_guests        = null;
+            $this->max_guests = null;
         }
     }
 
     public function save(): void
     {
         $this->validate([
-            'title'             => 'nullable|string|max:255',
+            'title' => 'nullable|string|max:255',
             'short_description' => 'nullable|string|max:255',
-            'description'       => 'nullable|string',
-            'service_mode'      => 'required|in:FIXED_LOCATION,MOBILE',
+            'description' => 'nullable|string',
+            'service_mode' => 'required|in:FIXED_LOCATION,MOBILE',
             'service_radius_km' => 'nullable|integer|min:1|max:500',
-            'max_guests'        => 'nullable|integer|min:1|max:9999',
-            'cover'             => 'nullable|image|max:4096',
-            'gallery'           => 'array|max:8',
-            'gallery.*'         => 'image|max:4096',
+            'max_guests' => 'nullable|integer|min:1|max:9999',
+            'cover' => 'nullable|image|max:4096',
+            'gallery' => 'array|max:8',
+            'gallery.*' => 'image|max:4096',
         ]);
 
         if ($this->service_mode === 'MOBILE' && $this->service_radius_km === null) {
@@ -141,12 +142,12 @@ class OfferingContentCard extends Component
         $this->authorize('create', VendorOfferingImage::class);
 
         $this->profile->update([
-            'title'             => $this->title,
+            'title' => $this->title,
             'short_description' => $this->short_description,
-            'description'       => $this->description,
-            'service_mode'      => $this->service_mode,
+            'description' => $this->description,
+            'service_mode' => $this->service_mode,
             'service_radius_km' => $this->service_radius_km,
-            'max_guests'        => $this->max_guests,
+            'max_guests' => $this->max_guests,
         ]);
 
         // Cover
@@ -173,19 +174,36 @@ class OfferingContentCard extends Component
 
             VendorOfferingImage::create([
                 'vendor_offering_profile_id' => $this->profile->id,
-                'path'                       => $path,
-                'sort_order'                 => 0,
+                'path' => $path,
+                'sort_order' => 0,
             ]);
         }
         $this->gallery = [];
 
         $fresh = $this->profile->fresh();
-        if ($fresh->cover_image_path && $fresh->description) {
+
+        $shouldPublish = $this->isProfilePublishable($fresh);
+
+        if ($shouldPublish && !$fresh->is_published) {
             $this->authorize('update', $fresh);
             $fresh->update(['is_published' => true]);
         }
 
+        if (!$shouldPublish && $fresh->is_published) {
+            $this->authorize('update', $fresh);
+            $fresh->update(['is_published' => false]);
+        }
+
         $this->profile = $this->profile->fresh();
+        $vendorAccount = $this->profile->vendorAccount()->with('category')->first();
+
+        if ($vendorAccount) {
+            try {
+                app(PrestashopProductSyncService::class)->sync($vendorAccount);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
 
         $this->dispatch('notify', message: 'Salvato');
     }
@@ -201,10 +219,21 @@ class OfferingContentCard extends Component
 
         $this->profile->update([
             'cover_image_path' => null,
-            'is_published'     => false,
+            'is_published' => false,
         ]);
 
         $this->profile->refresh()->load('images');
+
+        $vendorAccount = $this->profile->vendorAccount()->with('category')->first();
+
+        if ($vendorAccount) {
+            try {
+                app(PrestashopProductSyncService::class)->sync($vendorAccount);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
         $this->dispatch('notify', message: 'Cover rimossa');
     }
 
@@ -226,9 +255,18 @@ class OfferingContentCard extends Component
         $this->dispatch('notify', message: 'Foto eliminata');
     }
 
+    protected function isProfilePublishable(VendorOfferingProfile $profile): bool
+    {
+        $hasCover = is_string($profile->cover_image_path) && trim($profile->cover_image_path) !== '';
+        $hasDescription = is_string($profile->description) && trim($profile->description) !== '';
+
+        return $hasCover && $hasDescription;
+    }
+
     public function render()
     {
         $this->profile->load('images');
+
         return view('livewire.vendor.offering-content-card');
     }
 }

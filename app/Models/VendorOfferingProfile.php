@@ -12,6 +12,27 @@ class VendorOfferingProfile extends Model
     public const SERVICE_MODE_MOBILE = 'MOBILE';
     public const SERVICE_MODE_FIXED_LOCATION = 'FIXED_LOCATION';
 
+    protected static function booted()
+    {
+        static::saved(function ($profile) {
+            if ($profile->vendor_account_id) {
+                $vendor = \App\Models\VendorAccount::find($profile->vendor_account_id);
+                if ($vendor) {
+                    \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor);
+                }
+            }
+        });
+
+        static::deleted(function ($profile) {
+            if ($profile->vendor_account_id) {
+                $vendor = \App\Models\VendorAccount::find($profile->vendor_account_id);
+                if ($vendor) {
+                    \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor);
+                }
+            }
+        });
+    }
+
     protected $fillable = [
         'vendor_account_id',
         'offering_id',

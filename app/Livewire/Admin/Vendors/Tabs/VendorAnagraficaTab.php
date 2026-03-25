@@ -8,10 +8,13 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Reactive;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class VendorAnagraficaTab extends Component
 {
-    use AuthorizesRequests;
+    use AuthorizesRequests, WithFileUploads;
+
+    public $profile_image;
 
     public int $vendorAccountId;
 
@@ -95,6 +98,7 @@ class VendorAnagraficaTab extends Component
     protected function rules(): array
     {
         $rules = [
+            'profile_image' => ['nullable', 'image', 'max:5120'],
             'form.status' => ['required', 'in:ACTIVE,INACTIVE'],
             'form.account_type' => ['required', 'in:COMPANY,PRIVATE'],
             'form.category_id' => ['nullable', 'integer', 'exists:categories,id'],
@@ -166,9 +170,15 @@ class VendorAnagraficaTab extends Component
             'operational_country' => $this->form['operational_country'],
             'operational_region' => $this->form['operational_region'],
             'operational_city' => $this->form['operational_city'],
-            'operational_postal_code' => $this->form['operational_postal_code'],
             'operational_address_line1' => $this->form['operational_address_line1'],
         ]);
+
+        if ($this->profile_image) {
+            if ($this->vendorAccount->profile_image_path) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($this->vendorAccount->profile_image_path);
+            }
+            $this->vendorAccount->profile_image_path = $this->profile_image->store('vendor-profiles', 'public');
+        }
 
         // Se la sede operativa coincide con quella legale, copiamo i valori.
         if ($this->vendorAccount->operational_same_as_legal) {
@@ -226,6 +236,7 @@ class VendorAnagraficaTab extends Component
         }
 
         $this->form = $this->originalForm;
+        $this->profile_image = null;
         $this->resetValidation();
     }
 

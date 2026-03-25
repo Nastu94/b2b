@@ -19,6 +19,9 @@ use Illuminate\Support\Facades\Hash;
  * Nota:
  * - L'autorizzazione va gestita nel chiamante.
  * - Questo service si occupa solo della creazione atomica dei dati.
+ * - NON sincronizza più PrestaShop in fase di registrazione:
+ *   il prodotto vendor va creato/aggiornato solo quando il vendor
+ *   è realmente pronto per il catalogo.
  */
 class CreateVendorService
 {

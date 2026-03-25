@@ -39,4 +39,9 @@ return [
         'key' => env('BOOKING_BRIDGE_KEY'),
     ],
 
+    'prestashop' => [
+        'endpoint' => env('PRESTASHOP_API_URL'),
+        'key' => env('PRESTASHOP_API_KEY'),
+    ],
+
 ];

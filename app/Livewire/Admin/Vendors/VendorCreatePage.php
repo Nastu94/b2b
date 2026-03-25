@@ -10,11 +10,14 @@ use App\Services\CreateVendorService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.admin')]
 class VendorCreatePage extends Component
 {
-    use AuthorizesRequests;
+    use AuthorizesRequests, WithFileUploads;
+
+    public $profile_image;
 
     public array $form = [
         // accesso
@@ -85,6 +88,8 @@ class VendorCreatePage extends Component
     public function rules(): array
     {
         $rules = [
+            'profile_image' => ['nullable', 'image', 'max:5120'],
+
             // accesso
             'form.name' => ['required', 'string', 'max:255'],
             'form.email' => ['required', 'email', 'max:255', 'unique:users,email'],
@@ -165,6 +170,11 @@ class VendorCreatePage extends Component
         }
 
         $vendorAccount = $createVendorService->create($this->form);
+
+        if ($this->profile_image) {
+            $vendorAccount->profile_image_path = $this->profile_image->store('vendor-profiles', 'public');
+            $vendorAccount->save();
+        }
 
         session()->flash('status', 'Vendor creato con successo.');
 

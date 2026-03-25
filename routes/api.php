@@ -31,6 +31,11 @@ Route::middleware('booking.bridge')->group(function () {
 
     // Recupera tutti i vendor per il catalogo, indipendentemente dalla disponibilità.
     Route::get('/vendors/catalog', [VendorCatalogController::class, 'index']);
+
+    // Recupera i dettagli di un vendor risalendo dal prodotto PrestaShop associato.
+    Route::get('/vendors/by-product/{idProduct}', [VendorCatalogController::class, 'showByProduct'])
+        ->whereNumber('idProduct');
+
     // Recupera i dettagli di un vendor specifico, inclusi servizi e disponibilità.
     Route::get('/vendors/{vendor}', [VendorCatalogController::class, 'show']);
 

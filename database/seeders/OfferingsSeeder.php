@@ -26,8 +26,7 @@ class OfferingsSeeder extends Seeder
                 'Gonfiabili e strutture ludiche',
                 'Bolle giganti e spettacoli interattivi',
             ],
-            'Animazione Teen Party' => [
-                'DJ set con animatore',
+            'Giochi e Intrattenimento' => [
                 'Karaoke',
                 'Silent disco',
                 'Schiuma party',
@@ -38,7 +37,6 @@ class OfferingsSeeder extends Seeder
                 'Tornei PlayStation e Just Dance',
             ],
             'Animazione Adulti - Feste Private' => [
-                'DJ set personalizzato',
                 'Live band',
                 'Sax / Violino elettrico con DJ',
                 'Percussionista live',
@@ -64,7 +62,6 @@ class OfferingsSeeder extends Seeder
             ],
             'Eventi Aziendali' => [
                 'Presentatore / Speaker',
-                'DJ corporate',
                 'Live band elegante',
                 'Performer LED',
                 'Magician corporate',
@@ -74,7 +71,6 @@ class OfferingsSeeder extends Seeder
                 'Allestimenti personalizzati',
             ],
             'Compleanni Adulti' => [
-                'DJ set',
                 'Karaoke party',
                 'Pool party',
                 'Dinner show',
@@ -82,7 +78,6 @@ class OfferingsSeeder extends Seeder
                 'Noleggio sala privata',
             ],
             'Matrimoni ed Eventi Eleganti' => [
-                'DJ matrimonio',
                 'Musica live cerimonia',
                 'Animazione bambini matrimonio',
                 'Effetti speciali (fumo basso, fontane fredde)',
@@ -97,7 +92,6 @@ class OfferingsSeeder extends Seeder
                 'Allestimenti scenografici',
                 'Effetti speciali (neve, fumo, bolle)',
                 'Torte personalizzate',
-                'Catering',
                 'Security',
                 'Hostess e steward',
             ],
@@ -108,6 +102,15 @@ class OfferingsSeeder extends Seeder
                 'Beach party',
                 'Evento in discoteca riservata',
                 'Secret party location',
+            ],
+            'Artisti' => [
+                'DJ',
+            ],
+            'Ristoranti' => [
+                'Menu Pesce',
+                'Menu carne',
+                'Catering',
+                'Menu all you can eat',
             ],
         ];
 

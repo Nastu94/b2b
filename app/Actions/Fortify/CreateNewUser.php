@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
 use Laravel\Jetstream\Jetstream;
+use App\Services\PrestashopProductSyncService;
 
 class CreateNewUser implements CreatesNewUsers
 {
@@ -47,6 +48,9 @@ class CreateNewUser implements CreatesNewUsers
             // Campi opzionali già presenti nel form
             'legal_country' => ['nullable', 'string', 'max:2'],
             'legal_region' => ['nullable', 'string', 'max:255'],
+
+            // Immagine profilo
+            'profile_image' => ['nullable', 'image', 'max:8192'], // MAX 8MB
         ])->after(function ($validator) use ($input) {
             $type = $input['account_type'] ?? null;
 
@@ -77,6 +81,14 @@ class CreateNewUser implements CreatesNewUsers
                 }
             }
         })->validate();
+
+        // Salva eventuale immagine profilo
+        $profileImagePath = null;
+        if (isset($input['profile_image']) && $input['profile_image'] instanceof \Illuminate\Http\UploadedFile) {
+            $file = $input['profile_image'];
+            $filename = \Illuminate\Support\Str::random(40) . '.' . $file->getClientOriginalExtension();
+            $profileImagePath = $file->storeAs('vendors/profiles', $filename, 'public');
+        }
 
         // Crea user.
         $user = User::create([
@@ -118,10 +130,21 @@ class CreateNewUser implements CreatesNewUsers
             // Per ora manteniamo la sede operativa uguale alla legale.
             'operational_same_as_legal' => true,
 
+            // Immagine
+            'profile_image_path' => $profileImagePath,
+
             // Stato
             'status' => 'ACTIVE',
             'activated_at' => now(),
         ]);
+
+        // Sincronizza il prodotto PrestaShop.
+        try {
+            app(PrestashopProductSyncService::class)->createForVendor($vendor);
+        } catch (\Throwable $e) {
+            // La sincronizzazione non deve bloccare la registrazione.
+            report($e);
+        }
 
         // Geocoding della sede legale.
         // Se la sede operativa coincide, copiamo le stesse coordinate.

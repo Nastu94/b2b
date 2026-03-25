@@ -46,8 +46,12 @@ class VendorSearchService
                         ->orWhereRaw('LOWER(operational_city) = ?', [$city])
                         ->orWhereHas('vendorOfferingProfiles', function ($profQ) use ($distSql) {
                             $profQ->where('is_published', true)
-                                  ->whereNotNull('service_radius_km')
-                                  ->whereRaw("$distSql <= service_radius_km");
+                                  ->where(function ($modeQ) use ($distSql) {
+                                      $modeQ->where(function ($radiusQ) use ($distSql) {
+                                          $radiusQ->whereNotNull('service_radius_km')
+                                                  ->whereRaw("$distSql <= service_radius_km");
+                                      })->orWhere('service_mode', 'FIXED_LOCATION');
+                                  });
                         });
                   })
                   ->orderByDesc('is_city_match')
@@ -58,7 +62,11 @@ class VendorSearchService
             $query->selectRaw("vendor_accounts.*, 1 as is_city_match, 0 as distance_km")
                   ->where(function (Builder $q) use ($city) {
                       $q->whereRaw('LOWER(legal_city) = ?', [$city])
-                        ->orWhereRaw('LOWER(operational_city) = ?', [$city]);
+                        ->orWhereRaw('LOWER(operational_city) = ?', [$city])
+                        ->orWhereHas('vendorOfferingProfiles', function ($profQ) {
+                            $profQ->where('is_published', true)
+                                  ->where('service_mode', 'FIXED_LOCATION');
+                        });
                   })
                   ->orderBy('vendor_accounts.id');
         }
@@ -323,9 +331,17 @@ class VendorSearchService
 
                         $effectiveAddress = $this->buildEffectiveAddress($vendor);
 
+                        $fallbackImage = null;
+                        if (!empty($vendor->profile_image_path)) {
+                            $fallbackImage = route('media.public', [
+                                'path' => ltrim($vendor->profile_image_path, '/'),
+                            ]);
+                        }
+
                         $result = [
                             'id' => $vendor->id,
                             'company_name' => $vendor->company_name,
+                            'profile_image_url' => $fallbackImage,
                             'city' => $vendor->effectiveCity(),
                             'phone' => $vendor->phone,
                             'address' => $effectiveAddress['address'],

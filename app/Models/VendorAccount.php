@@ -12,6 +12,17 @@ class VendorAccount extends Model
 {
     use SoftDeletes;
 
+    protected static function booted()
+    {
+        static::saved(function ($vendor) {
+            \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor);
+        });
+
+        static::deleted(function ($vendor) {
+            \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor);
+        });
+    }
+
     // Campi assegnabili in mass assignment.
     protected $fillable = [
         'user_id',
@@ -64,6 +75,9 @@ class VendorAccount extends Model
 
         // Integrazione PrestaShop
         'prestashop_product_id',
+
+        // Immagine profilo / logo
+        'profile_image_path',
 
         // Stato
         'status',

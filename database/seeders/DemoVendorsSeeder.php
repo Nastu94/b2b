@@ -35,6 +35,9 @@ class DemoVendorsSeeder extends Seeder
             'valentina.esposito@partylegacy.it',
             'marco.santoro@partylegacy.it',
             'claudia.marino@partylegacy.it',
+            'david.guetta@partylegacy.it',
+            'ristorante.baia@partylegacy.it',
+            'all.you.can.eat@partylegacy.it',
         ];
 
         $demoVendorUserIds = User::whereIn('email', $demoVendorEmails)->pluck('id')->toArray();
@@ -129,7 +132,7 @@ class DemoVendorsSeeder extends Seeder
                 'longitude' => 16.8719,
             ],
             [
-                'category_slug' => 'animazione-teen-party',
+                'category_slug' => 'giochi-e-intrattenimento',
                 'user_name' => 'Luca Bianchi',
                 'email' => 'luca.bianchi@partylegacy.it',
                 'company_name' => 'Teen Party Pro SNC',
@@ -248,11 +251,57 @@ class DemoVendorsSeeder extends Seeder
                 'latitude' => 40.9530,
                 'longitude' => 17.3020,
             ],
+            [
+                'category_slug' => 'artisti',
+                'user_name' => 'David Guetta',
+                'email' => 'david.guetta@partylegacy.it',
+                'company_name' => 'DJ King SRL',
+                'vat_number' => 'IT07901234568',
+                'tax_code' => 'GTTDVD67A01Z110R',
+                'phone' => '+39 080 901 9999',
+                'city' => 'Bari',
+                'address' => 'Via Sparano 50',
+                'postal_code' => '70121',
+                'province' => 'BA',
+                'latitude' => 41.1210,
+                'longitude' => 16.8680,
+            ],
+            [
+                'category_slug' => 'ristoranti',
+                'user_name' => 'Luigi Neri',
+                'email' => 'ristorante.baia@partylegacy.it',
+                'company_name' => 'Ristorante La Baia SRL',
+                'vat_number' => 'IT08012345678',
+                'tax_code' => 'NRLLGI75M12H501C',
+                'phone' => '+39 080 111 2222',
+                'city' => 'Polignano a Mare',
+                'address' => 'Lungomare Nazario Sauro 1',
+                'postal_code' => '70044',
+                'province' => 'BA',
+                'latitude' => 40.9950,
+                'longitude' => 17.2250,
+            ],
+            [
+                'category_slug' => 'ristoranti',
+                'user_name' => 'Simone Gialli',
+                'email' => 'all.you.can.eat@partylegacy.it',
+                'company_name' => 'Paradise Buffet SRL',
+                'vat_number' => 'IT08123456789',
+                'tax_code' => 'GLLSMN80A01H501A',
+                'phone' => '+39 080 222 3333',
+                'city' => 'Bari',
+                'address' => 'Viale Unità d\'Italia 10',
+                'postal_code' => '70125',
+                'province' => 'BA',
+                'latitude' => 41.1100,
+                'longitude' => 16.8780,
+            ],
         ];
 
         $count = 0;
 
         foreach ($vendors as $data) {
+            $count++;
             $category = Category::where('slug', $data['category_slug'])->first();
 
             if (!$category) {
@@ -376,9 +425,9 @@ class DemoVendorsSeeder extends Seeder
 
     private function createVendorOfferings(VendorAccount $vendor, Category $category): array
     {
-        $definitions = $this->getOfferingDefinitionsForCategory($category->slug);
+        $definitions = $this->getOfferingDefinitionsForCategory($category->slug, $vendor->user->email);
 
-        if (count($definitions) < 2) {
+        if (count($definitions) < 1) {
             $this->command->warn("Meno di 2 definizioni offering per categoria '{$category->slug}'");
             return [];
         }
@@ -410,8 +459,8 @@ class DemoVendorsSeeder extends Seeder
                 'vendor_account_id' => $vendor->id,
                 'offering_id' => $offering->id,
                 'title' => $offering->name,
-                'short_description' => $descriptions['short'][$index] ?? 'Servizio professionale per eventi',
-                'description' => $descriptions['long'][$index] ?? 'Descrizione dettagliata del servizio.',
+                'short_description' => $definition['short_description'] ?? ($descriptions['short'][$index] ?? 'Servizio professionale per eventi'),
+                'description' => $definition['description'] ?? ($descriptions['long'][$index] ?? 'Descrizione dettagliata del servizio.'),
                 'cover_image_path' => null,
                 'service_mode' => $definition['service_mode'],
                 'service_radius_km' => $definition['service_radius_km'],
@@ -484,12 +533,12 @@ class DemoVendorsSeeder extends Seeder
                 'Animatore / Truccabimbi' => 180.00,
                 'Gonfiabili e strutture ludiche' => 250.00,
             ],
-            'animazione-teen-party' => [
-                'DJ set con animatore' => 260.00,
+            'giochi-e-intrattenimento' => [
+                'Schiuma party' => 260.00,
                 'Silent disco' => 320.00,
             ],
             'animazione-adulti-feste-private' => [
-                'DJ set personalizzato' => 350.00,
+                'Live band' => 500.00,
                 'Cena con delitto' => 700.00,
             ],
             'addio-al-celibato-nubilato' => [
@@ -498,30 +547,39 @@ class DemoVendorsSeeder extends Seeder
             ],
             'eventi-aziendali' => [
                 'Presentatore / Speaker' => 500.00,
-                'Photo booth / 360° booth' => 650.00,
+                'Live band elegante' => 800.00,
             ],
             'compleanni-adulti' => [
-                'DJ set' => 280.00,
+                'Dinner show' => 450.00,
                 'Noleggio sala privata' => 900.00,
             ],
             'matrimoni-ed-eventi-eleganti' => [
-                'DJ matrimonio' => 900.00,
+                'Musica live cerimonia' => 400.00,
                 'Open bar show' => 1200.00,
             ],
             'servizi-di-supporto' => [
                 'Noleggio palco' => 800.00,
-                'Catering' => 450.00,
+                'Noleggio impianto audio' => 450.00,
             ],
             'format-premium-esperienze-esclusive' => [
                 'Party su yacht' => 2500.00,
                 'Rooftop party' => 1800.00,
+            ],
+            'artisti' => [
+                'DJ' => 300.00,
+            ],
+            'ristoranti' => [
+                'Menu Pesce' => 60.00,
+                'Menu carne' => 45.00,
+                'Catering' => 70.00,
+                'Menu all you can eat' => 25.00,
             ],
         ];
 
         return (float) ($prices[$categorySlug][$offeringName] ?? 250.00);
     }
 
-    private function getOfferingDefinitionsForCategory(string $categorySlug): array
+    private function getOfferingDefinitionsForCategory(string $categorySlug, string $vendorEmail): array
     {
         $map = [
             'animazione-bambini' => [
@@ -538,9 +596,9 @@ class DemoVendorsSeeder extends Seeder
                     'max_guests' => null,
                 ],
             ],
-            'animazione-teen-party' => [
+            'giochi-e-intrattenimento' => [
                 [
-                    'offering_name' => 'DJ set con animatore',
+                    'offering_name' => 'Schiuma party',
                     'service_mode' => 'MOBILE',
                     'service_radius_km' => 35,
                     'max_guests' => null,
@@ -554,7 +612,7 @@ class DemoVendorsSeeder extends Seeder
             ],
             'animazione-adulti-feste-private' => [
                 [
-                    'offering_name' => 'DJ set personalizzato',
+                    'offering_name' => 'Live band',
                     'service_mode' => 'MOBILE',
                     'service_radius_km' => 120,
                     'max_guests' => null,
@@ -588,7 +646,7 @@ class DemoVendorsSeeder extends Seeder
                     'max_guests' => null,
                 ],
                 [
-                    'offering_name' => 'Photo booth / 360° booth',
+                    'offering_name' => 'Live band elegante',
                     'service_mode' => 'MOBILE',
                     'service_radius_km' => 80,
                     'max_guests' => null,
@@ -596,10 +654,10 @@ class DemoVendorsSeeder extends Seeder
             ],
             'compleanni-adulti' => [
                 [
-                    'offering_name' => 'DJ set',
-                    'service_mode' => 'MOBILE',
-                    'service_radius_km' => 30,
-                    'max_guests' => null,
+                    'offering_name' => 'Dinner show',
+                    'service_mode' => 'FIXED_LOCATION',
+                    'service_radius_km' => null,
+                    'max_guests' => 100,
                 ],
                 [
                     'offering_name' => 'Noleggio sala privata',
@@ -610,7 +668,7 @@ class DemoVendorsSeeder extends Seeder
             ],
             'matrimoni-ed-eventi-eleganti' => [
                 [
-                    'offering_name' => 'DJ matrimonio',
+                    'offering_name' => 'Musica live cerimonia',
                     'service_mode' => 'MOBILE',
                     'service_radius_km' => 120,
                     'max_guests' => null,
@@ -630,7 +688,7 @@ class DemoVendorsSeeder extends Seeder
                     'max_guests' => null,
                 ],
                 [
-                    'offering_name' => 'Catering',
+                    'offering_name' => 'Noleggio impianto audio',
                     'service_mode' => 'MOBILE',
                     'service_radius_km' => 60,
                     'max_guests' => null,
@@ -650,7 +708,57 @@ class DemoVendorsSeeder extends Seeder
                     'max_guests' => 80,
                 ],
             ],
+            'artisti' => [
+                [
+                    'offering_name' => 'DJ',
+                    'service_mode' => 'MOBILE',
+                    'service_radius_km' => 100,
+                    'max_guests' => null,
+                ],
+            ],
         ];
+
+        if ($categorySlug === 'ristoranti') {
+            if ($vendorEmail === 'ristorante.baia@partylegacy.it') {
+                return [
+                    [
+                        'offering_name' => 'Menu Pesce',
+                        'service_mode' => 'FIXED_LOCATION',
+                        'service_radius_km' => null,
+                        'max_guests' => 150,
+                        'short_description' => 'Specialità di mare freschissime e crudités',
+                        'description' => 'La nostra cucina propone menu a base di pescato del giorno, ostriche e crudités. Una qualità impareggiabile per soddisfare anche i palati più esigenti, perfetta per cerimonie e cene esclusive in location suggestiva.'
+                    ],
+                    [
+                        'offering_name' => 'Menu carne',
+                        'service_mode' => 'FIXED_LOCATION',
+                        'service_radius_km' => null,
+                        'max_guests' => 150,
+                        'short_description' => 'Selezioni di carni pregiate e grigliate',
+                        'description' => 'Menu raffinati a base di tagli di carne selezionati, serviti con contorni di stagione e abbinati ai migliori vini della nostra cantina. Un\'esperienza culinaria di altissimo livello per i tuoi ospiti.'
+                    ]
+                ];
+            } else {
+                return [
+                    [
+                        'offering_name' => 'Menu all you can eat',
+                        'service_mode' => 'FIXED_LOCATION',
+                        'service_radius_km' => null,
+                        'max_guests' => 300,
+                        'short_description' => 'Buffet illimitato con formula fissa',
+                        'description' => 'Divertimento e gusto senza limiti con il nostro grand buffet: pizza, primi, secondi e dolci a volontà. Specializzati per soddisfare numeri altissimi e grandissime tavolate a prezzi imbattibili e convenienti.'
+                    ],
+                    [
+                        'offering_name' => 'Catering',
+                        'service_mode' => 'MOBILE',
+                        'service_radius_km' => 50,
+                        'max_guests' => null,
+                        'short_description' => 'Catering completo per il tuo evento',
+                        'description' => 'Il servizio catering ideale per grandi numeri. Portiamo la magia dei nostri menu abbondanti e sfiziosi direttamente nella location del tuo evento, garantendo qualità e varietà senza mai tralasciare il servizio.'
+                    ]
+                ];
+            }
+        }
 
         return $map[$categorySlug] ?? [];
     }
@@ -668,24 +776,24 @@ class DemoVendorsSeeder extends Seeder
                     'Intrattenimento garantito per bambini di tutte le età con programmi studiati su misura. Organizziamo giochi di gruppo educativi, caccia al tesoro avventurosa, laboratori creativi di arte e cucina, e mini olimpiadi sportive. Tutte le attrezzature sono professionali, certificate e sicure. I nostri animatori sono certificati con esperienza pluriennale e formazione continua. Pacchetti completamente personalizzabili in base alle esigenze specifiche della festa e all\'età dei partecipanti.',
                 ],
             ],
-            'animazione-teen-party' => [
+            'giochi-e-intrattenimento' => [
                 'short' => [
-                    'DJ set professionale e intrattenimento musicale per feste teen',
+                    'Giochi interattivi e intrattenimento musicale per feste teen',
                     'Party musicale con animazione interattiva per adolescenti',
                 ],
                 'long' => [
-                    'DJ set professionale con playlist completamente personalizzate in base ai gusti musicali dei ragazzi. Sistema di luci LED professionali, effetti speciali scenografici e animazione interattiva che coinvolge tutti i partecipanti. Organizziamo karaoke con basi professionali, silent disco con cuffie wireless, e giochi di gruppo moderni per rendere unica e memorabile la tua festa. Esperienza pluriennale nell\'intrattenimento giovani con attrezzature audio e video di ultima generazione.',
-                    'Party indimenticabile con musica dal vivo, giochi coinvolgenti e tanto divertimento garantito. DJ professionista con esperienza ventennale, impianto audio di qualità superiore e show interattivi personalizzati. Organizziamo schiuma party all\'aperto, neon party fluorescenti, e tornei di videogiochi competitivi. Massima sicurezza con personale qualificato, attrezzature certificate e assicurazione RC professionale. Esperienza con eventi fino a 200 persone.',
+                    'Intrattenimento professionale con giochi strutturati e playlist completamente personalizzate in base ai gusti musicali dei ragazzi. Sistema di luci LED professionali, effetti speciali scenografici e animazione interattiva che coinvolge tutti i partecipanti. Organizziamo karaoke con basi professionali, silent disco con cuffie wireless, e giochi di gruppo moderni per rendere unica e memorabile la tua festa. Esperienza pluriennale nell\'intrattenimento giovani con attrezzature audio e video a disposizione.',
+                    'Party indimenticabile con musica, giochi coinvolgenti e tanto divertimento garantito. Intrattenimento professionale con esperienza ventennale, impianto audio di qualità superiore e show interattivi personalizzati. Organizziamo schiuma party all\'aperto, neon party fluorescenti, e tornei di videogiochi competitivi. Massima sicurezza con personale qualificato, attrezzature certificate e assicurazione RC professionale. Esperienza con eventi fino a 200 persone.',
                 ],
             ],
             'animazione-adulti-feste-private' => [
                 'short' => [
-                    'DJ set e intrattenimento professionale per feste private adulti',
+                    'Live band e intrattenimento professionale per feste private adulti',
                     'Musica live e animazione di qualità per eventi privati esclusivi',
                 ],
                 'long' => [
-                    'Servizio completo di intrattenimento per feste private, compleanni milestone e ricorrenze speciali. DJ set con playlist personalizzate su tutti i generi musicali, live band professioniste, musicisti di alto livello e performer spettacolari. Attrezzature audio professionali e sistema luci di ultima generazione con effetti scenografici. Esperienza ventennale nel settore eventi privati con migliaia di feste organizzate in tutta Italia e all\'estero.',
-                    'Rendiamo unica e indimenticabile la tua festa con intrattenimento di qualità superiore e servizio impeccabile. DJ professionista con repertorio internazionale, musica dal vivo con band selezionate, show spettacolari e performance su misura. Personalizziamo ogni singolo dettaglio in base ai tuoi gusti musicali, alle tue esigenze logistiche e al budget disponibile. Preventivo gratuito dettagliato e sopralluogo senza impegno. Consulenza completa per la scelta della location.',
+                    'Servizio completo di intrattenimento per feste private, compleanni milestone e ricorrenze speciali. Live band professioniste, musicisti di alto livello e performer spettacolari per tutti i generi musicali. Attrezzature audio professionali e sistema luci di ultima generazione con effetti scenografici. Esperienza ventennale nel settore eventi privati con migliaia di feste organizzate in tutta Italia e all\'estero.',
+                    'Rendiamo unica e indimenticabile la tua festa con intrattenimento di qualità superiore e servizio impeccabile. Musica dal vivo con band selezionate, show spettacolari e performance su misura come cene con delitto. Personalizziamo ogni singolo dettaglio in base alle tue esigenze logistiche e al budget disponibile. Preventivo gratuito dettagliato e sopralluogo senza impegno. Consulenza completa per la scelta della location.',
                 ],
             ],
             'addio-al-celibato-nubilato' => [
@@ -704,8 +812,8 @@ class DemoVendorsSeeder extends Seeder
                     'Organizzazione eventi aziendali chiavi in mano con formula full service',
                 ],
                 'long' => [
-                    'Servizi professionali completi per eventi aziendali di ogni dimensione: team building esperienziale personalizzato, convention nazionali e internazionali, meeting strategici e feste corporate esclusive. Attività personalizzate studiate su misura, workshop interattivi con formatori certificati e simulazioni VR immersive. Speaker motivazionali di alto profilo e entertainment di qualità superiore. Gestione completa dell\'evento con project management dedicato e report finale dettagliato con KPI misurabili.',
-                    'Rendiamo speciale e produttivo il tuo evento aziendale con soluzioni innovative completamente su misura. Team building esperienziali con metodologie certificate, cooking class con chef stellati, escape room aziendali tematizzate e quiz interattivi multimediali. Tecnologie all\'avanguardia con realtà virtuale e aumentata, staff qualificato con esperienza decennale nel corporate. ROI garantito sulla soddisfazione partecipanti con questionari di feedback post-evento e analisi dettagliata dei risultati.',
+                    'Servizi professionali completi per eventi aziendali di ogni dimensione: team building esperienziale personalizzato, convention nazionali e internazionali, meeting strategici e feste corporate esclusive. Attività personalizzate studiate su misura, workshop interattivi con formatori certificati e presentatori di alto profilo. Speaker motivazionali e entertainment di qualità superiore. Gestione completa dell\'evento con project management dedicato e report finale dettagliato con KPI misurabili.',
+                    'Rendiamo speciale e produttivo il tuo evento aziendale con soluzioni innovative completamente su misura. Intrattenimento aziendale, live band eleganti per cene di gala, e quiz interattivi multimediali. Tecnologie all\'avanguardia, staff qualificato con esperienza decennale nel corporate. ROI garantito sulla soddisfazione partecipanti con questionari di feedback post-evento e analisi dettagliata dei risultati.',
                 ],
             ],
             'compleanni-adulti' => [
@@ -714,8 +822,8 @@ class DemoVendorsSeeder extends Seeder
                     'Festa di compleanno personalizzata e indimenticabile su misura per te',
                 ],
                 'long' => [
-                    'Organizziamo il tuo compleanno da sogno con ogni dettaglio curato nei minimi particolari! DJ set professionale con musica personalizzata, karaoke con basi professionali, dinner show esclusivo e party a tema completamente personalizzato. Location esclusive selezionate, catering gourmet personalizzato secondo le tue preferenze e intrattenimento professionale con artisti selezionati. Pacchetti completi all-inclusive dalla cena gourmet allo spettacolo finale con fuochi d\'artificio, con possibilità di servizio fotografico professionale e video reportage.',
-                    'Il tuo compleanno merita di essere davvero speciale e memorabile. Ci occupiamo di tutto con professionalità ventennale: dalla selezione della location perfetta all\'intrattenimento esclusivo, dal catering stellato agli allestimenti scenografici spettacolari. Pool party estivo in villa privata, party elegante in rooftop panoramico o festa esclusiva in location storica. Esperienza ventennale consolidata nel settore con oltre 1000 eventi organizzati in tutta Italia e testimonial soddisfatti.',
+                    'Organizziamo il tuo compleanno da sogno con ogni dettaglio curato nei minimi particolari! Intrattenimento professionale con cena spettacolo esclusiva e party a tema completamente personalizzato. Location esclusive selezionate, catering gourmet personalizzato secondo le tue preferenze e noleggio di sale private selezionate. Pacchetti completi all-inclusive dalla cena gourmet allo spettacolo finale, con possibilità di servizio fotografico professionale.',
+                    'Il tuo compleanno merita di essere davvero speciale e memorabile. Ci occupiamo di tutto con professionalità ventennale: dalla selezione della location perfetta all\'intrattenimento esclusivo, dal catering stellato agli allestimenti scenografici. Pool party estivo in villa privata, dinner show elegante o festa esclusiva in location storica. Esperienza ventennale consolidata nel settore con oltre 1000 eventi organizzati in tutta Italia.',
                 ],
             ],
             'matrimoni-ed-eventi-eleganti' => [
@@ -724,8 +832,8 @@ class DemoVendorsSeeder extends Seeder
                     'Musica live professionale e animazione di classe per il tuo matrimonio da sogno',
                 ],
                 'long' => [
-                    'Rendiamo magico e indimenticabile il giorno più importante della vostra vita con servizio impeccabile. Musica live professionale per cerimonia religiosa e civile e ricevimento elegante, DJ set raffinato con playlist personalizzata, animazione bambini professionale e discreta, spettacoli esclusivi selezionati. Effetti speciali scenografici, sparkular per taglio torta, fontane fredde luminose e giochi di luci coreografici. Wedding planner professionisti disponibili per la pianificazione completa con timeline dettagliata minuto per minuto.',
-                    'Matrimonio da sogno con intrattenimento raffinato, elegante e professionale. Quartetto d\'archi classico per la cerimonia religiosa, band live jazz per l\'aperitivo di benvenuto, DJ set internazionale per il ricevimento e after party. Sistema luci scenografiche professionali, effetti speciali pirotecnici autorizzati e coordinamento perfetto con tutti i fornitori. Oltre 200 matrimoni organizzati con successo in location esclusive e recensioni eccellenti con valutazione media 5 stelle. Portfolio completo disponibile.',
+                    'Rendiamo magico e indimenticabile il giorno più importante della vostra vita con servizio impeccabile. Musica live professionale per cerimonia religiosa e civile e ricevimento elegante con spettacoli esclusivi selezionati come open bar acrobatici. Effetti speciali scenografici, sparkular per taglio torta, fontane fredde luminose e giochi di luci coreografici. Wedding planner professionisti disponibili per la pianificazione completa con timeline dettagliata.',
+                    'Matrimonio da sogno con intrattenimento raffinato, elegante e professionale. Musica dal vivo con band dal vivo per l\'aperitivo di benvenuto, ricevimento e after party. Sistema luci scenografiche professionali, effetti speciali pirotecnici autorizzati e coordinamento perfetto con tutti i fornitori. Oltre 200 matrimoni organizzati con successo in location esclusive e recensioni eccellenti con valutazione media 5 stelle. Portfolio completo disponibile.',
                 ],
             ],
             'servizi-di-supporto' => [
@@ -734,8 +842,8 @@ class DemoVendorsSeeder extends Seeder
                     'Servizi tecnici professionali completi e assistenza on-site garantita H24',
                 ],
                 'long' => [
-                    'Noleggio professionale certificato di impianti audio line array, sistemi luci intelligenti, palchi modulari e allestimenti scenografici spettacolari. Attrezzature di ultima generazione completamente certificate con tecnici audio/luci qualificati e assistenza on-site garantita per tutta la durata dell\'evento. Preventivi gratuiti dettagliati e sopralluoghi tecnici senza impegno. Esperienza ventennale consolidata nel settore rental con parco attrezzature sempre aggiornato alle ultime tecnologie disponibili sul mercato.',
-                    'Forniamo tutto il supporto tecnico professionale necessario per il tuo evento di successo: impianti audio professionali certificati, sistemi luci DMX intelligenti, videoproiezione HD e 4K, palchi modulari certificati e strutture espositive personalizzate. Service professionale completo con tecnici certificati disponibili H24 per assistenza e troubleshooting. Effetti speciali pirotecnici, macchine del fumo basso e pesante, led wall modulari ad alta risoluzione e proiettori laser professionali. Noleggio giornaliero o plurigiornaliero con formule flessibili e scontistiche dedicate.',
+                    'Noleggio professionale certificato di impianti audio line array, sistemi luci intelligenti, palchi modulari e allestimenti scenografici spettacoli. Attrezzature di ultima generazione completamente certificate con tecnici audio/luci qualificati e assistenza on-site garantita per tutta la durata dell\'evento. Preventivi gratuiti dettagliati e sopralluoghi tecnici senza impegno. Esperienza ventennale consolidata nel settore rental.',
+                    'Forniamo tutto il supporto tecnico professionale necessario per il tuo evento di successo: impianti audio professionali certificati, sistemi luci DMX intelligenti, palchi modulari certificati e noleggio impianti audio completi. Service professionale completo con tecnici certificati disponibili H24 per assistenza e troubleshooting. Noleggio giornaliero o plurigiornaliero con formule flessibili e scontistiche dedicate.',
                 ],
             ],
             'format-premium-esperienze-esclusive' => [
@@ -745,7 +853,25 @@ class DemoVendorsSeeder extends Seeder
                 ],
                 'long' => [
                     'Organizziamo eventi esclusivi irripetibili in location da sogno accuratamente selezionate: ville storiche d\'epoca con affreschi originali, yacht privati di lusso con equipaggio dedicato, rooftop panoramici con vista mozzafiato e location segrete ad accesso riservato. Servizio impeccabile di altissimo livello con chef stellati Michelin, sommelier professionisti certificati AIS e intrattenimento live di alto profilo internazionale. Ogni dettaglio curato maniacalmente nei minimi particolari per un\'esperienza sensoriale indimenticabile e totalizzante.',
-                    'Esperienze luxury completamente personalizzate su misura per clienti esigenti e raffinati. Party esclusivi su yacht di lusso con DJ internazionali di fama mondiale, cene private gourmet in ville d\'epoca storiche, eventi in location esclusive con accesso riservato solo su invito e servizi VIP dedicati. Concierge personale H24, servizio fotografico professionale con fotografo di moda, possibilità di live streaming in alta definizione e video reportage cinematografico. Discrezione assoluta garantita con NDA firmati. Clientela internazionale selezionata.',
+                    'Esperienze luxury completamente personalizzate su misura per clienti esigenti e raffinati. Party esclusivi su yacht di lusso, cene private gourmet in ville d\'epoca storiche, eventi in location esclusive con accesso riservato solo su invito e servizi VIP dedicati. Concierge personale H24, servizio fotografico professionale con fotografo di moda, possibilità di live streaming in alta definizione e video reportage cinematografico. Discrezione assoluta garantita con NDA firmati. Clientela internazionale selezionata.',
+                ],
+            ],
+            'artisti' => [
+                'short' => [
+                    'DJ professionista per eventi, matrimoni e feste private',
+                ],
+                'long' => [
+                    'DJ di caratura internazionale disponibile per eventi aziendali, matrimoni di lusso e party in discoteche esclusive. Impianto audio di altissima qualità in dotazione e attrezzatura Pioneer top di gamma. Possibilità di accompagnamento con voce o strumenti live su richiesta. Oltre 15 anni di esperienza nei migliori club d\'Italia.',
+                ],
+            ],
+            'ristoranti' => [
+                'short' => [
+                    'Catering e menù per eventi aziendali e cerimonie eleganti',
+                    'Ristorazione di alto livello per ogni tipo di celebrazione',
+                ],
+                'long' => [
+                    'La nostra cucina offre menù completi a base di carne e pesce, ideati per soddisfare i palati più esigenti. Selezioniamo solo materie prime di altissima qualità, con possibilità di adattare le ricette a intolleranze e preferenze specifiche. Perfetto per cerimonie, cene di gala ed eventi esclusivi. Servizio in location fissa con sala o mobile tramite formula catering curata in ogni dettaglio.',
+                    'Specializzati in formula All You Can Eat e servizio Catering di alta gamma per soddisfare grandi numeri senza mai tralasciare la qualità del cibo curato in modo stellato. Buffet spettacolari, finger food gourmet e corner show cooking per stupire gli ospiti del tuo evento aziendale, matrimonio o compleanno speciale. Lo staff preparato farà si che tutto giri a meraviglia prestando massima accortezza.',
                 ],
             ],
         ];

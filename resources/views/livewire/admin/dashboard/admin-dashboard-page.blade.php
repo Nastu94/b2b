@@ -114,8 +114,23 @@
                         @endphp
 
                         <tr class="hover:bg-slate-50 transition">
-                            <td class="px-6 py-4 font-semibold text-slate-900">
-                                {{ $displayName }}
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="shrink-0">
+                                        @if ($vendor->profile_image_path)
+                                            <img src="{{ route('media.public', ['path' => $vendor->profile_image_path]) }}" alt="Logo" class="w-10 h-10 rounded-full object-cover border border-slate-200">
+                                        @else
+                                            <div class="w-10 h-10 rounded-full border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-400">
+                                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                </svg>
+                                            </div>
+                                        @endif
+                                    </div>
+                                    <div class="font-semibold text-slate-900">
+                                        {{ $displayName }}
+                                    </div>
+                                </div>
                             </td>
 
                             <td class="px-6 py-4 text-slate-700">
@@ -201,8 +216,21 @@
                 <div class="w-full bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
 
                     <div class="flex items-center justify-between">
-                        <div class="font-semibold text-slate-900">
-                            {{ $displayName }}
+                        <div class="flex items-center gap-3">
+                            <div class="shrink-0">
+                                @if ($vendor->profile_image_path)
+                                    <img src="{{ route('media.public', ['path' => $vendor->profile_image_path]) }}" alt="Logo" class="w-10 h-10 rounded-full object-cover border border-slate-200">
+                                @else
+                                    <div class="w-10 h-10 rounded-full border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-400">
+                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        </svg>
+                                    </div>
+                                @endif
+                            </div>
+                            <div class="font-semibold text-slate-900">
+                                {{ $displayName }}
+                            </div>
                         </div>
 
                         <span class="text-xs px-2 py-1 rounded-full border {{ $statusBadge }}">

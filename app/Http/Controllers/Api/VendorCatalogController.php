@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\VendorAccount;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 class VendorCatalogController extends Controller
@@ -112,6 +113,60 @@ class VendorCatalogController extends Controller
         ]);
     }
 
+    public function showByProduct(int $idProduct): JsonResponse
+    {
+        if ($idProduct <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Prodotto non valido.',
+            ], 422);
+        }
+
+        $vendor = VendorAccount::query()
+            ->whereNull('deleted_at')
+            ->where('status', 'ACTIVE')
+            ->where('prestashop_product_id', $idProduct)
+            ->whereHas('category', function ($query) {
+                $query->where('is_active', true);
+            })
+            ->whereHas('vendorOfferingProfiles', function ($query) {
+                $query->where('is_published', true);
+            })
+            ->with([
+                'category:id,name,slug,is_active',
+                'vendorOfferingProfiles' => function ($query) {
+                    $query->select([
+                        'id',
+                        'vendor_account_id',
+                        'offering_id',
+                        'title',
+                        'short_description',
+                        'description',
+                        'cover_image_path',
+                        'service_mode',
+                        'service_radius_km',
+                        'max_guests',
+                        'is_published',
+                    ])
+                    ->where('is_published', true)
+                    ->orderBy('id');
+                },
+            ])
+            ->first();
+
+        if (!$vendor) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vendor non trovato.',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->mapVendorByProductDetail($vendor),
+        ]);
+    }
+
     public function show(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -198,11 +253,8 @@ class VendorCatalogController extends Controller
 
     protected function mapVendorCard(VendorAccount $vendor): array
     {
-        $publishedProfiles = $vendor->vendorOfferingProfiles
-            ->where('is_published', true)
-            ->values();
-
-        $firstProfile = $publishedProfiles->first();
+        $publishedProfiles = $this->publishedProfiles($vendor);
+        $representativeProfile = $this->representativeProfile($vendor);
 
         return [
             'id' => (int) $vendor->id,
@@ -215,19 +267,16 @@ class VendorCatalogController extends Controller
             ] : null,
             'city' => $vendor->effectiveCity(),
             'phone' => $vendor->phone,
-            'cover_image_url' => $this->profileCoverImageUrl($firstProfile),
-            'short_description' => $this->vendorShortDescription($vendor, $firstProfile),
+            'cover_image_url' => $this->profileCoverImageUrl($representativeProfile),
+            'short_description' => $this->vendorShortDescription($vendor, $publishedProfiles, $representativeProfile),
             'offerings_count' => $publishedProfiles->count(),
         ];
     }
 
     protected function mapVendorDetail(VendorAccount $vendor): array
     {
-        $publishedProfiles = $vendor->vendorOfferingProfiles
-            ->where('is_published', true)
-            ->values();
-
-        $firstProfile = $publishedProfiles->first();
+        $publishedProfiles = $this->publishedProfiles($vendor);
+        $representativeProfile = $this->representativeProfile($vendor);
 
         return [
             'id' => (int) $vendor->id,
@@ -240,8 +289,8 @@ class VendorCatalogController extends Controller
             ] : null,
             'city' => $vendor->effectiveCity(),
             'phone' => $vendor->phone,
-            'cover_image_url' => $this->profileCoverImageUrl($firstProfile),
-            'description' => $this->vendorLongDescription($vendor, $firstProfile),
+            'cover_image_url' => $this->profileCoverImageUrl($representativeProfile),
+            'description' => $this->vendorLongDescription($vendor, $publishedProfiles, $representativeProfile),
             'offerings' => $publishedProfiles->map(function ($profile) {
                 return [
                     'id' => (int) $profile->id,
@@ -256,6 +305,65 @@ class VendorCatalogController extends Controller
                 ];
             })->values(),
         ];
+    }
+
+    protected function mapVendorByProductDetail(VendorAccount $vendor): array
+    {
+        $publishedProfiles = $this->publishedProfiles($vendor);
+        $representativeProfile = $this->representativeProfile($vendor);
+
+        return [
+            'id' => (int) $vendor->id,
+            'prestashop_product_id' => $vendor->prestashop_product_id !== null ? (int) $vendor->prestashop_product_id : null,
+            'slug' => $this->vendorSlug($vendor),
+            'name' => $this->vendorName($vendor),
+            'category' => $vendor->category ? [
+                'id' => (int) $vendor->category->id,
+                'name' => (string) $vendor->category->name,
+                'slug' => (string) $vendor->category->slug,
+            ] : null,
+            'city' => $vendor->effectiveCity(),
+            'phone' => $vendor->phone,
+            'cover_url' => $this->profileCoverImageUrl($representativeProfile),
+            'short_description' => $this->vendorShortDescription($vendor, $publishedProfiles, $representativeProfile),
+            'description' => $this->vendorLongDescription($vendor, $publishedProfiles, $representativeProfile),
+            'offerings_count' => $publishedProfiles->count(),
+            'offerings' => $publishedProfiles->map(function ($profile) {
+                return [
+                    'id' => (int) $profile->id,
+                    'offering_id' => (int) $profile->offering_id,
+                    'title' => $this->profileTitle($profile),
+                    'short_description' => (string) ($profile->short_description ?: ''),
+                    'description' => (string) ($profile->description ?: ''),
+                    'cover_image_url' => $this->profileCoverImageUrl($profile),
+                    'service_mode' => (string) $profile->service_mode,
+                    'service_radius_km' => $profile->service_radius_km !== null ? (float) $profile->service_radius_km : null,
+                    'max_guests' => $profile->max_guests !== null ? (int) $profile->max_guests : null,
+                ];
+            })->values(),
+        ];
+    }
+
+    protected function publishedProfiles(VendorAccount $vendor): Collection
+    {
+        return collect($vendor->vendorOfferingProfiles)
+            ->filter(fn ($profile) => (bool) $profile->is_published)
+            ->values();
+    }
+
+    protected function representativeProfile(VendorAccount $vendor): mixed
+    {
+        $publishedProfiles = $this->publishedProfiles($vendor);
+
+        if ($publishedProfiles->isEmpty()) {
+            return null;
+        }
+
+        $withCover = $publishedProfiles->first(function ($profile) {
+            return $this->profileCoverImageUrl($profile) !== null;
+        });
+
+        return $withCover ?: $publishedProfiles->first();
     }
 
     protected function vendorName(VendorAccount $vendor): string
@@ -285,10 +393,27 @@ class VendorCatalogController extends Controller
         return $base . '-' . $vendor->id;
     }
 
-    protected function vendorShortDescription(VendorAccount $vendor, $firstProfile): string
+    protected function vendorShortDescription(VendorAccount $vendor, Collection $publishedProfiles, mixed $representativeProfile): string
     {
-        if ($firstProfile && trim((string) $firstProfile->short_description) !== '') {
-            return (string) $firstProfile->short_description;
+        $titles = $publishedProfiles
+            ->map(function ($profile) {
+                return trim((string) ($profile->title ?? ''));
+            })
+            ->filter()
+            ->take(3)
+            ->implode(', ');
+
+        if ($titles !== '') {
+            $category = trim((string) ($vendor->category?->name ?? ''));
+            if ($category !== '') {
+                return $category . ': ' . $titles;
+            }
+
+            return $titles;
+        }
+
+        if ($representativeProfile && trim((string) $representativeProfile->short_description) !== '') {
+            return (string) $representativeProfile->short_description;
         }
 
         $parts = array_filter([
@@ -299,17 +424,65 @@ class VendorCatalogController extends Controller
         return !empty($parts) ? implode(' · ', $parts) : 'Scopri i servizi disponibili di questo vendor.';
     }
 
-    protected function vendorLongDescription(VendorAccount $vendor, $firstProfile): string
+    protected function vendorLongDescription(VendorAccount $vendor, Collection $publishedProfiles, mixed $representativeProfile): string
     {
-        if ($firstProfile && trim((string) $firstProfile->description) !== '') {
-            return (string) $firstProfile->description;
+        $vendorName = $this->vendorName($vendor);
+        $categoryName = trim((string) ($vendor->category?->name ?? ''));
+        $serviceCount = $publishedProfiles->count();
+
+        $introParts = [$vendorName];
+
+        if ($categoryName !== '') {
+            $introParts[] = 'opera nella categoria ' . $categoryName;
         }
 
-        if ($firstProfile && trim((string) $firstProfile->short_description) !== '') {
-            return (string) $firstProfile->short_description;
+        if ($serviceCount > 0) {
+            $introParts[] = 'e propone ' . $serviceCount . ' servizi pubblicati';
         }
 
-        return 'Scopri i servizi disponibili di questo vendor.';
+        $intro = rtrim(implode(' ', $introParts), '. ') . '.';
+
+        $serviceLines = $publishedProfiles
+            ->take(6)
+            ->map(function ($profile) {
+                $title = trim((string) ($profile->title ?? ''));
+                $short = trim((string) ($profile->short_description ?? ''));
+                $description = trim((string) ($profile->description ?? ''));
+
+                if ($title === '' && $short === '' && $description === '') {
+                    return null;
+                }
+
+                if ($title !== '' && $short !== '') {
+                    return '- ' . $title . ': ' . $short;
+                }
+
+                if ($title !== '' && $description !== '') {
+                    return '- ' . $title . ': ' . Str::limit(strip_tags($description), 220);
+                }
+
+                if ($title !== '') {
+                    return '- ' . $title;
+                }
+
+                return '- ' . Str::limit(strip_tags($short !== '' ? $short : $description), 220);
+            })
+            ->filter()
+            ->implode("\n");
+
+        if ($serviceLines !== '') {
+            return $intro . "\n\nServizi disponibili:\n" . $serviceLines;
+        }
+
+        if ($representativeProfile && trim((string) $representativeProfile->description) !== '') {
+            return $intro . "\n\n" . (string) $representativeProfile->description;
+        }
+
+        if ($representativeProfile && trim((string) $representativeProfile->short_description) !== '') {
+            return $intro . "\n\n" . (string) $representativeProfile->short_description;
+        }
+
+        return $intro !== '' ? $intro : 'Scopri i servizi disponibili di questo vendor.';
     }
 
     protected function profileTitle($profile): string
