@@ -11,8 +11,8 @@
         </div>
 
         {{-- Tabs --}}
-        <div class="mt-6 border-b">
-            <nav class="-mb-px flex gap-6" aria-label="Tabs">
+        <div class="mt-6 border-b border-gray-200">
+            <nav class="-mb-px flex gap-6 overflow-x-auto whitespace-nowrap scrollbar-thin pb-2" aria-label="Tabs">
 
                 <button type="button" wire:click="setTab('offerings')"
                     class="inline-flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 text-sm font-medium

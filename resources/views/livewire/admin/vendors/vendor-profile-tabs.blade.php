@@ -1,7 +1,7 @@
 <div class="space-y-6">
 
     {{-- Header --}}
-    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+    <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
         <div class="min-w-0">
             <h1 class="text-2xl font-semibold text-slate-900"> {{ ucfirst($activeTab) }}</h1>
 
@@ -23,23 +23,31 @@
             </p>
         </div>
 
-        <div class="flex gap-2 shrink-0">
+        <div class="flex flex-wrap items-center gap-2">
             <a href="{{ route('admin.dashboard') }}"
-                class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50">
+                class="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-sm px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50">
                 <x-app-icon name="arrow-left" class="w-4 h-4" />
                 <span>Torna alla lista</span>
             </a>
 
             @if ($canUpdate)
+                @if ($vendorAccount->status === 'PENDING')
+                    <button type="button" wire:click="approveVendor"
+                        class="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-sm px-4 py-2 rounded-lg bg-amber-500 text-white font-semibold hover:bg-amber-600 shadow-sm animate-pulse">
+                        <x-app-icon name="check-circle" class="w-4 h-4" />
+                        <span>Approva Fornitore</span>
+                    </button>
+                @endif
+
                 @if (!($editing ?? false))
                     <button type="button" wire:click="enableEditing"
-                        class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800">
+                        class="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-sm px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800">
                         <x-app-icon name="pencil" class="w-4 h-4" />
                         <span>Modifica</span>
                     </button>
                 @else
                     <button type="button" wire:click="cancelEditing"
-                        class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50">
+                        class="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-sm px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50">
                         <x-app-icon name="arrow-left" class="w-4 h-4" />
                         <span>Annulla</span>
                     </button>
@@ -48,7 +56,7 @@
 
             @if ($canDelete)
                 <button type="button" wire:click="confirmDelete"
-                    class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100">
+                    class="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-sm px-4 py-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100">
                     <x-app-icon name="trash" class="w-4 h-4" />
                     <span>Elimina</span>
                 </button>

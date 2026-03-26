@@ -66,6 +66,7 @@
                     <label class="text-sm text-slate-600">Status</label>
                     <select class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                         wire:model="form.status" @disabled(!$canEditNow)>
+                        <option value="PENDING">In Attesa (PENDING)</option>
                         <option value="ACTIVE">Attivo</option>
                         <option value="INACTIVE">Inattivo</option>
                     </select>
@@ -103,6 +104,28 @@
 
             <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
                 La modalità di servizio e il raggio operativo vengono configurati nei singoli servizi del vendor.
+            </div>
+        </div>
+
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-slate-900">Recapiti Pubblici</h2>
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="text-sm text-slate-600">Email Commerciale / Fatturazione</label>
+                    <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400 disabled:opacity-50"
+                        type="email" wire:model="form.billing_email" placeholder="Info@..." @disabled(!$canEditNow)>
+                    @error('form.billing_email')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
+                </div>
+                <div>
+                    <label class="text-sm text-slate-600">Telefono</label>
+                    <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400 disabled:opacity-50"
+                        type="text" wire:model="form.phone" placeholder="+39..." @disabled(!$canEditNow)>
+                    @error('form.phone')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
+                </div>
             </div>
         </div>
 

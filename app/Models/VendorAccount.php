@@ -15,7 +15,9 @@ class VendorAccount extends Model
     protected static function booted()
     {
         static::saved(function ($vendor) {
-            \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor);
+            if ($vendor->status === 'ACTIVE') {
+                \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor);
+            }
         });
 
         static::deleted(function ($vendor) {

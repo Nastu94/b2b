@@ -15,18 +15,20 @@ class VendorOfferingProfile extends Model
     protected static function booted()
     {
         static::saved(function ($profile) {
-            if ($profile->vendor_account_id) {
+            // Sincronizza solo se il servizio è approvato e il vendor è attivo
+            if ($profile->vendor_account_id && $profile->is_approved) {
                 $vendor = \App\Models\VendorAccount::find($profile->vendor_account_id);
-                if ($vendor) {
+                if ($vendor && $vendor->status === 'ACTIVE') {
                     \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor);
                 }
             }
         });
 
         static::deleted(function ($profile) {
+            // Se un servizio viene eliminato, aggiorniamo per rimuoverlo (se il vendor è attivo)
             if ($profile->vendor_account_id) {
                 $vendor = \App\Models\VendorAccount::find($profile->vendor_account_id);
-                if ($vendor) {
+                if ($vendor && $vendor->status === 'ACTIVE') {
                     \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor);
                 }
             }
@@ -44,6 +46,7 @@ class VendorOfferingProfile extends Model
         'service_radius_km',
         'max_guests',
         'is_published',
+        'is_approved',
     ];
 
     protected $casts = [
