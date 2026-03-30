@@ -16,12 +16,13 @@ class VendorProfileTabs extends Component
 
     public VendorAccount $vendorAccount;
 
+    #[\Livewire\Attributes\Url(except: 'anagrafica')]
     public string $activeTab = 'anagrafica';
 
     public bool $editing = false;
     public bool $confirmingDelete = false;
 
-    private const TABS = ['anagrafica', 'servizi'];
+    private const TABS = ['anagrafica', 'servizi', 'billing'];
 
     public function mount(VendorAccount $vendorAccount): void
     {
