@@ -32,6 +32,25 @@ Route::get('/', function () {
  */
 Route::get('/media/{path}', function (string $path): StreamedResponse {
     $path = ltrim($path, '/');
+    
+    // Hardening: Whitelist dei soli path attesi
+    $allowedPrefixes = ['vendor-profiles/', 'vendors/'];
+    $isAllowed = false;
+    
+    foreach ($allowedPrefixes as $prefix) {
+        if (str_starts_with($path, $prefix)) {
+            $isAllowed = true;
+            break;
+        }
+    }
+    
+    abort_unless($isAllowed, 403, 'Directory non consentita.');
+    
+    // Hardening: Whitelist delle estensioni per le immagini
+    $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+    $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+    
+    abort_unless(in_array($extension, $allowedExtensions), 403, 'Tipo file non consentito.');
     abort_unless(Storage::disk('public')->exists($path), 404);
 
     return Storage::disk('public')->response($path);
