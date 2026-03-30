@@ -167,15 +167,20 @@ class VendorCatalogController extends Controller
         ]);
     }
 
-    public function show(Request $request): JsonResponse
+    public function show(Request $request, ?string $vendor = null): JsonResponse
     {
-        $validated = $request->validate([
-            'vendor_id' => ['nullable', 'integer'],
-            'slug' => ['nullable', 'string', 'max:255'],
-        ]);
+        // Supporto retrocompatibile (PrestaShop legacy)
+        $vendorId = $request->query('vendor_id');
+        $slug = $request->query('slug');
 
-        $vendorId = isset($validated['vendor_id']) ? (int) $validated['vendor_id'] : null;
-        $slug = isset($validated['slug']) ? trim((string) $validated['slug']) : null;
+        // Se passiamo il parametro nella route (/vendors/{vendor}) esso prende priorità
+        if ($vendor !== null) {
+            if (is_numeric($vendor)) {
+                $vendorId = (int) $vendor;
+            } else {
+                $slug = $vendor;
+            }
+        }
 
         if (!$vendorId && !$slug) {
             return response()->json([
@@ -214,31 +219,26 @@ class VendorCatalogController extends Controller
                 },
             ]);
 
+        $vendorModel = null;
+
         if ($vendorId) {
-            $query->where('id', $vendorId);
-        } else {
-            $all = $query->get();
-
-            $vendor = $all->first(function (VendorAccount $item) use ($slug) {
-                return $this->vendorSlug($item) === $slug;
-            });
-
-            if (!$vendor) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Vendor non trovato.',
-                ], 404);
+            // Ricerca diretta O(1)
+            $vendorModel = (clone $query)->where('id', $vendorId)->first();
+        } elseif ($slug) {
+            // Parsing robusto del suffisso numerico dallo slug
+            if (preg_match('/-(\d+)$/', $slug, $matches)) {
+                $idFromSlug = (int) $matches[1];
+                $vendorModel = (clone $query)->where('id', $idFromSlug)->first();
+                
+                // Sicurezza anti-regressione/spoofing: validiamo che quello caricato 
+                // abbia davvero lo stesso slug calcolato (previene orfani o slug mixati)
+                if ($vendorModel && $this->vendorSlug($vendorModel) !== $slug) {
+                    $vendorModel = null;
+                }
             }
-
-            return response()->json([
-                'success' => true,
-                'data' => $this->mapVendorDetail($vendor),
-            ]);
         }
 
-        $vendor = $query->first();
-
-        if (!$vendor) {
+        if (!$vendorModel) {
             return response()->json([
                 'success' => false,
                 'message' => 'Vendor non trovato.',
@@ -247,7 +247,7 @@ class VendorCatalogController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $this->mapVendorDetail($vendor),
+            'data' => $this->mapVendorDetail($vendorModel),
         ]);
     }
 

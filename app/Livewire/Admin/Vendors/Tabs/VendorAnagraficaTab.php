@@ -176,6 +176,7 @@ class VendorAnagraficaTab extends Component
             'operational_country' => $this->form['operational_country'],
             'operational_region' => $this->form['operational_region'],
             'operational_city' => $this->form['operational_city'],
+            'operational_postal_code' => $this->form['operational_postal_code'],
             'operational_address_line1' => $this->form['operational_address_line1'],
         ]);
 

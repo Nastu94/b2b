@@ -43,9 +43,10 @@ class AvailabilityController extends Controller
                 'error'   => $e->getMessage(),
             ], 422);
         } catch (\Exception $e) {
+            report($e);
             return response()->json([
                 'success' => false,
-                'error'   => $e->getMessage(),
+                'error'   => 'Errore interno del server.',
             ], 500);
         }
     }
