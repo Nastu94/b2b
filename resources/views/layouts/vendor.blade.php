@@ -59,6 +59,12 @@
                     <span>Listini</span>
                 </a>
 
+                <a href="{{ route('vendor.billing') }}"
+                    class="pl-sidebar-link {{ $is('vendor.billing') ? 'pl-sidebar-link-active' : '' }} flex items-center gap-3">
+                    <x-app-icon name="credit-card" class="w-5 h-5" />
+                    <span>Abbonamento</span>
+                </a>
+
                 <a href="{{ route('vendor.bookings') }}"
                     class="pl-sidebar-link {{ $is('vendor.bookings') ? 'pl-sidebar-link-active' : '' }} flex items-center gap-3">
                     <x-app-icon name="calendar-days" class="w-5 h-5" />
@@ -81,11 +87,11 @@
                 </form>
 
                 <div class="mt-3 pt-3 border-t border-slate-700">
-                    <button type="button" title="Prossimamente"
+                    <a href="{{ route('vendor.billing', ['upgrade' => 1]) }}"
                         class="inline-flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition">
                         <x-app-icon name="star" class="w-5 h-5" />
-                        <span>Passa a Premium</span>
-                    </button>
+                        <span>Fai l'Upgrade</span>
+                    </a>
                 </div>
             </div>
         </aside>

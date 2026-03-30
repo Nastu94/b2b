@@ -40,6 +40,14 @@ class VendorCreatePage extends Component
         'last_name' => '',
         'tax_code' => '',
 
+        // contatti
+        'billing_email' => '',
+        'phone' => '',
+
+        // legal
+        'privacy_accepted' => false,
+        'contract_accepted' => false,
+
         // sede legale
         'legal_country' => '',
         'legal_region' => '',
@@ -94,6 +102,14 @@ class VendorCreatePage extends Component
             'form.name' => ['required', 'string', 'max:255'],
             'form.email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'form.password' => ['required', 'string', 'min:8', 'confirmed'],
+
+            // contatti
+            'form.billing_email' => ['nullable', 'email', 'max:255'],
+            'form.phone' => ['nullable', 'string', 'max:50'],
+
+            // terms
+            'form.privacy_accepted' => ['accepted'],
+            'form.contract_accepted' => ['accepted'],
 
             // tipo + categoria
             'form.account_type' => ['required', Rule::in(['COMPANY', 'PRIVATE'])],

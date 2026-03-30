@@ -12,11 +12,14 @@ class VendorServiziTab extends Component
     use AuthorizesRequests;
 
     public int $vendorAccountId;
-
     public VendorAccount $vendorAccount;
 
     /** @var array<int, array<string,mixed>> */
     public array $activeOfferings = [];
+
+    // Proprietà per la gestione della Modale Dettagli
+    public bool $isViewingModalOpen = false;
+    public ?VendorOfferingProfile $viewingProfile = null;
 
     public function mount(int $vendorAccountId): void
     {
@@ -59,9 +62,10 @@ class VendorServiziTab extends Component
             $hasCover = !empty($p?->cover_image_path);
             $hasDesc  = !empty($p?->description);
             $isPublished = (bool) ($p?->is_published);
+            $isApproved  = (bool) ($p?->is_approved);
 
             $statusLabel = $isPublished
-                ? 'PUBBLICATO'
+                ? ($isApproved ? 'PUBBLICATO' : 'IN ATTESA DI APPROVAZIONE')
                 : (($hasCover || $hasDesc) ? 'IN BOZZA' : 'INCOMPLETO');
 
             return [
@@ -79,9 +83,61 @@ class VendorServiziTab extends Component
 
                 // stato
                 'is_published' => $isPublished,
+                'is_approved' => $isApproved,
                 'status_label' => $statusLabel,
             ];
         })->all();
+    }
+
+    public function approveOfferingProfile(int $offeringId): void
+    {
+        $this->authorize('update', $this->vendorAccount);
+
+        $profile = VendorOfferingProfile::where('vendor_account_id', $this->vendorAccount->id)
+            ->where('offering_id', $offeringId)
+            ->first();
+
+        if ($profile) {
+            $profile->update([
+                'is_approved' => true,
+                'is_published' => true,
+            ]);
+
+            if ($this->vendorAccount->user && $this->vendorAccount->user->email) {
+                try {
+                    \Illuminate\Support\Facades\Mail::to($this->vendorAccount->user->email)
+                        ->send(new \App\Mail\VendorServiceApprovedMail($profile));
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Impossibile inviare email Servizio: ' . $e->getMessage());
+                }
+            }
+
+            session()->flash('status', 'Servizio approvato con successo. Email inviata e sincronizzazione avviata.');
+            $this->loadCardsData();
+            
+            // Se eravamo in modale, aggiorniamo il record caricato
+            if ($this->viewingProfile && $this->viewingProfile->offering_id === $offeringId) {
+                $this->viewingProfile->refresh();
+            }
+        }
+    }
+
+    public function openOfferingDetails(int $offeringId): void
+    {
+        $this->authorize('view', $this->vendorAccount);
+
+        $this->viewingProfile = VendorOfferingProfile::with(['images'])
+            ->where('vendor_account_id', $this->vendorAccount->id)
+            ->where('offering_id', $offeringId)
+            ->first();
+
+        $this->isViewingModalOpen = true;
+    }
+
+    public function closeOfferingDetails(): void
+    {
+        $this->isViewingModalOpen = false;
+        $this->viewingProfile = null;
     }
 
     public function render()

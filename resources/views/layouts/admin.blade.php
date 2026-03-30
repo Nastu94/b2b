@@ -37,6 +37,12 @@
                     <x-app-icon name="calendar-days" class="w-5 h-5" />
                     <span>Prenotazioni</span>
                 </a>
+
+                <a href="{{ route('admin.billing') }}"
+                    class="pl-sidebar-link {{ $is('admin.billing*') ? 'pl-sidebar-link-active' : '' }} flex items-center gap-3">
+                    <x-app-icon name="credit-card" class="w-5 h-5" />
+                    <span>Abbonamenti</span>
+                </a>
             </nav>
 
             <div class="p-4 border-t border-slate-800">

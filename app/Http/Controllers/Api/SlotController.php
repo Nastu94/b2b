@@ -262,6 +262,23 @@ class SlotController extends Controller
 
                 if (! $booking) {
                     try {
+                        $vendor = \App\Models\VendorAccount::with('category')->find($lock->vendor_account_id);
+                        
+                        $isCommissionBased = true;
+                        
+                        // Gerarchia Commissione: Override Speciale > Standard Categoria > 20% Fallback Universale
+                        $commissionRate = $vendor->custom_commission_rate 
+                            ?? $vendor?->category?->commission_rate 
+                            ?? 20.00;
+                            
+                        $commissionAmount = round(($lock->quoted_amount * $commissionRate) / 100, 2);
+
+                        if ($vendor && $vendor->subscribed('default') && $vendor->payment_model === 'SUBSCRIPTION') {
+                            $isCommissionBased = false;
+                            $commissionRate = 0;
+                            $commissionAmount = 0;
+                        }
+
                         $booking = Booking::create([
                             'slot_lock_id'             => $lock->id,
                             'vendor_account_id'        => $lock->vendor_account_id,
@@ -278,6 +295,9 @@ class SlotController extends Controller
                             'pricing_breakdown'        => $lock->pricing_breakdown,
                             'status'                   => Booking::STATUS_PENDING_VENDOR_CONFIRMATION,
                             'paid_at'                  => $now,
+                            'is_commission_based'      => $isCommissionBased,
+                            'commission_rate'          => $commissionRate,
+                            'commission_amount'        => $commissionAmount,
                         ]);
                     } catch (QueryException $e) {
                         if (! $this->isUniqueConstraintViolation($e)) {

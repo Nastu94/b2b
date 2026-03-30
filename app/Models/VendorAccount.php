@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Laravel\Cashier\Billable;
 
 class VendorAccount extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, Billable;
 
     protected static function booted()
     {
@@ -78,6 +79,9 @@ class VendorAccount extends Model
 
         // Immagine profilo / logo
         'profile_image_path',
+
+        // Configurazione
+        'custom_commission_rate',
 
         // Stato
         'status',

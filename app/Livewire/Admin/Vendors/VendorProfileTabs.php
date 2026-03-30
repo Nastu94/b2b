@@ -16,12 +16,13 @@ class VendorProfileTabs extends Component
 
     public VendorAccount $vendorAccount;
 
+    #[\Livewire\Attributes\Url(except: 'anagrafica')]
     public string $activeTab = 'anagrafica';
 
     public bool $editing = false;
     public bool $confirmingDelete = false;
 
-    private const TABS = ['anagrafica', 'servizi'];
+    private const TABS = ['anagrafica', 'servizi', 'billing'];
 
     public function mount(VendorAccount $vendorAccount): void
     {
@@ -72,6 +73,28 @@ class VendorProfileTabs extends Component
 
         // Chiede alla tab di ripristinare snapshot + reset errori
         $this->dispatch('vendor-anagrafica-cancel-edit', vendorAccountId: $this->vendorAccount->id);
+    }
+
+    public function approveVendor(): void
+    {
+        $this->authorize('update', $this->vendorAccount);
+
+        $this->vendorAccount->update([
+            'status' => 'ACTIVE',
+            'activated_at' => now(),
+        ]);
+
+        if ($this->vendorAccount->user && $this->vendorAccount->user->email) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($this->vendorAccount->user->email)
+                    ->send(new \App\Mail\VendorAccountApprovedMail($this->vendorAccount));
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Impossibile inviare email Vendor: ' . $e->getMessage());
+            }
+        }
+
+        session()->flash('status', 'Fornitore approvato con successo. Email inviata. La sincronizzazione su catalogo è in coda.');
+        $this->vendorAccount->refresh();
     }
 
     public function confirmDelete(): void

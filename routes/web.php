@@ -16,6 +16,7 @@ use App\Livewire\Vendor\Bookings\VendorBookingShowPage;
 use App\Livewire\Vendor\Bookings\VendorBookingsPendingPage;
 use App\Livewire\Vendor\Bookings\VendorBookingsTabs;
 use App\Livewire\Vendor\Dashboard\VendorDashboardPage;
+use App\Livewire\Vendor\Billing\VendorBillingPage;
 use App\Livewire\Vendor\Offerings\ManageOfferingsTabs;
 use App\Livewire\Vendor\Pricings\ManagePricingsTabs;
 use App\Livewire\Vendor\Profile\VendorProfilePage;
@@ -69,6 +70,7 @@ Route::middleware([
             Route::get('/offerings', ManageOfferingsTabs::class)->name('offerings');
             Route::get('/pricings', ManagePricingsTabs::class)->name('pricings');
             Route::get('/profile', VendorProfilePage::class)->name('profile');
+            Route::get('/billing', VendorBillingPage::class)->name('billing');
             Route::get('/bookings', VendorBookingsTabs::class)->name('bookings');
             Route::get('/bookings/{booking}', VendorBookingShowPage::class)->name('bookings.show');
         });
@@ -83,5 +85,6 @@ Route::middleware([
             Route::get('/vendors/{vendorAccount}', VendorProfileTabs::class)->name('vendors.edit');
             Route::get('/bookings', AdminBookingsTabs::class)->name('bookings');
             Route::get('/bookings/{booking}', AdminBookingShowPage::class)->name('bookings.show');
+            Route::get('/billing', \App\Livewire\Admin\Billing\AdminBillingPage::class)->name('billing');
         });
 });

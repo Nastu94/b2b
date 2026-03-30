@@ -28,6 +28,7 @@
             <select class="w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                 wire:model.live="status">
                 <option value="ALL">Tutti gli status</option>
+                <option value="PENDING">Da Approvare (PENDING)</option>
                 <option value="ACTIVE">Solo Attivi</option>
                 <option value="INACTIVE">Solo Inattivi</option>
             </select>
@@ -62,10 +63,37 @@
         </div>
     </div>
 
-    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden w-full">
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden w-full"
+         x-data="{
+             syncTop() { this.$refs.bottom.scrollLeft = this.$refs.top.scrollLeft; },
+             syncBottom() { this.$refs.top.scrollLeft = this.$refs.bottom.scrollLeft; },
+             init() {
+                 const observer = new ResizeObserver(() => {
+                     if(this.$refs.table) {
+                         this.$refs.dummy.style.width = this.$refs.table.scrollWidth + 'px';
+                     }
+                 });
+                 // Osserviamo la tabella per ricalcolare la larghezza dello scroll finto
+                 if(this.$refs.table) observer.observe(this.$refs.table);
+             }
+         }">
 
-        <div class="table-wrap table-wrap-fade">
-            <table class="pl-table pl-table-sticky-first">
+        <!-- Scrollbar superiore (visibile solo su Desktop/Tablet dove c'è la tabella) -->
+        <style>
+            .thin-scrollbar-top {
+                scrollbar-width: thin;
+                scrollbar-color: #94a3b8 transparent;
+            }
+            .thin-scrollbar-top::-webkit-scrollbar { height: 8px; }
+            .thin-scrollbar-top::-webkit-scrollbar-track { background: transparent; }
+            .thin-scrollbar-top::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 9999px; }
+        </style>
+        <div class="hidden md:block overflow-x-auto overflow-y-hidden border-b border-slate-100 thin-scrollbar-top" x-ref="top" @scroll="syncTop" style="height: 10px;">
+            <div x-ref="dummy" style="height: 1px;"></div>
+        </div>
+
+        <div class="table-wrap table-wrap-fade overflow-x-auto" x-ref="bottom" @scroll="syncBottom">
+            <table class="pl-table pl-table-sticky-first" x-ref="table">
                 <thead class="bg-slate-50 text-slate-600">
                     <tr>
                         <th class="text-left px-6 py-3">Vendor</th>
@@ -89,10 +117,11 @@
                                 $displayName = 'Vendor #' . $vendor->id;
                             }
 
-                            $statusBadge =
-                                $vendor->status === 'ACTIVE'
-                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                                    : 'bg-amber-50 border-amber-200 text-amber-800';
+                            $statusBadge = match ($vendor->status) {
+                                'ACTIVE' => 'bg-emerald-50 border-emerald-200 text-emerald-800',
+                                'PENDING' => 'bg-amber-100 border-amber-400 text-amber-900 font-bold animate-pulse',
+                                default => 'bg-slate-50 border-slate-200 text-slate-800'
+                            };
 
                             $serviceModes = $vendor->vendorOfferingProfiles
                                 ->pluck('service_mode')
@@ -189,10 +218,11 @@
                         $displayName = 'Vendor #' . $vendor->id;
                     }
 
-                    $statusBadge =
-                        $vendor->status === 'ACTIVE'
-                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                            : 'bg-amber-50 border-amber-200 text-amber-800';
+                    $statusBadge = match ($vendor->status) {
+                        'ACTIVE' => 'bg-emerald-50 border-emerald-200 text-emerald-800',
+                        'PENDING' => 'bg-amber-100 border-amber-400 text-amber-900 font-bold animate-pulse',
+                        default => 'bg-slate-50 border-slate-200 text-slate-800'
+                    };
 
                     $serviceModes = $vendor->vendorOfferingProfiles
                         ->pluck('service_mode')

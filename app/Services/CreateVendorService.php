@@ -61,6 +61,12 @@ class CreateVendorService
                 'last_name' => $data['last_name'] ?? null,
                 'tax_code' => $data['tax_code'] ?? null,
 
+                'billing_email' => $data['billing_email'] ?? null,
+                'phone' => $data['phone'] ?? null,
+
+                'privacy_accepted_at' => !empty($data['privacy_accepted']) ? now() : null,
+                'contract_accepted_at' => !empty($data['contract_accepted']) ? now() : null,
+
                 'legal_country' => $data['legal_country'] ?? null,
                 'legal_region' => $data['legal_region'] ?? null,
                 'legal_city' => $data['legal_city'] ?? null,

@@ -44,4 +44,10 @@ return [
         'key' => env('PRESTASHOP_API_KEY'),
     ],
 
+    'stripe' => [
+        'secret'        => env('STRIPE_SECRET'),
+        'price_monthly' => env('STRIPE_PRICE_MONTHLY'),
+        'price_yearly'  => env('STRIPE_PRICE_YEARLY'),
+    ],
+
 ];

@@ -141,6 +141,9 @@ class OfferingContentCard extends Component
         $this->authorize('update', $this->profile);
         $this->authorize('create', VendorOfferingImage::class);
 
+        $wasPublished = (bool) $this->profile->is_published;
+        $wasApproved = (bool) $this->profile->is_approved;
+
         $this->profile->update([
             'title' => $this->title,
             'short_description' => $this->short_description,
@@ -148,6 +151,7 @@ class OfferingContentCard extends Component
             'service_mode' => $this->service_mode,
             'service_radius_km' => $this->service_radius_km,
             'max_guests' => $this->max_guests,
+            'is_approved' => false,
         ]);
 
         // Cover
@@ -184,14 +188,41 @@ class OfferingContentCard extends Component
 
         $shouldPublish = $this->isProfilePublishable($fresh);
 
-        if ($shouldPublish && !$fresh->is_published) {
-            $this->authorize('update', $fresh);
-            $fresh->update(['is_published' => true]);
+        $needsNotification = false;
+
+        if ($shouldPublish) {
+            if (!$wasPublished) {
+                // Nuova pubblicazione
+                $fresh->update(['is_published' => true]);
+                $needsNotification = true;
+            } elseif ($wasApproved) {
+                // Era stato pubblicato E approvato, ora modificato e torna in moderazione
+                $needsNotification = true;
+            }
+        } else {
+            if ($wasPublished) {
+                // Diventa incompleto, quindi retrocede da pubblicato
+                $fresh->update(['is_published' => false]);
+            }
         }
 
-        if (!$shouldPublish && $fresh->is_published) {
-            $this->authorize('update', $fresh);
-            $fresh->update(['is_published' => false]);
+        if ($needsNotification) {
+            // Notifica all'amministratore (Admin)
+            try {
+                \Illuminate\Support\Facades\Mail::to(config('mail.from.address'))
+                    ->send(new \App\Mail\NewServiceSubmittedAdminMail($fresh));
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Impossibile inviare notifica Admin per modifica Servizio: ' . $e->getMessage());
+            }
+
+            if ($this->profile->vendorAccount && $this->profile->vendorAccount->user) {
+                try {
+                    \Illuminate\Support\Facades\Mail::to($this->profile->vendorAccount->user->email)
+                        ->send(new \App\Mail\VendorServiceUpdatedMail($fresh));
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Impossibile inviare notifica Vendor per modifica Servizio: ' . $e->getMessage());
+                }
+            }
         }
 
         $this->profile = $this->profile->fresh();
@@ -205,7 +236,8 @@ class OfferingContentCard extends Component
             }
         }
 
-        $this->dispatch('notify', message: 'Salvato');
+        $msg = $needsNotification ? 'Il servizio è stato salvato ed è in fase di approvazione' : 'Salvato';
+        $this->dispatch('notify', message: $msg);
     }
 
     public function removeCover(): void
@@ -220,6 +252,7 @@ class OfferingContentCard extends Component
         $this->profile->update([
             'cover_image_path' => null,
             'is_published' => false,
+            'is_approved' => false,
         ]);
 
         $this->profile->refresh()->load('images');
@@ -251,6 +284,30 @@ class OfferingContentCard extends Component
         }
 
         $img->delete();
+
+        $wasApproved = $this->profile->is_approved;
+        $this->profile->update(['is_approved' => false]);
+
+        $fresh = $this->profile->fresh();
+        if ($wasApproved && $this->isProfilePublishable($fresh)) {
+            try {
+                \Illuminate\Support\Facades\Mail::to(config('mail.from.address'))
+                    ->send(new \App\Mail\NewServiceSubmittedAdminMail($fresh));
+            } catch (\Exception $e) { 
+                \Illuminate\Support\Facades\Log::error('Impossibile inviare notifica Admin per eliminazione foto: ' . $e->getMessage());
+            }
+
+            if ($this->profile->vendorAccount && $this->profile->vendorAccount->user) {
+                try {
+                    \Illuminate\Support\Facades\Mail::to($this->profile->vendorAccount->user->email)
+                        ->send(new \App\Mail\VendorServiceUpdatedMail($fresh));
+                } catch (\Exception $e) {}
+            }
+            $this->profile->refresh()->load('images');
+            $this->dispatch('notify', message: 'Foto eliminata. Servizio in revisione.');
+            return;
+        }
+
         $this->profile->refresh()->load('images');
         $this->dispatch('notify', message: 'Foto eliminata');
     }

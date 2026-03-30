@@ -62,6 +62,8 @@ class VendorAnagraficaTab extends Component
 
             // COMMON
             'tax_code' => $this->vendorAccount->tax_code,
+            'billing_email' => $this->vendorAccount->billing_email,
+            'phone' => $this->vendorAccount->phone,
 
             // LEGAL SEAT
             'legal_country' => $this->vendorAccount->legal_country,
@@ -99,11 +101,13 @@ class VendorAnagraficaTab extends Component
     {
         $rules = [
             'profile_image' => ['nullable', 'image', 'max:5120'],
-            'form.status' => ['required', 'in:ACTIVE,INACTIVE'],
+            'form.status' => ['required', 'in:PENDING,ACTIVE,INACTIVE'],
             'form.account_type' => ['required', 'in:COMPANY,PRIVATE'],
             'form.category_id' => ['nullable', 'integer', 'exists:categories,id'],
 
             'form.tax_code' => ['nullable', 'string', 'max:50'],
+            'form.billing_email' => ['nullable', 'email', 'max:255'],
+            'form.phone' => ['nullable', 'string', 'max:50'],
 
             'form.legal_country' => ['nullable', 'string', 'max:255'],
             'form.legal_region' => ['nullable', 'string', 'max:255'],
@@ -155,6 +159,8 @@ class VendorAnagraficaTab extends Component
             'legal_entity_type' => $this->form['legal_entity_type'],
             'vat_number' => $this->form['vat_number'],
             'tax_code' => $this->form['tax_code'],
+            'billing_email' => $this->form['billing_email'],
+            'phone' => $this->form['phone'],
 
             'first_name' => $this->form['first_name'],
             'last_name' => $this->form['last_name'],
@@ -208,6 +214,8 @@ class VendorAnagraficaTab extends Component
             'last_name' => $this->vendorAccount->last_name,
 
             'tax_code' => $this->vendorAccount->tax_code,
+            'billing_email' => $this->vendorAccount->billing_email,
+            'phone' => $this->vendorAccount->phone,
 
             'legal_country' => $this->vendorAccount->legal_country,
             'legal_region' => $this->vendorAccount->legal_region,

@@ -25,10 +25,9 @@ class CreateNewUser implements CreatesNewUsers
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => $this->passwordRules(),
 
-            // Terms
-            'terms' => Jetstream::hasTermsAndPrivacyPolicyFeature()
-                ? ['accepted', 'required']
-                : ['sometimes'],
+            // Terms Legali (Privacy e Contratto)
+            'privacy_accepted' => ['accepted', 'required'],
+            'contract_accepted' => ['accepted', 'required'],
 
             // Vendor core
             'account_type' => ['required', Rule::in(['COMPANY', 'PRIVATE'])],
@@ -48,6 +47,10 @@ class CreateNewUser implements CreatesNewUsers
             // Campi opzionali già presenti nel form
             'legal_country' => ['nullable', 'string', 'max:2'],
             'legal_region' => ['nullable', 'string', 'max:255'],
+
+            // Recapiti Commerciali
+            'billing_email' => ['nullable', 'string', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
 
             // Immagine profilo
             'profile_image' => ['nullable', 'image', 'max:8192'], // MAX 8MB
@@ -79,6 +82,12 @@ class CreateNewUser implements CreatesNewUsers
                         'Il codice fiscale è obbligatorio per un account privato.'
                     );
                 }
+                if (empty(trim((string) ($input['first_name'] ?? '')))) {
+                    $validator->errors()->add('first_name', 'Il nome è obbligatorio per un account privato.');
+                }
+                if (empty(trim((string) ($input['last_name'] ?? '')))) {
+                    $validator->errors()->add('last_name', 'Il cognome è obbligatorio per un account privato.');
+                }
             }
         })->validate();
 
@@ -105,6 +114,15 @@ class CreateNewUser implements CreatesNewUsers
             'user_id' => $user->id,
             'category_id' => (int) $input['category_id'],
             'account_type' => $input['account_type'],
+            
+            'first_name' => $input['account_type'] === 'PRIVATE' ? ($input['first_name'] ?? null) : null,
+            'last_name' => $input['account_type'] === 'PRIVATE' ? ($input['last_name'] ?? null) : null,
+
+            'billing_email' => $input['billing_email'] ?? null,
+            'phone' => $input['phone'] ?? null,
+
+            'privacy_accepted_at' => now(),
+            'contract_accepted_at' => now(),
 
             // Dati fiscali
             'company_name' => $input['account_type'] === 'COMPANY'
@@ -133,18 +151,13 @@ class CreateNewUser implements CreatesNewUsers
             // Immagine
             'profile_image_path' => $profileImagePath,
 
-            // Stato
-            'status' => 'ACTIVE',
-            'activated_at' => now(),
+            // Stato: PENDING di default, in attesa di approvazione Admin (Fase 2)
+            'status' => 'PENDING',
+            'activated_at' => null,
         ]);
 
-        // Sincronizza il prodotto PrestaShop.
-        try {
-            app(PrestashopProductSyncService::class)->createForVendor($vendor);
-        } catch (\Throwable $e) {
-            // La sincronizzazione non deve bloccare la registrazione.
-            report($e);
-        }
+        // [Rimosso Sync Automatico PrestaShop]
+        // Il prodotto ombra verrà creato solo quando l'Admin imposterà lo status su ACTIVE.
 
         // Geocoding della sede legale.
         // Se la sede operativa coincide, copiamo le stesse coordinate.
@@ -174,6 +187,14 @@ class CreateNewUser implements CreatesNewUsers
         } catch (\Throwable $e) {
             // Il geocoding non deve bloccare la registrazione.
             report($e);
+        }
+
+        // Notifica all'amministratore (Admin) della nuova registrazione
+        try {
+            \Illuminate\Support\Facades\Mail::to(config('mail.from.address'))
+                ->send(new \App\Mail\NewVendorRegisteredAdminMail($vendor));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Impossibile inviare notifica Admin per nuovo Vendor: ' . $e->getMessage());
         }
 
         return $user;

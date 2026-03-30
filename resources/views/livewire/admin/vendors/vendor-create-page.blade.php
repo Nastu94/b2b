@@ -212,6 +212,28 @@
         </div>
 
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-slate-900">Recapiti Pubblici</h2>
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="text-sm text-slate-600">Email Commerciale / Fatturazione</label>
+                    <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                        type="email" wire:model="form.billing_email" placeholder="Info@...">
+                    @error('form.billing_email')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
+                </div>
+                <div>
+                    <label class="text-sm text-slate-600">Telefono</label>
+                    <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                        type="text" wire:model="form.phone" placeholder="+39...">
+                    @error('form.phone')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
             <h2 class="text-lg font-semibold text-slate-900">Sede Legale</h2>
 
             <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -299,6 +321,27 @@
                     I dati della sede operativa verranno copiati dalla sede legale.
                 </p>
             @endif
+        </div>
+
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-slate-900">Consensi Legali</h2>
+            <div class="mt-4 space-y-3 text-sm text-slate-700">
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" wire:model="form.privacy_accepted" class="rounded border-slate-300">
+                    <span>L'utente ha accettato la Privacy Policy</span>
+                </label>
+                @error('form.privacy_accepted')
+                    <div class="text-sm text-rose-600">{{ $message }}</div>
+                @enderror
+
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" wire:model="form.contract_accepted" class="rounded border-slate-300">
+                    <span>L'utente ha accettato le Condizioni Contrattuali</span>
+                </label>
+                @error('form.contract_accepted')
+                    <div class="text-sm text-rose-600">{{ $message }}</div>
+                @enderror
+            </div>
         </div>
 
         <div class="flex justify-end">
