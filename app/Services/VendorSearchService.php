@@ -149,6 +149,12 @@ class VendorSearchService
         $query->where('category_id', $params['category_id']);
     }
 
+    if (isset($params['event_type_id'])) {
+        $query->whereHas('eventTypes', function ($query) use ($params) {
+            $query->where('event_types.id', $params['event_type_id']);
+        });
+    }
+
     return $query;
 }
 

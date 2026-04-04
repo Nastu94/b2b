@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RolesAndPermissionsSeeder::class,
             CategoriesSeeder::class,
+            EventTypesSeeder::class,
             SyncPrestashopCategoryIdsSeeder::class,
             OfferingsSeeder::class,
             AdminSeeder::class,

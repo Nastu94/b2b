@@ -84,6 +84,10 @@ class CreateVendorService
             // 4) Permesso base vendor.
             $user->givePermissionTo('vendor.access');
 
+            if (!empty($data['event_type_ids'])) {
+                $vendorAccount->eventTypes()->sync($data['event_type_ids']);
+            }
+
             return $vendorAccount;
         });
     }

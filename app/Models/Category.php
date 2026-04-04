@@ -23,4 +23,9 @@ class Category extends Model
     {
         return $this->hasMany(VendorAccount::class);
     }
+
+    public function eventTypes(): HasMany
+    {
+        return $this->hasMany(EventType::class);
+    }
 }

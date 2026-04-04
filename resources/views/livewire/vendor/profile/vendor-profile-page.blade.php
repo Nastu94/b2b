@@ -120,6 +120,28 @@
                 </div>
             </div>
 
+            @if(count($eventTypes) > 0)
+                <div class="mt-6 border-t border-slate-200 pt-6">
+                    <h3 class="text-sm font-semibold text-slate-900 mb-3">Tipi di Evento gestiti</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        @foreach($eventTypes as $et)
+                            <label class="flex items-start gap-3 p-3 rounded-lg border {{ in_array($et->id, $form['event_type_ids'] ?? []) ? 'border-primary-200 bg-primary-50' : 'border-slate-200 hover:bg-slate-50' }} transition cursor-pointer">
+                                <div class="flex items-center h-5">
+                                    <input type="checkbox" 
+                                           wire:model="form.event_type_ids"
+                                           value="{{ $et->id }}"
+                                           class="w-4 h-4 text-primary-600 border-slate-300 rounded focus:ring-primary-500"
+                                           @disabled(!$canEditNow)>
+                                </div>
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-medium text-slate-900">{{ $et->name }}</span>
+                                </div>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
             <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
                 La modalità di servizio e il raggio operativo vengono configurati nei singoli servizi del vendor.
             </div>

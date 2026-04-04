@@ -54,18 +54,37 @@ class SlotController extends Controller
                 return $this->unprocessable('Numero ospiti non supportato');
             }
 
-            $availabilityService->assertSlotBookable(
-                vendorAccountId: $vendorAccountId,
-                vendorSlotId: $vendorSlotId,
-                date: $date,
-                offeringId: $offeringId,
-                guests: $guests
-            );
+            $now = CarbonImmutable::now();
+            
+            // Pre-check idempotente fuori transazione.
+            // Se la richiesta combacia col fingerprint di un lock attivo, stiamo di fronte a un replay.
+            // Il bypass permette alla richiesta di scendere nella DB::transaction dove avverrà il fetch protetto (lockForUpdate).
+            $existingLock = SlotLock::query()
+                ->forSlot($vendorAccountId, $vendorSlotId, $date)
+                ->active()
+                ->first();
+
+            if ($existingLock && $existingLock->isExpiredHold($now)) {
+                $existingLock = null;
+            }
+
+            $isIdempotentReplay = $existingLock && $this->isSameFingerprint($existingLock, $offeringId, $distanceKm, $guests);
+
+            if (!$isIdempotentReplay) {
+                $availabilityService->assertSlotBookable(
+                    vendorAccountId: $vendorAccountId,
+                    vendorSlotId: $vendorSlotId,
+                    date: $date,
+                    offeringId: $offeringId,
+                    guests: $guests
+                );
+            }
         } catch (ValidationException $e) {
             throw $e;
         } catch (RuntimeException $e) {
             return $this->unprocessable($e->getMessage());
         } catch (Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Errore imprevisto in preliminari Hold: " . $e->getMessage(), ['exception' => $e]);
             return $this->serverError('Errore calcolo hold');
         }
 
@@ -157,6 +176,7 @@ class SlotController extends Controller
                 ], 201);
             });
         } catch (Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Errore nascosto in transazione Hold: " . $e->getMessage(), ['exception' => $e]);
             return $this->serverError('Errore hold');
         }
     }
@@ -332,7 +352,8 @@ class SlotController extends Controller
                 return $this->confirmSuccess($lock, $booking);
             });
         } catch (Throwable $e) {
-            return $this->serverError('Errore confirm');
+            \Illuminate\Support\Facades\Log::error("Errore nascosto in Confirm: " . $e->getMessage(), ['exception' => $e]);
+            return $this->serverError('Errore confirm: ' . $e->getMessage());
         }
     }
 
@@ -385,6 +406,7 @@ class SlotController extends Controller
                 ], 200);
             });
         } catch (Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Errore nascosto in transazione Release: " . $e->getMessage(), ['exception' => $e]);
             return $this->serverError('Errore release');
         }
     }

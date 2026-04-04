@@ -60,6 +60,7 @@ class VendorProfilePage extends Component
             'status' => $vendorAccount->status,
             'account_type' => $vendorAccount->account_type,
             'category_id' => $vendorAccount->category_id,
+            'event_type_ids' => $vendorAccount->eventTypes->pluck('id')->all(),
 
             // COMPANY
             'company_name' => $vendorAccount->company_name,
@@ -107,6 +108,11 @@ class VendorProfilePage extends Component
         $this->resetValidation();
     }
 
+    public function updatedFormCategoryId($value): void
+    {
+        $this->form['event_type_ids'] = [];
+    }
+
     public function updatedFormOperationalSameAsLegal($value): void
     {
         // Se la sede operativa coincide con la legale, ripuliamo i campi manuali
@@ -127,6 +133,8 @@ class VendorProfilePage extends Component
             'form.status' => ['required', 'in:ACTIVE,INACTIVE'],
             'form.account_type' => ['required', 'in:COMPANY,PRIVATE'],
             'form.category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'form.event_type_ids' => ['nullable', 'array'],
+            'form.event_type_ids.*' => ['integer', 'exists:event_types,id'],
 
             'form.tax_code' => ['nullable', 'string', 'max:50'],
 
@@ -196,6 +204,7 @@ class VendorProfilePage extends Component
             'operational_address_line1' => $this->form['operational_address_line1'],
         ]);
 
+        // Prima salviamo il vendor se c'è immagine o altro (per poi fare il sync pulito)
         if ($this->profile_image) {
             if ($this->vendorAccount->profile_image_path) {
                 \Illuminate\Support\Facades\Storage::disk('public')->delete($this->vendorAccount->profile_image_path);
@@ -265,9 +274,13 @@ class VendorProfilePage extends Component
 
         $this->vendorAccount->save();
 
+        if (isset($this->form['event_type_ids'])) {
+            $this->vendorAccount->eventTypes()->sync($this->form['event_type_ids']);
+        }
+
         session()->flash('status', $statusMessage);
 
-        $this->vendorAccount->refresh()->load(['user', 'category', 'offerings']);
+        $this->vendorAccount->refresh()->load(['user', 'category', 'offerings', 'eventTypes']);
 
         $this->fillForm();
         $this->editing = false;
@@ -277,6 +290,10 @@ class VendorProfilePage extends Component
     {
         $this->authorize('view', $this->vendorAccount);
 
-        return view('livewire.vendor.profile.vendor-profile-page');
+        $eventTypes = \App\Models\EventType::where('is_active', true)->orderBy('name')->get();
+
+        return view('livewire.vendor.profile.vendor-profile-page', [
+            'eventTypes' => $eventTypes
+        ]);
     }
 }
