@@ -41,7 +41,7 @@ class DemoVendorsSeeder extends Seeder
         ];
 
         $demoVendorUserIds = User::whereIn('email', $demoVendorEmails)->pluck('id')->toArray();
-        $demoVendorIds = VendorAccount::whereIn('user_id', $demoVendorUserIds)->pluck('id')->toArray();
+        $demoVendorIds = VendorAccount::withTrashed()->whereIn('user_id', $demoVendorUserIds)->pluck('id')->toArray();
 
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
@@ -76,6 +76,11 @@ class DemoVendorsSeeder extends Seeder
             DB::table('vendor_offerings')->whereIn('vendor_account_id', $demoVendorIds)->delete();
         }
 
+        $this->command->info('Cancellazione vendor event types (pivot)...');
+        if (!empty($demoVendorIds)) {
+            DB::table('event_type_vendor_account')->whereIn('vendor_account_id', $demoVendorIds)->delete();
+        }
+
         $this->command->info('Cancellazione slot locks...');
         if (!empty($demoVendorIds)) {
             SlotLock::whereIn('vendor_account_id', $demoVendorIds)->delete();
@@ -103,11 +108,12 @@ class DemoVendorsSeeder extends Seeder
 
         $this->command->info('Cancellazione vendor accounts...');
         if (!empty($demoVendorIds)) {
-            VendorAccount::whereIn('id', $demoVendorIds)->delete();
+            // Forziamo il physical delete per evitare che cloni SoftDeleted saturino l'ambiente demo
+            VendorAccount::withTrashed()->whereIn('id', $demoVendorIds)->forceDelete();
         }
 
         $this->command->info('Cancellazione users vendor demo...');
-        $deletedUsers = User::whereIn('email', $demoVendorEmails)->delete();
+        $deletedUsers = DB::table('users')->whereIn('email', $demoVendorEmails)->delete();
         $this->command->info("Cancellati {$deletedUsers} users vendor");
 
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
@@ -344,8 +350,17 @@ class DemoVendorsSeeder extends Seeder
             $this->createSlots($vendor);
             $this->createSchedule($vendor);
             $this->createLeadTime($vendor);
-
             $createdProfiles = $this->createVendorOfferings($vendor, $category);
+
+            $isFixedLocation = false;
+            foreach ($createdProfiles as $p) {
+                if ($p->service_mode === 'FIXED_LOCATION') {
+                    $isFixedLocation = true;
+                    break;
+                }
+            }
+
+            $this->assignEventTypes($vendor, $isFixedLocation);
 
             foreach ($createdProfiles as $profile) {
                 $radiusLabel = $profile->service_mode === 'MOBILE'
@@ -372,6 +387,42 @@ class DemoVendorsSeeder extends Seeder
         }
 
         $this->command->info("Creati {$count} vendor con offerings e pricing");
+    }
+
+    private function assignEventTypes(VendorAccount $vendor, bool $isFixedLocation): void
+    {
+        $categorySlug = $vendor->category->slug;
+
+        $map = [
+            'animazione-bambini' => ['Battesimo', 'Comunione', 'Cresima', 'Festa di Compleanno Bambini'],
+            'giochi-e-intrattenimento' => ['Festa di Compleanno Bambini', 'Festa di Compleanno Adulti', '18 Anni', 'Evento in Piazza'],
+            'animazione-adulti-feste-private' => ['Festa di Compleanno Adulti', '18 Anni', 'Festa di Laurea', 'Festa Privata (Generica)', 'Addio al Celibato', 'Addio al Nubilato'],
+            'addio-al-celibato-nubilato' => ['Addio al Celibato', 'Addio al Nubilato'],
+            'eventi-aziendali' => ['Festa Aziendale', 'Cena di Gala', 'Lancio Prodotto'],
+            'compleanni-adulti' => ['Festa di Compleanno Adulti', '18 Anni', 'Festa di Laurea', 'Festa Privata (Generica)'],
+            'matrimoni-ed-eventi-eleganti' => ['Matrimonio', 'Nozze d\'Argento/Oro', 'Cena di Gala'],
+            'servizi-di-supporto' => ['Matrimonio', 'Evento in Piazza', 'Festa Aziendale', 'Lancio Prodotto'],
+            'format-premium-esperienze-esclusive' => ['Addio al Celibato', 'Addio al Nubilato', 'Festa Privata (Generica)', '18 Anni', 'Festa in Barca'],
+            'artisti' => ['Battesimo', 'Comunione', 'Cresima', '18 Anni', 'Festa di Laurea', 'Festa Privata (Generica)', 'Matrimonio', 'Nozze d\'Argento/Oro', 'Festa Aziendale', 'Cena di Gala'],
+            'ristoranti' => ['Battesimo', 'Comunione', 'Cresima', 'Matrimonio', 'Nozze d\'Argento/Oro', 'Festa di Compleanno Adulti', 'Festa Aziendale', 'Cena di Gala', 'Festa Privata (Generica)'],
+        ];
+
+        $allowedNames = $map[$categorySlug] ?? [];
+        
+        if (empty($allowedNames)) {
+            // Fallback per categorie non censite: Tutti (location) o 5 random (mobile)
+            if ($isFixedLocation) {
+                $eventTypeIds = \App\Models\EventType::pluck('id')->toArray();
+            } else {
+                $eventTypeIds = \App\Models\EventType::inRandomOrder()->take(5)->pluck('id')->toArray();
+            }
+        } else {
+            $eventTypeIds = \App\Models\EventType::whereIn('name', $allowedNames)->pluck('id')->toArray();
+        }
+
+        if (!empty($eventTypeIds)) {
+            $vendor->eventTypes()->sync($eventTypeIds);
+        }
     }
 
     private function createSlots(VendorAccount $vendor): void

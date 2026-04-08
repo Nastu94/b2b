@@ -12,6 +12,7 @@
 
         @php
             $categories = \App\Models\Category::where('is_active', true)->orderBy('sort_order')->get();
+            $eventTypes = \App\Models\EventType::where('is_active', true)->orderBy('name')->get();
 
             $oldAccountType = old('account_type', 'COMPANY');
             $oldOperationalSame = old('operational_same_as_legal', '1');
@@ -106,7 +107,26 @@
                             </div>
                         </div>
 
-                        <div class="mt-4">
+                        <div class="mt-6 border-t border-gray-100 pt-5">
+                            <h3 class="text-sm font-semibold text-gray-900 mb-1">Quali eventi copri?</h3>
+                            <p class="text-xs text-gray-500 mb-3">Seleziona almeno un tipo di evento in cui lavori o sei disponibile a lavorare.</p>
+                            
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                @foreach($eventTypes as $et)
+                                    <label class="flex items-start gap-2 text-sm text-gray-700">
+                                        <input type="checkbox" name="event_type_ids[]" value="{{ $et->id }}" 
+                                            class="mt-0.5 rounded border-gray-300 text-slate-900 focus:ring-slate-400"
+                                            {{ is_array(old('event_type_ids')) && in_array($et->id, old('event_type_ids')) ? 'checked' : '' }}>
+                                        <span class="leading-tight">{{ $et->name }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                            @error('event_type_ids')
+                                <p class="mt-2 text-xs text-rose-600 font-medium">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="mt-5">
                             <x-label for="profile_image" value="Logo / Immagine Copertina (Opzionale)" />
                             <input id="profile_image" type="file" name="profile_image" accept="image/*"
                                 class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100 border border-gray-200 rounded-md p-2" />

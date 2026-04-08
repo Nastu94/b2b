@@ -139,6 +139,11 @@ class SlotLock extends Model
             && $this->expires_at->lte($now);
     }
 
+    public function canBeConfirmed(?CarbonInterface $now = null): bool
+    {
+        return $this->isActiveHold() && ! $this->isExpiredHold($now);
+    }
+
     public function isBlocking(?CarbonInterface $now = null): bool
     {
         if (! $this->is_active) {

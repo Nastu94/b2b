@@ -38,6 +38,7 @@ class VendorSearchController extends Controller
 
             'prestashop_category_id' => ['nullable', 'integer'],
             'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'event_type_id' => ['nullable', 'integer', 'exists:event_types,id'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 

@@ -18,7 +18,8 @@ Route::middleware('booking.bridge')->group(function () {
     // API in LETTURA (Throttle morbido: 120 rate/min)
     Route::middleware('throttle:120,1')->group(function () {
         // Ricerca vendor disponibili per data/ospiti/città
-        Route::get('/vendors/search', [VendorSearchController::class, 'search']);
+        Route::get('/vendors/search', [\App\Http\Controllers\Api\VendorSearchController::class, 'search']);
+        Route::get('/event-types', [\App\Http\Controllers\Api\EventTypeController::class, 'index']);
 
         // Recupera tutti i vendor per il catalogo
         Route::get('/vendors/catalog', [VendorCatalogController::class, 'index']);

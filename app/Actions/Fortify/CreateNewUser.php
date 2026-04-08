@@ -32,6 +32,8 @@ class CreateNewUser implements CreatesNewUsers
             // Vendor core
             'account_type' => ['required', Rule::in(['COMPANY', 'PRIVATE'])],
             'category_id' => ['required', 'integer', 'exists:categories,id'],
+            'event_type_ids' => ['required', 'array', 'min:1'],
+            'event_type_ids.*' => ['integer', 'exists:event_types,id'],
 
             // Dati fiscali minimi
             'company_name' => ['nullable', 'string', 'max:255'],
@@ -156,8 +158,11 @@ class CreateNewUser implements CreatesNewUsers
             'activated_at' => null,
         ]);
 
-        // [Rimosso Sync Automatico PrestaShop]
         // Il prodotto ombra verrà creato solo quando l'Admin imposterà lo status su ACTIVE.
+
+        if (!empty($input['event_type_ids'])) {
+            $vendor->eventTypes()->sync($input['event_type_ids']);
+        }
 
         // Geocoding della sede legale.
         // Se la sede operativa coincide, copiamo le stesse coordinate.

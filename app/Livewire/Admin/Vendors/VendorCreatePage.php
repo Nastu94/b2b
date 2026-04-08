@@ -29,6 +29,7 @@ class VendorCreatePage extends Component
         // tipo + categoria
         'account_type' => 'COMPANY',
         'category_id' => null,
+        'event_type_ids' => [],
 
         // company
         'company_name' => '',
@@ -93,6 +94,11 @@ class VendorCreatePage extends Component
         }
     }
 
+    public function updatedFormCategoryId($value): void
+    {
+        $this->form['event_type_ids'] = [];
+    }
+
     public function rules(): array
     {
         $rules = [
@@ -114,6 +120,8 @@ class VendorCreatePage extends Component
             // tipo + categoria
             'form.account_type' => ['required', Rule::in(['COMPANY', 'PRIVATE'])],
             'form.category_id' => ['required', 'integer', 'exists:categories,id'],
+            'form.event_type_ids' => ['nullable', 'array'],
+            'form.event_type_ids.*' => ['integer', 'exists:event_types,id'],
 
             // sede legale
             'form.legal_country' => ['nullable', 'string', 'max:255'],
@@ -201,8 +209,11 @@ class VendorCreatePage extends Component
     {
         $this->authorize('create', VendorAccount::class);
 
+        $eventTypes = \App\Models\EventType::where('is_active', true)->orderBy('name')->get();
+
         return view('livewire.admin.vendors.vendor-create-page', [
             'categories' => Category::where('is_active', true)->orderBy('sort_order')->get(['id', 'name']),
+            'eventTypes' => $eventTypes,
             'title' => 'Crea Vendor',
         ]);
     }

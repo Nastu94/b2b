@@ -105,6 +105,24 @@
             <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
                 La modalità di servizio e il raggio operativo vengono configurati nei singoli servizi del vendor.
             </div>
+
+            @if(isset($eventTypes) && count($eventTypes) > 0)
+            <div class="mt-6 border-t border-slate-200 pt-5">
+                <label class="text-sm font-semibold text-slate-900 block mb-1">Tipi di Evento Supportati</label>
+                <p class="text-xs text-slate-500 mb-4">Seleziona in quali tipi di evento questo vendor apparirà tra i risultati di ricerca.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    @foreach($eventTypes as $et)
+                        <label class="flex items-center gap-2 text-sm text-slate-700">
+                            <input type="checkbox" wire:model="form.event_type_ids" value="{{ $et->id }}" class="rounded border-slate-300" @disabled(!$canEditNow)>
+                            <span>{{ $et->name }}</span>
+                        </label>
+                    @endforeach
+                </div>
+                @error('form.event_type_ids')
+                    <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                @enderror
+            </div>
+            @endif
         </div>
 
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6">

@@ -50,6 +50,7 @@ class VendorAnagraficaTab extends Component
             'status' => $this->vendorAccount->status,
             'account_type' => $this->vendorAccount->account_type,
             'category_id' => $this->vendorAccount->category_id,
+            'event_type_ids' => $this->vendorAccount->eventTypes->pluck('id')->all(),
 
             // COMPANY
             'company_name' => $this->vendorAccount->company_name,
@@ -97,6 +98,11 @@ class VendorAnagraficaTab extends Component
         }
     }
 
+    public function updatedFormCategoryId($value): void
+    {
+        $this->form['event_type_ids'] = [];
+    }
+
     protected function rules(): array
     {
         $rules = [
@@ -104,6 +110,8 @@ class VendorAnagraficaTab extends Component
             'form.status' => ['required', 'in:PENDING,ACTIVE,INACTIVE'],
             'form.account_type' => ['required', 'in:COMPANY,PRIVATE'],
             'form.category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'form.event_type_ids' => ['nullable', 'array'],
+            'form.event_type_ids.*' => ['integer', 'exists:event_types,id'],
 
             'form.tax_code' => ['nullable', 'string', 'max:50'],
             'form.billing_email' => ['nullable', 'email', 'max:255'],
@@ -198,14 +206,19 @@ class VendorAnagraficaTab extends Component
 
         $this->vendorAccount->save();
 
+        if (isset($this->form['event_type_ids'])) {
+            $this->vendorAccount->eventTypes()->sync($this->form['event_type_ids']);
+        }
+
         session()->flash('status', 'Anagrafica salvata con successo.');
 
-        $this->vendorAccount->refresh()->load(['user', 'category', 'offerings']);
+        $this->vendorAccount->refresh()->load(['user', 'category', 'offerings', 'eventTypes']);
 
         $this->form = [
             'status' => $this->vendorAccount->status,
             'account_type' => $this->vendorAccount->account_type,
             'category_id' => $this->vendorAccount->category_id,
+            'event_type_ids' => $this->vendorAccount->eventTypes->pluck('id')->all(),
 
             'company_name' => $this->vendorAccount->company_name,
             'legal_entity_type' => $this->vendorAccount->legal_entity_type,
@@ -263,6 +276,10 @@ class VendorAnagraficaTab extends Component
     {
         $this->authorize('view', $this->vendorAccount);
 
-        return view('livewire.admin.vendors.tabs.vendor-anagrafica-tab');
+        $eventTypes = \App\Models\EventType::where('is_active', true)->orderBy('name')->get();
+
+        return view('livewire.admin.vendors.tabs.vendor-anagrafica-tab', [
+            'eventTypes' => $eventTypes
+        ]);
     }
 }

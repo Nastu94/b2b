@@ -117,7 +117,7 @@
 
                 <div class="md:col-span-2">
                     <label class="text-sm text-slate-600">Categoria Servizio</label>
-                    <select wire:model="form.category_id"
+                    <select wire:model.live="form.category_id"
                         class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400">
                         <option value="">—</option>
                         @foreach ($categories as $category)
@@ -131,7 +131,25 @@
                 </div>
             </div>
 
-            <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+            @if(isset($eventTypes) && count($eventTypes) > 0)
+            <div class="mt-6 border-t border-slate-200 pt-5">
+                <label class="text-sm font-semibold text-slate-900 block mb-1">Tipi di Evento Supportati</label>
+                <p class="text-xs text-slate-500 mb-4">Seleziona in quali tipi di evento questo vendor apparirà tra i risultati di ricerca.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    @foreach($eventTypes as $et)
+                        <label class="flex items-center gap-2 text-sm text-slate-700">
+                            <input type="checkbox" wire:model="form.event_type_ids" value="{{ $et->id }}" class="rounded border-slate-300">
+                            <span>{{ $et->name }}</span>
+                        </label>
+                    @endforeach
+                </div>
+                @error('form.event_type_ids')
+                    <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                @enderror
+            </div>
+            @endif
+
+            <div class="mt-5 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
                 La modalità di servizio e il raggio operativo verranno configurati nei singoli servizi del vendor.
             </div>
         </div>
