@@ -10,21 +10,44 @@ class AttachExistingEventTypesSeeder extends Seeder
 {
     public function run(): void
     {
-        $vendors = VendorAccount::all();
-        $count = 0;
+        $map = [
+            'animazione-bambini' => ['Battesimo', 'Comunione', 'Cresima', 'Festa di Compleanno Bambini'],
+            'giochi-e-intrattenimento' => ['Festa di Compleanno Bambini', 'Festa di Compleanno Adulti', '18 Anni', 'Evento in Piazza'],
+            'animazione-adulti-feste-private' => ['Festa di Compleanno Adulti', '18 Anni', 'Festa di Laurea', 'Festa Privata (Generica)', 'Addio al Celibato', 'Addio al Nubilato'],
+            'addio-al-celibato-nubilato' => ['Addio al Celibato', 'Addio al Nubilato'],
+            'eventi-aziendali' => ['Festa Aziendale', 'Cena di Gala', 'Lancio Prodotto'],
+            'compleanni-adulti' => ['Festa di Compleanno Adulti', '18 Anni', 'Festa di Laurea', 'Festa Privata (Generica)'],
+            'matrimoni-ed-eventi-eleganti' => ['Matrimonio', 'Nozze d\'Argento/Oro', 'Cena di Gala'],
+            'servizi-di-supporto' => ['Matrimonio', 'Evento in Piazza', 'Festa Aziendale', 'Lancio Prodotto'],
+            'format-premium-esperienze-esclusive' => ['Addio al Celibato', 'Addio al Nubilato', 'Festa Privata (Generica)', '18 Anni', 'Festa in Barca'],
+            'artisti' => ['Battesimo', 'Comunione', 'Cresima', '18 Anni', 'Festa di Laurea', 'Festa Privata (Generica)', 'Matrimonio', 'Nozze d\'Argento/Oro', 'Festa Aziendale', 'Cena di Gala'],
+            'ristoranti' => ['Battesimo', 'Comunione', 'Cresima', 'Matrimonio', 'Nozze d\'Argento/Oro', 'Festa di Compleanno Adulti', 'Festa Aziendale', 'Cena di Gala', 'Festa Privata (Generica)'],
+        ];
 
-        // Recuperiamo tutti gli ID degli EventTypes (ora sono globali)
-        $allEventTypes = EventType::pluck('id')->toArray();
+        $vendors = VendorAccount::with('category')->get();
+        $updated = 0;
+        $skipped = 0;
 
         foreach ($vendors as $vendor) {
-            if (!empty($allEventTypes)) {
-                // Usiamo syncWithoutDetaching per agganciare in modo safe nella tabella pivot 
-                // senza far partire i Job di aggiornamento/creazione prodotto per PrestaShop (evita doppioni)
-                $vendor->eventTypes()->syncWithoutDetaching($allEventTypes);
-                $count++;
+            $slug = $vendor->category?->slug;
+
+            if (!$slug || !isset($map[$slug])) {
+                $skipped++;
+                continue;
+            }
+
+            $ids = EventType::whereIn('name', $map[$slug])->pluck('id')->toArray();
+
+            if (!empty($ids)) {
+                $vendor->eventTypes()->sync($ids);
+                $updated++;
             }
         }
 
-        $this->command->info("Aggiornati {$count} vendor assegnando tutti i Tipi di Evento globali di default.");
+        $this->command->info("Aggiornati {$updated} vendor con event types per categoria.");
+        
+        if ($skipped > 0) {
+            $this->command->warn("Saltati {$skipped} vendor senza categoria mappata.");
+        }
     }
 }
