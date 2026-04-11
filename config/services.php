@@ -42,6 +42,7 @@ return [
     'prestashop' => [
         'endpoint' => env('PRESTASHOP_API_URL'),
         'key' => env('PRESTASHOP_API_KEY'),
+        'webhook_url' => env('PRESTASHOP_WEBHOOK_URL'),
     ],
 
     'stripe' => [
