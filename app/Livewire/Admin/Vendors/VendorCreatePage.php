@@ -124,7 +124,7 @@ class VendorCreatePage extends Component
             'form.event_type_ids.*' => ['integer', 'exists:event_types,id'],
 
             // sede legale
-            'form.legal_country' => ['nullable', 'string', 'max:255'],
+            'form.legal_country' => ['nullable', 'string', 'max:2'],
             'form.legal_region' => ['nullable', 'string', 'max:255'],
             'form.legal_city' => ['nullable', 'string', 'max:255'],
             'form.legal_postal_code' => ['nullable', 'string', 'max:50'],
@@ -160,7 +160,7 @@ class VendorCreatePage extends Component
 
         // Sede operativa.
         if (!($this->form['operational_same_as_legal'] ?? true)) {
-            $rules['form.operational_country'] = ['nullable', 'string', 'max:255'];
+            $rules['form.operational_country'] = ['nullable', 'string', 'max:2'];
             $rules['form.operational_region'] = ['nullable', 'string', 'max:255'];
             $rules['form.operational_city'] = ['nullable', 'string', 'max:255'];
             $rules['form.operational_postal_code'] = ['nullable', 'string', 'max:50'];

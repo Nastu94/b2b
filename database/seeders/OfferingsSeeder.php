@@ -109,6 +109,7 @@ class OfferingsSeeder extends Seeder
             'Ristoranti' => [
                 'Menu Pesce',
                 'Menu carne',
+                'Menu vegetariano',
                 'Catering',
                 'Menu all you can eat',
             ],

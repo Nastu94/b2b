@@ -138,14 +138,14 @@ class VendorProfilePage extends Component
 
             'form.tax_code' => ['nullable', 'string', 'max:50'],
 
-            'form.legal_country' => ['nullable', 'string', 'max:255'],
+            'form.legal_country' => ['nullable', 'string', 'max:2'],
             'form.legal_region' => ['nullable', 'string', 'max:255'],
             'form.legal_city' => ['nullable', 'string', 'max:255'],
             'form.legal_postal_code' => ['nullable', 'string', 'max:50'],
             'form.legal_address_line1' => ['nullable', 'string', 'max:255'],
 
             'form.operational_same_as_legal' => ['boolean'],
-            'form.operational_country' => ['nullable', 'string', 'max:255'],
+            'form.operational_country' => ['nullable', 'string', 'max:2'],
             'form.operational_region' => ['nullable', 'string', 'max:255'],
             'form.operational_city' => ['nullable', 'string', 'max:255'],
             'form.operational_postal_code' => ['nullable', 'string', 'max:50'],
@@ -201,6 +201,8 @@ class VendorProfilePage extends Component
             'operational_same_as_legal' => (bool) $this->form['operational_same_as_legal'],
             'operational_country' => $this->form['operational_country'],
             'operational_region' => $this->form['operational_region'],
+            'operational_city' => $this->form['operational_city'],
+            'operational_postal_code' => $this->form['operational_postal_code'],
             'operational_address_line1' => $this->form['operational_address_line1'],
         ]);
 

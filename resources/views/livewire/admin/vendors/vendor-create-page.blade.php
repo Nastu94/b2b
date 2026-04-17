@@ -134,7 +134,8 @@
             @if(isset($eventTypes) && count($eventTypes) > 0)
             <div class="mt-6 border-t border-slate-200 pt-5">
                 <label class="text-sm font-semibold text-slate-900 block mb-1">Tipi di Evento Supportati</label>
-                <p class="text-xs text-slate-500 mb-4">Seleziona in quali tipi di evento questo vendor apparirà tra i risultati di ricerca.</p>
+                <p class="text-xs text-slate-500 mb-1">Seleziona in quali tipi di evento questo vendor apparirà tra i risultati di ricerca.</p>
+                <p class="text-xs text-amber-600 font-medium mb-4">Puoi selezionare una o più opzioni.</p>
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     @foreach($eventTypes as $et)
                         <label class="flex items-center gap-2 text-sm text-slate-700">
@@ -259,6 +260,7 @@
                     <label class="text-sm text-slate-600">Nazione</label>
                     <input class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                         type="text" wire:model="form.legal_country" placeholder="IT">
+                    <p class="mt-1 text-xs text-slate-500">Inserire codice ISO (es. IT)</p>
                 </div>
 
                 <div>
@@ -304,6 +306,7 @@
                         <input
                             class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                             type="text" wire:model="form.operational_country" placeholder="IT">
+                        <p class="mt-1 text-xs text-slate-500">Inserire codice ISO (es. IT)</p>
                     </div>
 
                     <div>

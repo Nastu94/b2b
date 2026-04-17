@@ -104,7 +104,8 @@
         </div>
 
         <div>
-            <label class="text-xs font-medium text-gray-700">Gallery (max 8)</label>
+            <label class="text-xs font-medium text-gray-700 block mb-1">Gallery</label>
+            <span class="text-[11px] text-gray-500 block mb-2">Formato immagine richiesto. Massimo 5 immagini, 2 MB per file.</span>
             <input type="file" wire:model="gallery" multiple class="mt-1 block w-full text-sm" />
             @error('gallery')
                 <p class="mt-1 text-xs text-red-600">{{ $message }}</p>

@@ -46,7 +46,7 @@
                     class="inline-flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 text-sm font-medium
             {{ $activeTab === 'blackouts' ? 'border-slate-600 text-slate-600' : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300' }}">
                     <x-app-icon name="x-circle" class="w-4 h-4" />
-                    <span>Blackout</span>
+                    <span>Indisponibilità</span>
                 </button>
 
                 <button type="button" wire:click="setTab('leadtime')"

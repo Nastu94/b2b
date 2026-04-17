@@ -25,7 +25,7 @@
     @if ($showForm)
         <div class="mb-6 p-4 border border-slate-200 bg-slate-50 rounded-lg">
             <h3 class="text-sm font-semibold text-slate-800 mb-3">
-                {{ $editingId ? 'Modifica blocco' : 'Nuovo blocco' }}
+                {{ $editingId ? 'Modifica indisponibilità' : 'Nuova indisponibilità' }}
             </h3>
 
             <div class="space-y-3">
@@ -100,7 +100,7 @@
             <div class="flex gap-2 mt-4">
                 <button wire:click="save" type="button"
                     class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-lg">
-                    {{ $editingId ? 'Aggiorna' : 'Crea blocco' }}
+                    {{ $editingId ? 'Aggiorna' : 'Crea indisponibilità' }}
                 </button>
                 <button wire:click="cancel" type="button"
                     class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50">
@@ -113,7 +113,7 @@
     {{-- Lista blackout --}}
     @if ($blackouts->isEmpty())
         <div class="text-center py-8 text-gray-400 text-sm border border-dashed rounded-lg">
-            Nessun blocco definito.
+            Nessuna indisponibilità definita.
         </div>
     @else
         <div class="space-y-2">
@@ -164,9 +164,9 @@
     @if ($confirmDeleteId)
         <div class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
             <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
-                <h3 class="text-base font-semibold text-gray-900 mb-2">Elimina blocco</h3>
+                <h3 class="text-base font-semibold text-gray-900 mb-2">Elimina indisponibilità</h3>
                 <p class="text-sm text-gray-600 mb-4">
-                    Sei sicuro di voler eliminare questo blocco?
+                    Sei sicuro di voler eliminare questa indisponibilità?
                 </p>
                 <div class="flex gap-3">
                     <button wire:click="delete" type="button"
