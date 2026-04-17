@@ -117,14 +117,14 @@ class VendorAnagraficaTab extends Component
             'form.billing_email' => ['nullable', 'email', 'max:255'],
             'form.phone' => ['nullable', 'string', 'max:50'],
 
-            'form.legal_country' => ['nullable', 'string', 'max:255'],
+            'form.legal_country' => ['nullable', 'string', 'max:2'],
             'form.legal_region' => ['nullable', 'string', 'max:255'],
             'form.legal_city' => ['nullable', 'string', 'max:255'],
             'form.legal_postal_code' => ['nullable', 'string', 'max:50'],
             'form.legal_address_line1' => ['nullable', 'string', 'max:255'],
 
             'form.operational_same_as_legal' => ['boolean'],
-            'form.operational_country' => ['nullable', 'string', 'max:255'],
+            'form.operational_country' => ['nullable', 'string', 'max:2'],
             'form.operational_region' => ['nullable', 'string', 'max:255'],
             'form.operational_city' => ['nullable', 'string', 'max:255'],
             'form.operational_postal_code' => ['nullable', 'string', 'max:50'],

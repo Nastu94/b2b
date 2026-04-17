@@ -124,8 +124,8 @@
             </div>
 
             <div class="actions">
-                <a class="btn btn-primary" href="{{ route('login') }}">Login</a>
-                <a class="btn btn-secondary" href="{{ route('register') }}">Register</a>
+                <a class="btn btn-primary" href="{{ route('login') }}">Accedi</a>
+                <a class="btn btn-secondary" href="{{ route('register') }}">Registrati</a>
             </div>
         </div>
 

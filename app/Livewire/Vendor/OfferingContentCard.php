@@ -116,8 +116,8 @@ class OfferingContentCard extends Component
             'service_radius_km' => 'nullable|integer|min:1|max:500',
             'max_guests' => 'nullable|integer|min:1|max:9999',
             'cover' => 'nullable|image|max:4096',
-            'gallery' => 'array|max:8',
-            'gallery.*' => 'image|max:4096',
+            'gallery' => 'array|max:5',
+            'gallery.*' => 'image|max:2048',
         ]);
 
         if ($this->service_mode === 'MOBILE' && $this->service_radius_km === null) {

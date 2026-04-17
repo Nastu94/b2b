@@ -109,7 +109,8 @@
 
                         <div class="mt-6 border-t border-gray-100 pt-5">
                             <h3 class="text-sm font-semibold text-gray-900 mb-1">Quali eventi copri?</h3>
-                            <p class="text-xs text-gray-500 mb-3">Seleziona almeno un tipo di evento in cui lavori o sei disponibile a lavorare.</p>
+                            <p class="text-xs text-gray-500 mb-1">Seleziona almeno un tipo di evento in cui lavori o sei disponibile a lavorare.</p>
+                            <p class="text-xs text-amber-600 font-medium mb-3">Puoi selezionare una o più opzioni.</p>
                             
                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                 @foreach($eventTypes as $et)
@@ -242,6 +243,7 @@
                                 <x-label value="Nazione" />
                                 <x-input class="block mt-1 w-full" type="text" name="legal_country"
                                     placeholder="IT" :value="old('legal_country')" />
+                                <p class="mt-1 text-xs text-gray-500">Inserire codice ISO (es. IT)</p>
                             </div>
 
                             <div>
@@ -291,6 +293,7 @@
                                     <x-label value="Nazione" />
                                     <x-input class="block mt-1 w-full" type="text" name="operational_country"
                                         placeholder="IT" :value="old('operational_country')" />
+                                    <p class="mt-1 text-xs text-gray-500">Inserire codice ISO (es. IT)</p>
                                 </div>
 
                                 <div>

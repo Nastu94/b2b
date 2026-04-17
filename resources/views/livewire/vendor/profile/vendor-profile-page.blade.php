@@ -120,9 +120,9 @@
                 </div>
             </div>
 
-            @if(count($eventTypes) > 0)
                 <div class="mt-6 border-t border-slate-200 pt-6">
-                    <h3 class="text-sm font-semibold text-slate-900 mb-3">Tipi di Evento gestiti</h3>
+                    <h3 class="text-sm font-semibold text-slate-900 mb-1">Tipi di Evento gestiti</h3>
+                    <p class="text-xs text-amber-600 font-medium mb-3">Puoi selezionare una o più opzioni.</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                         @foreach($eventTypes as $et)
                             <label class="flex items-start gap-3 p-3 rounded-lg border {{ in_array($et->id, $form['event_type_ids'] ?? []) ? 'border-primary-200 bg-primary-50' : 'border-slate-200 hover:bg-slate-50' }} transition cursor-pointer">
@@ -140,7 +140,6 @@
                         @endforeach
                     </div>
                 </div>
-            @endif
 
             <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
                 La modalità di servizio e il raggio operativo vengono configurati nei singoli servizi del vendor.
@@ -251,6 +250,7 @@
                     <input type="text"
                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                            wire:model="form.legal_country" @disabled(!$canEditNow)>
+                    <p class="mt-1 text-xs text-slate-500">Inserire codice ISO (es. IT)</p>
                     @error('form.legal_country') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                 </div>
 
@@ -313,6 +313,7 @@
                     <input type="text"
                            class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                            wire:model="form.operational_country" @disabled($sameAsLegal || !$canEditNow)>
+                    <p class="mt-1 text-xs text-slate-500">Inserire codice ISO (es. IT)</p>
                     @error('form.operational_country') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                 </div>
 

@@ -170,7 +170,7 @@
 
             {{-- Prossimi blackout --}}
             <div class="border border-slate-200 rounded-xl p-4">
-                <div class="text-xs uppercase text-slate-500 tracking-wide">Prossimi blocchi</div>
+                <div class="text-xs uppercase text-slate-500 tracking-wide">Prossime indisponibilità</div>
                 @if(count($upcomingBlackouts) > 0)
                     <div class="mt-2 space-y-1">
                         @foreach($upcomingBlackouts as $b)
@@ -183,7 +183,7 @@
                         @endforeach
                     </div>
                 @else
-                    <div class="mt-2 text-sm text-slate-400">Nessun blocco</div>
+                    <div class="mt-2 text-sm text-slate-400">Nessuna indisponibilità</div>
                 @endif
             </div>
 
