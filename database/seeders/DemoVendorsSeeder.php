@@ -138,7 +138,7 @@ class DemoVendorsSeeder extends Seeder
                 'longitude' => 16.8719,
             ],
             [
-                'category_slug' => 'giochi-e-intrattenimento',
+                'category_slug' => 'animazione-teen-party',
                 'user_name' => 'Luca Bianchi',
                 'email' => 'luca.bianchi@partylegacy.it',
                 'company_name' => 'Teen Party Pro SNC',
@@ -395,7 +395,7 @@ class DemoVendorsSeeder extends Seeder
 
         $map = [
             'animazione-bambini' => ['Battesimo', 'Comunione', 'Cresima', 'Festa di Compleanno Bambini'],
-            'giochi-e-intrattenimento' => ['Festa di Compleanno Bambini', 'Festa di Compleanno Adulti', '18 Anni', 'Evento in Piazza'],
+            'animazione-teen-party' => ['Festa di Compleanno Bambini', 'Festa di Compleanno Adulti', '18 Anni', 'Evento in Piazza'],
             'animazione-adulti-feste-private' => ['Festa di Compleanno Adulti', '18 Anni', 'Festa di Laurea', 'Festa Privata (Generica)', 'Addio al Celibato', 'Addio al Nubilato'],
             'addio-al-celibato-nubilato' => ['Addio al Celibato', 'Addio al Nubilato'],
             'eventi-aziendali' => ['Festa Aziendale', 'Cena di Gala', 'Lancio Prodotto'],
@@ -584,7 +584,7 @@ class DemoVendorsSeeder extends Seeder
                 'Animatore / Truccabimbi' => 180.00,
                 'Gonfiabili e strutture ludiche' => 250.00,
             ],
-            'giochi-e-intrattenimento' => [
+            'animazione-teen-party' => [
                 'Schiuma party' => 260.00,
                 'Silent disco' => 320.00,
             ],
@@ -647,7 +647,7 @@ class DemoVendorsSeeder extends Seeder
                     'max_guests' => null,
                 ],
             ],
-            'giochi-e-intrattenimento' => [
+            'animazione-teen-party' => [
                 [
                     'offering_name' => 'Schiuma party',
                     'service_mode' => 'MOBILE',
