@@ -27,6 +27,17 @@ class VendorAnagraficaTab extends Component
     public array $originalForm = [];
     public array $categories = [];
 
+    public string $newEventTypeName = '';
+    public bool $newEventTypeIsActive = true;
+    public bool $newEventTypeIsHomepageVisible = true;
+
+    public ?int $editingEventTypeId = null;
+    public string $editingEventTypeName = '';
+    public bool $editingEventTypeIsActive = true;
+    public bool $editingEventTypeIsHomepageVisible = true;
+
+    public bool $showEventTypeManager = false;
+
     public function mount(int $vendorAccountId): void
     {
         $this->vendorAccountId = $vendorAccountId;
@@ -272,14 +283,103 @@ class VendorAnagraficaTab extends Component
         // Il container controlla già lo stato di editing.
     }
 
+    public function createEventType(): void
+    {
+        $this->newEventTypeName = trim($this->newEventTypeName);
+
+        $this->validate([
+            'newEventTypeName' => ['required', 'string', 'max:255', 'unique:event_types,name'],
+            'newEventTypeIsActive' => ['boolean'],
+            'newEventTypeIsHomepageVisible' => ['boolean'],
+        ]);
+
+        $eventType = \App\Models\EventType::create([
+            'name' => $this->newEventTypeName,
+            'is_active' => $this->newEventTypeIsActive,
+            'is_homepage_visible' => $this->newEventTypeIsHomepageVisible,
+        ]);
+
+        if (!in_array($eventType->id, $this->form['event_type_ids'] ?? [])) {
+            $this->form['event_type_ids'][] = $eventType->id;
+        }
+
+        $this->reset(['newEventTypeName', 'newEventTypeIsActive', 'newEventTypeIsHomepageVisible']);
+        $this->dispatch('notify', type: 'success', message: 'Tipologia evento creata con successo.');
+    }
+
+    public function editEventType(int $id): void
+    {
+        $eventType = \App\Models\EventType::findOrFail($id);
+        $this->editingEventTypeId = $eventType->id;
+        $this->editingEventTypeName = $eventType->name;
+        $this->editingEventTypeIsActive = (bool) $eventType->is_active;
+        $this->editingEventTypeIsHomepageVisible = (bool) $eventType->is_homepage_visible;
+    }
+
+    public function updateEventType(): void
+    {
+        $this->editingEventTypeName = trim($this->editingEventTypeName);
+
+        $this->validate([
+            'editingEventTypeName' => ['required', 'string', 'max:255', 'unique:event_types,name,' . $this->editingEventTypeId],
+            'editingEventTypeIsActive' => ['boolean'],
+            'editingEventTypeIsHomepageVisible' => ['boolean'],
+        ]);
+
+        $eventType = \App\Models\EventType::findOrFail($this->editingEventTypeId);
+        $eventType->update([
+            'name' => $this->editingEventTypeName,
+            'is_active' => $this->editingEventTypeIsActive,
+            'is_homepage_visible' => $this->editingEventTypeIsHomepageVisible,
+        ]);
+
+        $this->reset(['editingEventTypeId', 'editingEventTypeName', 'editingEventTypeIsActive', 'editingEventTypeIsHomepageVisible']);
+        $this->dispatch('notify', type: 'success', message: 'Tipologia evento aggiornata.');
+    }
+
+    public function toggleEventTypeActive(int $id): void
+    {
+        $eventType = \App\Models\EventType::findOrFail($id);
+        $eventType->update(['is_active' => !$eventType->is_active]);
+    }
+
+    public function toggleEventTypeHomepageVisible(int $id): void
+    {
+        $eventType = \App\Models\EventType::findOrFail($id);
+        $eventType->update(['is_homepage_visible' => !$eventType->is_homepage_visible]);
+    }
+
+    public function deleteEventType(int $id): void
+    {
+        $eventType = \App\Models\EventType::findOrFail($id);
+        
+        if ($eventType->vendorAccounts()->exists()) {
+            $this->dispatch('notify', type: 'error', message: 'Tipologia evento già usata: puoi disattivarla, non eliminarla.');
+            return;
+        }
+        
+        $eventType->delete();
+        $this->dispatch('notify', type: 'success', message: 'Tipologia evento eliminata.');
+    }
+
     public function render()
     {
         $this->authorize('view', $this->vendorAccount);
 
-        $eventTypes = \App\Models\EventType::where('is_active', true)->orderBy('name')->get();
+        $eventTypes = \App\Models\EventType::query()
+            ->where('is_active', true)
+            ->orWhereIn('id', $this->form['event_type_ids'] ?? [])
+            ->orderBy('name')
+            ->get();
+
+        $allEventTypes = \App\Models\EventType::query()
+            ->withCount('vendorAccounts')
+            ->orderBy('name')
+            ->get();
 
         return view('livewire.admin.vendors.tabs.vendor-anagrafica-tab', [
-            'eventTypes' => $eventTypes
+            'eventTypes' => $eventTypes,
+            'allEventTypes' => $allEventTypes,
         ]);
     }
 }

@@ -11,6 +11,8 @@ class EventTypeController extends Controller
     public function index(): JsonResponse
     {
         $eventTypes = EventType::where('is_active', true)
+            ->where('is_homepage_visible', true)
+            ->orderBy('name')
             ->get(['id', 'name']);
 
         return response()->json([
