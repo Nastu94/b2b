@@ -107,14 +107,122 @@
             </div>
 
             <div class="mt-6 border-t border-slate-200 pt-5">
-                <label class="text-sm font-semibold text-slate-900 block mb-1">Tipi di Evento Supportati</label>
-                <p class="text-xs text-slate-500 mb-1">Seleziona in quali tipi di evento questo vendor apparirà tra i risultati di ricerca.</p>
-                <p class="text-xs text-amber-600 font-medium mb-4">Puoi selezionare una o più opzioni.</p>
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 gap-3">
+                    <div>
+                        <label class="text-sm font-semibold text-slate-900 block mb-1">Tipi di Evento Supportati</label>
+                        <p class="text-xs text-slate-500 mb-1">Seleziona in quali tipi di evento questo vendor apparirà tra i risultati di ricerca.</p>
+                        <p class="text-xs text-amber-600 font-medium">Puoi selezionare una o più opzioni.</p>
+                    </div>
+                    @if ($canEditNow)
+                        <div class="shrink-0">
+                            <button type="button" wire:click="$toggle('showEventTypeManager')" class="text-sm text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 px-3 py-1.5 rounded transition-colors">
+                                Gestisci tipologie
+                            </button>
+                        </div>
+                    @endif
+                </div>
+
+                @if ($showEventTypeManager && $canEditNow)
+                    <div class="mb-6 bg-slate-50 border border-slate-200 p-5 rounded-xl">
+                        <h3 class="text-sm font-semibold text-slate-800 mb-4">Aggiungi / Modifica Tipologie Evento</h3>
+                        
+                        <div class="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-white p-4 rounded-lg border border-slate-200">
+                            <div class="md:col-span-2">
+                                <label class="text-sm text-slate-600">Nuova tipologia evento</label>
+                                <input type="text" wire:model="newEventTypeName" class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400" placeholder="Es. Baby Shower">
+                                @error('newEventTypeName') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="flex flex-col justify-center h-full gap-2 pt-2">
+                                <label class="flex items-center gap-2 text-sm text-slate-700">
+                                    <input type="checkbox" wire:model="newEventTypeIsActive" class="rounded border-slate-300 text-indigo-600">
+                                    <span>Attiva nel gestionale</span>
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-slate-700">
+                                    <input type="checkbox" wire:model="newEventTypeIsHomepageVisible" class="rounded border-slate-300 text-indigo-600">
+                                    <span>Visibile sito pubblico</span>
+                                </label>
+                            </div>
+                            <div>
+                                <button type="button" wire:click="createEventType" class="w-full bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors">
+                                    + Aggiungi
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto bg-white rounded-lg border border-slate-200">
+                            <table class="w-full text-sm text-left text-slate-600 min-w-[600px]">
+                                <thead class="text-xs text-slate-700 uppercase bg-slate-100">
+                                    <tr>
+                                        <th class="px-4 py-3">Nome Tipologia</th>
+                                        <th class="px-4 py-3 text-center">Attiva Gestionale</th>
+                                        <th class="px-4 py-3 text-center">Sito Pubblico</th>
+                                        <th class="px-4 py-3 text-center">Vendor Collegati</th>
+                                        <th class="px-4 py-3 text-right">Azioni</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-200">
+                                    @foreach($allEventTypes as $et)
+                                        <tr class="hover:bg-slate-50 transition-colors">
+                                            <td class="px-4 py-3 font-medium text-slate-900">
+                                                @if($editingEventTypeId === $et->id)
+                                                    <input type="text" wire:model="editingEventTypeName" class="w-full rounded border-slate-300 px-2 py-1 text-sm focus:border-slate-400 focus:ring-slate-400">
+                                                    @error('editingEventTypeName') <span class="text-xs text-rose-600 block mt-1">{{ $message }}</span> @enderror
+                                                @else
+                                                    {{ $et->name }}
+                                                @endif
+                                            </td>
+                                            <td class="px-4 py-3 text-center">
+                                                @if($editingEventTypeId === $et->id)
+                                                    <input type="checkbox" wire:model="editingEventTypeIsActive" class="rounded border-slate-300 text-indigo-600">
+                                                @else
+                                                    <button type="button" wire:click="toggleEventTypeActive({{ $et->id }})" class="text-xs px-2 py-1 rounded font-medium {{ $et->is_active ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200' }} transition-colors">
+                                                        {{ $et->is_active ? 'Sì' : 'No' }}
+                                                    </button>
+                                                @endif
+                                            </td>
+                                            <td class="px-4 py-3 text-center">
+                                                @if($editingEventTypeId === $et->id)
+                                                    <input type="checkbox" wire:model="editingEventTypeIsHomepageVisible" class="rounded border-slate-300 text-indigo-600">
+                                                @else
+                                                    <button type="button" wire:click="toggleEventTypeHomepageVisible({{ $et->id }})" class="text-xs px-2 py-1 rounded font-medium {{ $et->is_homepage_visible ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200' }} transition-colors">
+                                                        {{ $et->is_homepage_visible ? 'Sì' : 'No' }}
+                                                    </button>
+                                                @endif
+                                            </td>
+                                            <td class="px-4 py-3 text-center font-medium">
+                                                {{ $et->vendor_accounts_count }}
+                                            </td>
+                                            <td class="px-4 py-3 text-right space-x-2">
+                                                @if($editingEventTypeId === $et->id)
+                                                    <button type="button" wire:click="updateEventType" class="text-emerald-600 font-medium hover:text-emerald-800">Salva</button>
+                                                    <button type="button" wire:click="$set('editingEventTypeId', null)" class="text-slate-500 hover:text-slate-700">Annulla</button>
+                                                @else
+                                                    <button type="button" wire:click="editEventType({{ $et->id }})" class="text-indigo-600 font-medium hover:text-indigo-800">Modifica</button>
+                                                    @if($et->vendor_accounts_count == 0)
+                                                        <button type="button" wire:click="deleteEventType({{ $et->id }})" class="text-rose-600 font-medium hover:text-rose-800">Elimina</button>
+                                                    @else
+                                                        <span class="text-xs text-slate-400">In uso</span>
+                                                    @endif
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endif
+
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     @foreach($eventTypes as $et)
                         <label class="flex items-center gap-2 text-sm text-slate-700">
                             <input type="checkbox" wire:model="form.event_type_ids" value="{{ $et->id }}" class="rounded border-slate-300" @disabled(!$canEditNow)>
-                            <span>{{ $et->name }}</span>
+                            <span>
+                                {{ $et->name }}
+                                @if(! $et->is_active)
+                                    <span class="text-xs text-amber-600">(disattivato)</span>
+                                @endif
+                            </span>
                         </label>
                     @endforeach
                 </div>

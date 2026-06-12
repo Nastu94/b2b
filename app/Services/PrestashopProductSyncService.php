@@ -90,6 +90,7 @@ class PrestashopProductSyncService
             'category',
             'vendorOfferingProfiles' => function ($query) {
                 $query->where('is_published', true)
+                    ->where('is_approved', true)
                     ->with('images')
                     ->orderBy('id');
             },
@@ -146,7 +147,7 @@ class PrestashopProductSyncService
     protected function publishedProfiles(VendorAccount $vendor): Collection
     {
         return collect($vendor->vendorOfferingProfiles)
-            ->filter(fn ($profile) => (bool) $profile->is_published)
+            ->filter(fn ($profile) => (bool) $profile->is_published && (bool) $profile->is_approved)
             ->values();
     }
 

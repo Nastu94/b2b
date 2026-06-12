@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Vendor\Offerings;
 
+use App\Models\Offering;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Attributes\Layout;
@@ -52,6 +53,13 @@ class ManageOfferingContents extends Component
         // Stato "source of truth": offerings attive nel pivot
         $this->activeOfferingIds = $vendorAccount->offerings()
             ->wherePivot('is_active', true)
+            ->where(function ($query) {
+                $query->where('offerings.is_custom', false)
+                    ->orWhere(function ($subQuery) {
+                        $subQuery->where('offerings.is_custom', true)
+                            ->where('offerings.status', Offering::STATUS_APPROVED);
+                    });
+            })
             ->pluck('offerings.id')
             ->map(fn ($id) => (int) $id)
             ->toArray();

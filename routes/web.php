@@ -2,6 +2,7 @@
 
 use App\Livewire\Admin\Bookings\AdminBookingShowPage;
 use App\Livewire\Admin\Bookings\AdminBookingsTabs;
+use App\Http\Controllers\LegalDocumentController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +25,17 @@ use App\Livewire\Vendor\Profile\VendorProfilePage;
 Route::get('/', function () {
     return view('welcome');
 })->name('home');
+
+// Legal Documents
+Route::get('/legal/vendor/privacy', [LegalDocumentController::class, 'vendorPrivacy'])
+    ->name('legal.vendor.privacy');
+
+Route::get('/legal/vendor/contratto', [LegalDocumentController::class, 'vendorContract'])
+    ->name('legal.vendor.contract');
+
+Route::get('/legal/vendor/file/{filename}', [LegalDocumentController::class, 'vendorFile'])
+    ->where('filename', '.*')
+    ->name('legal.vendor.file');
 
 /**
  * Serve file pubblici dal disk "public" senza dipendere dal symlink /public/storage.

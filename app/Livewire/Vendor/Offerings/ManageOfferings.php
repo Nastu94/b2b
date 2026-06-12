@@ -3,8 +3,11 @@
 namespace App\Livewire\Vendor\Offerings;
 
 use App\Models\Offering;
+use App\Models\VendorOfferingProfile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -38,6 +41,11 @@ class ManageOfferings extends Component
      */
     public array $selectedOfferingIds = [];
 
+    // Campi per la proposta di un nuovo servizio
+    public string $newOfferingTitle = '';
+    public string $newOfferingShortDesc = '';
+    public string $newOfferingFullDesc = '';
+
     /**
      * Inizializza la pagina: carica offerings disponibili e pre-seleziona quelle attive.
      */
@@ -59,10 +67,20 @@ class ManageOfferings extends Component
             abort(403);
         }
 
-        // Solo offerings della categoria del vendor
+        // Solo offerings della categoria del vendor, e i suoi pending custom
         $this->availableOfferings = Offering::query()
             ->where('category_id', $vendorAccount->category_id)
-            ->where('is_active', true)
+            ->where(function ($query) use ($vendorAccount) {
+                $query->where('is_active', true)
+                    ->orWhere(function ($subQuery) use ($vendorAccount) {
+                        $subQuery->where('is_custom', true)
+                            ->where('created_by_vendor_account_id', $vendorAccount->id)
+                            ->whereIn('status', [
+                                Offering::STATUS_PENDING_REVIEW,
+                                Offering::STATUS_APPROVED,
+                            ]);
+                    });
+            })
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
@@ -97,7 +115,17 @@ class ManageOfferings extends Component
         // Sicurezza: allowed IDs ricalcolati dal DB (source of truth)
         $allowedIds = Offering::query()
             ->where('category_id', $vendorAccount->category_id)
-            ->where('is_active', true)
+            ->where(function ($query) use ($vendorAccount) {
+                $query->where('is_active', true)
+                    ->orWhere(function ($subQuery) use ($vendorAccount) {
+                        $subQuery->where('is_custom', true)
+                            ->where('created_by_vendor_account_id', $vendorAccount->id)
+                            ->whereIn('status', [
+                                Offering::STATUS_PENDING_REVIEW,
+                                Offering::STATUS_APPROVED,
+                            ]);
+                    });
+            })
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->toArray();
@@ -162,10 +190,20 @@ class ManageOfferings extends Component
             abort(403);
         }
 
-        // Filtra subito gli ID selezionati: solo quelli ammessi (categoria + attivi).
+        // Filtra subito gli ID selezionati: solo quelli ammessi (categoria + attivi o propri custom).
         $allowedIds = Offering::query()
             ->where('category_id', $vendorAccount->category_id)
-            ->where('is_active', true)
+            ->where(function ($query) use ($vendorAccount) {
+                $query->where('is_active', true)
+                    ->orWhere(function ($subQuery) use ($vendorAccount) {
+                        $subQuery->where('is_custom', true)
+                            ->where('created_by_vendor_account_id', $vendorAccount->id)
+                            ->whereIn('status', [
+                                Offering::STATUS_PENDING_REVIEW,
+                                Offering::STATUS_APPROVED,
+                            ]);
+                    });
+            })
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->toArray();
@@ -177,6 +215,52 @@ class ManageOfferings extends Component
 
         // Aggiorna selectedOfferingIds con versione "safe" (evita valori spuri in UI)
         $this->selectedOfferingIds = $safeSelectedIds;
+    }
+
+    public function proposeCustomOffering(): void
+    {
+        $this->validate([
+            'newOfferingTitle' => 'required|string|max:255',
+            'newOfferingShortDesc' => 'required|string',
+            'newOfferingFullDesc' => 'required|string',
+        ]);
+
+        $user = Auth::user();
+        abort_unless($user && $user->can('vendor.access'), 403);
+        $vendorAccount = $user->vendorAccount;
+
+        $technicalName = 'Proposta vendor #' . $vendorAccount->id . ' - ' . now()->format('YmdHis');
+
+        DB::transaction(function () use ($vendorAccount, $technicalName) {
+            $offering = Offering::create([
+                'category_id' => $vendorAccount->category_id,
+                'slug' => 'proposta-vendor-' . $vendorAccount->id . '-' . Str::random(8),
+                'name' => $technicalName,
+                'is_active' => false,
+                'is_custom' => true,
+                'status' => Offering::STATUS_PENDING_REVIEW,
+                'created_by_vendor_account_id' => $vendorAccount->id,
+            ]);
+
+            $vendorAccount->offerings()->attach($offering->id, ['is_active' => true]);
+
+            VendorOfferingProfile::create([
+                'vendor_account_id' => $vendorAccount->id,
+                'offering_id' => $offering->id,
+                'title' => $this->newOfferingTitle,
+                'short_description' => $this->newOfferingShortDesc,
+                'description' => $this->newOfferingFullDesc,
+                'is_published' => true,
+                'is_approved' => false,
+            ]);
+        });
+
+        $this->reset(['newOfferingTitle', 'newOfferingShortDesc', 'newOfferingFullDesc']);
+        
+        session()->flash('status', 'Nuovo servizio proposto con successo. In attesa di approvazione.');
+
+        $this->mount();
+        $this->dispatch('$refresh');
     }
 
     /**

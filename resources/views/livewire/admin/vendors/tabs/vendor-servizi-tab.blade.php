@@ -78,9 +78,16 @@
                                 {{ $s['name'] }}
                             </h3>
 
-                            <span class="text-[11px] px-2 py-1 rounded-full border {{ $statusClasses }}">
-                                {{ $label }}
-                            </span>
+                            <div class="flex flex-col gap-1 items-end">
+                                <span class="text-[11px] px-2 py-1 rounded-full border {{ $statusClasses }}">
+                                    {{ $label }}
+                                </span>
+                                @if(($s['is_custom'] ?? false) && ($s['status'] ?? '') === \App\Models\Offering::STATUS_PENDING_REVIEW)
+                                    <span class="text-[10px] px-2 py-0.5 rounded bg-blue-100 text-blue-800">
+                                        Nuovo servizio proposto dal vendor
+                                    </span>
+                                @endif
+                            </div>
                         </div>
 
                         <div class="mt-3 flex flex-wrap gap-2">
@@ -107,11 +114,19 @@
                             </div>
 
                             @if (!($s['is_approved'] ?? false))
-                                <button type="button" wire:click="approveOfferingProfile({{ $s['id'] }})"
-                                    class="w-full inline-flex items-center justify-center gap-2 text-sm px-4 py-2 rounded-lg bg-amber-500 text-white font-semibold hover:bg-amber-600 shadow-sm mt-2 transition">
-                                    <x-app-icon name="check-circle" class="w-4 h-4" />
-                                    <span>Approva Servizio</span>
-                                </button>
+                                <div class="grid grid-cols-2 gap-2 mt-2">
+                                    <button type="button" wire:click="approveOfferingProfile({{ $s['id'] }})"
+                                        class="w-full inline-flex items-center justify-center gap-1 text-xs px-2 py-2 rounded-lg bg-emerald-500 text-white font-semibold hover:bg-emerald-600 shadow-sm transition">
+                                        <x-app-icon name="check-circle" class="w-4 h-4" />
+                                        <span>Approva</span>
+                                    </button>
+                                    <button type="button" wire:click="rejectOfferingProfile({{ $s['id'] }})"
+                                        wire:confirm="Sei sicuro di voler rifiutare questo servizio?"
+                                        class="w-full inline-flex items-center justify-center gap-1 text-xs px-2 py-2 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-600 shadow-sm transition">
+                                        <x-app-icon name="x-circle" class="w-4 h-4" />
+                                        <span>Rifiuta</span>
+                                    </button>
+                                </div>
                             @endif
 
                             <button type="button" wire:click="openOfferingDetails({{ $s['id'] }})"
@@ -134,7 +149,35 @@
 
         <x-slot name="content">
             @if($viewingProfile)
+                @if (session('status'))
+                    <div class="mb-4 p-3 rounded bg-green-50 text-green-800 text-sm">
+                        {{ session('status') }}
+                    </div>
+                @endif
                 <div class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <div>
+                            <label class="text-sm font-semibold text-slate-700">Nome interno servizio catalogo</label>
+                            <input type="text" wire:model.defer="editOfferingName" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
+                            @error('editOfferingName')<div class="mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
+                        </div>
+                        <div>
+                            <label class="text-sm font-semibold text-slate-700">Titolo pubblico vendor</label>
+                            <input type="text" wire:model.defer="editProfileTitle" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
+                            @error('editProfileTitle')<div class="mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="text-sm font-semibold text-slate-700">Descrizione breve</label>
+                            <textarea wire:model.defer="editProfileShortDescription" rows="2" class="mt-1 w-full rounded-lg border-slate-300 text-sm"></textarea>
+                            @error('editProfileShortDescription')<div class="mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="text-sm font-semibold text-slate-700">Descrizione completa</label>
+                            <textarea wire:model.defer="editProfileDescription" rows="6" class="mt-1 w-full rounded-lg border-slate-300 text-sm"></textarea>
+                            @error('editProfileDescription')<div class="mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
+                        </div>
+                    </div>
+
                     <div class="flex flex-col md:flex-row gap-6">
                         @if($viewingProfile->cover_image_url)
                             <a href="{{ $viewingProfile->cover_image_url }}" target="_blank" class="shrink-0 block">
@@ -173,18 +216,46 @@
         </x-slot>
 
         <x-slot name="footer">
+            @if($viewingProfile)
+                <button
+                    type="button"
+                    wire:click="deleteOffering({{ $viewingProfile->offering_id }})"
+                    wire:confirm="Vuoi davvero eliminare questo servizio?"
+                    class="mr-auto inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition"
+                >
+                    <x-app-icon name="trash" class="w-4 h-4" />
+                    Elimina servizio
+                </button>
+            @endif
+
             <button type="button" wire:click="closeOfferingDetails"
                 class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 transition"
                 wire:loading.attr="disabled">
                 Chiudi
             </button>
 
+            @if($viewingProfile)
+                <button type="button" wire:click="saveOfferingEdits"
+                    class="ml-2 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
+                    wire:loading.attr="disabled">
+                    <x-app-icon name="check" class="w-4 h-4" />
+                    Salva modifiche
+                </button>
+            @endif
+
             @if($viewingProfile && !$viewingProfile->is_approved)
                 <button type="button" wire:click="approveOfferingProfile({{ $viewingProfile->offering_id }}); closeOfferingDetails()"
-                    class="ml-2 inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 transition"
+                    class="ml-2 inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 transition"
                     wire:loading.attr="disabled">
                     <x-app-icon name="check-circle" class="w-4 h-4" />
-                    Approva Ora
+                    Approva
+                </button>
+                <button type="button" wire:click="rejectOfferingProfile({{ $viewingProfile->offering_id }}); closeOfferingDetails()"
+                    wire:confirm="Sei sicuro di voler rifiutare questo servizio?"
+                    class="ml-2 inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 transition"
+                    wire:loading.attr="disabled">
+                    <x-app-icon name="x-circle" class="w-4 h-4" />
+                    Rifiuta
                 </button>
             @endif
         </x-slot>

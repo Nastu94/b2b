@@ -4,6 +4,8 @@ namespace App\Livewire\Admin\Vendors\Tabs;
 
 use App\Models\VendorAccount;
 use App\Models\VendorOfferingProfile;
+use App\Models\Offering;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Component;
 
@@ -20,6 +22,12 @@ class VendorServiziTab extends Component
     // Proprietà per la gestione della Modale Dettagli
     public bool $isViewingModalOpen = false;
     public ?VendorOfferingProfile $viewingProfile = null;
+
+    public ?int $editingOfferingId = null;
+    public string $editOfferingName = '';
+    public string $editProfileTitle = '';
+    public string $editProfileShortDescription = '';
+    public string $editProfileDescription = '';
 
     public function mount(int $vendorAccountId): void
     {
@@ -42,7 +50,7 @@ class VendorServiziTab extends Component
         $offerings = $this->vendorAccount->offerings()
             ->wherePivot('is_active', true)
             ->orderBy('offerings.name')
-            ->get(['offerings.id', 'offerings.name']);
+            ->get(['offerings.id', 'offerings.name', 'offerings.is_custom', 'offerings.status', 'offerings.created_by_vendor_account_id']);
 
         if ($offerings->isEmpty()) {
             $this->activeOfferings = [];
@@ -71,6 +79,9 @@ class VendorServiziTab extends Component
             return [
                 'id' => (int) $o->id,
                 'name' => (string) $o->name,
+                'is_custom' => (bool) $o->is_custom,
+                'status' => (string) $o->status,
+                'created_by_vendor_account_id' => $o->created_by_vendor_account_id ? (int) $o->created_by_vendor_account_id : null,
 
                 // profilo contenuti
                 'title' => (string) ($p?->title ?? ''),
@@ -98,10 +109,32 @@ class VendorServiziTab extends Component
             ->first();
 
         if ($profile) {
-            $profile->update([
-                'is_approved' => true,
-                'is_published' => true,
-            ]);
+            DB::transaction(function () use ($profile, $offeringId) {
+                $offering = Offering::find($offeringId);
+
+                if (
+                    $offering &&
+                    $offering->is_custom &&
+                    $offering->status === Offering::STATUS_PENDING_REVIEW &&
+                    str_starts_with($offering->name, 'Proposta vendor #')
+                ) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'editOfferingName' => 'Prima di approvare devi impostare il nome interno definitivo del servizio.',
+                    ]);
+                }
+
+                if ($offering && $offering->is_custom && $offering->status === Offering::STATUS_PENDING_REVIEW) {
+                    $offering->update([
+                        'status' => Offering::STATUS_APPROVED,
+                        'is_active' => true,
+                    ]);
+                }
+
+                $profile->update([
+                    'is_approved' => true,
+                    'is_published' => true,
+                ]);
+            });
 
             if ($this->vendorAccount->user && $this->vendorAccount->user->email) {
                 try {
@@ -122,6 +155,42 @@ class VendorServiziTab extends Component
         }
     }
 
+    public function rejectOfferingProfile(int $offeringId): void
+    {
+        $this->authorize('update', $this->vendorAccount);
+
+        $profile = VendorOfferingProfile::where('vendor_account_id', $this->vendorAccount->id)
+            ->where('offering_id', $offeringId)
+            ->first();
+
+        if ($profile) {
+            DB::transaction(function () use ($profile, $offeringId) {
+                $profile->update([
+                    'is_approved' => false,
+                    'is_published' => false,
+                ]);
+
+                $offering = Offering::find($offeringId);
+                if ($offering && $offering->is_custom && $offering->status === Offering::STATUS_PENDING_REVIEW) {
+                    $offering->update([
+                        'status' => Offering::STATUS_REJECTED,
+                        'is_active' => false,
+                    ]);
+                }
+
+                $this->vendorAccount->offerings()
+                    ->updateExistingPivot($offeringId, ['is_active' => false]);
+            });
+
+            session()->flash('status', 'Servizio rifiutato.');
+            $this->loadCardsData();
+            
+            if ($this->viewingProfile && $this->viewingProfile->offering_id === $offeringId) {
+                $this->viewingProfile->refresh();
+            }
+        }
+    }
+
     public function openOfferingDetails(int $offeringId): void
     {
         $this->authorize('view', $this->vendorAccount);
@@ -131,6 +200,14 @@ class VendorServiziTab extends Component
             ->where('offering_id', $offeringId)
             ->first();
 
+        $offering = Offering::findOrFail($offeringId);
+
+        $this->editingOfferingId = $offeringId;
+        $this->editOfferingName = $offering->name;
+        $this->editProfileTitle = $this->viewingProfile?->title ?? '';
+        $this->editProfileShortDescription = $this->viewingProfile?->short_description ?? '';
+        $this->editProfileDescription = $this->viewingProfile?->description ?? '';
+
         $this->isViewingModalOpen = true;
     }
 
@@ -138,6 +215,99 @@ class VendorServiziTab extends Component
     {
         $this->isViewingModalOpen = false;
         $this->viewingProfile = null;
+        $this->editingOfferingId = null;
+        $this->editOfferingName = '';
+        $this->editProfileTitle = '';
+        $this->editProfileShortDescription = '';
+        $this->editProfileDescription = '';
+    }
+
+    public function saveOfferingEdits(): void
+    {
+        $this->authorize('update', $this->vendorAccount);
+
+        $this->validate([
+            'editingOfferingId' => 'required|integer',
+            'editOfferingName' => 'required|string|max:255',
+            'editProfileTitle' => 'required|string|max:255',
+            'editProfileShortDescription' => 'nullable|string|max:255',
+            'editProfileDescription' => 'nullable|string',
+        ]);
+
+        DB::transaction(function () {
+            $profile = VendorOfferingProfile::query()
+                ->where('vendor_account_id', $this->vendorAccount->id)
+                ->where('offering_id', $this->editingOfferingId)
+                ->firstOrFail();
+
+            $offering = Offering::query()
+                ->whereKey($this->editingOfferingId)
+                ->firstOrFail();
+
+            $offering->update([
+                'name' => $this->editOfferingName,
+            ]);
+
+            $profile->update([
+                'title' => $this->editProfileTitle,
+                'short_description' => $this->editProfileShortDescription,
+                'description' => $this->editProfileDescription,
+            ]);
+
+            $this->viewingProfile = $profile->fresh(['images']);
+        });
+
+        $this->loadCardsData();
+
+        session()->flash('status', 'Servizio aggiornato con successo.');
+    }
+
+    public function deleteOffering(int $offeringId): void
+    {
+        $this->authorize('update', $this->vendorAccount);
+
+        DB::transaction(function () use ($offeringId) {
+            $offering = Offering::query()->findOrFail($offeringId);
+
+            $profile = VendorOfferingProfile::query()
+                ->where('vendor_account_id', $this->vendorAccount->id)
+                ->where('offering_id', $offeringId)
+                ->first();
+
+            if ($offering->is_custom && $offering->status !== Offering::STATUS_APPROVED) {
+                if ($profile) {
+                    $profile->delete();
+                }
+
+                $this->vendorAccount->offerings()->detach($offeringId);
+
+                $offering->delete();
+
+                return;
+            }
+
+            $this->vendorAccount->offerings()
+                ->updateExistingPivot($offeringId, ['is_active' => false]);
+
+            if ($profile) {
+                $profile->update([
+                    'is_published' => false,
+                    'is_approved' => false,
+                ]);
+            }
+
+            if ($offering->is_custom) {
+                $offering->update([
+                    'is_active' => false,
+                    'status' => Offering::STATUS_REJECTED,
+                ]);
+            }
+        });
+
+        $this->closeOfferingDetails();
+        $this->loadCardsData();
+
+        session()->flash('status', 'Servizio eliminato/disattivato.');
     }
 
     public function render()

@@ -323,13 +323,13 @@
                         </div>
                     </div>
 
-                    <div class="xl:col-span-2 rounded-xl border border-gray-200 bg-white p-5 space-y-4" x-data="{ showPrivacy: false, showContract: false }">
+                    <div class="xl:col-span-2 rounded-xl border border-gray-200 bg-white p-5 space-y-4">
                         <x-label for="privacy_accepted">
                             <div class="flex items-start">
                                 <x-checkbox name="privacy_accepted" id="privacy_accepted" required class="mt-1 border-slate-300 text-amber-500 focus:ring-amber-500" x-model="privacyAccepted" />
                                 <div class="ms-3 text-sm text-slate-600">
-                                    Ho letto e accetto la 
-                                    <button type="button" @click="showPrivacy = true" class="text-amber-600 hover:text-amber-700 underline underline-offset-2 font-medium">Privacy Policy</button>*
+                                    Dichiaro di aver letto l’informativa 
+                                    <a href="{{ route('legal.vendor.privacy') }}" target="_blank" class="text-amber-600 hover:text-amber-700 underline underline-offset-2 font-medium">Privacy e Compliance Vendor</a>.
                                 </div>
                             </div>
                         </x-label>
@@ -338,67 +338,11 @@
                             <div class="flex items-start">
                                 <x-checkbox name="contract_accepted" id="contract_accepted" required class="mt-1 border-slate-300 text-amber-500 focus:ring-amber-500" x-model="contractAccepted" />
                                 <div class="ms-3 text-sm text-slate-600">
-                                    Ho letto e accetto le 
-                                    <button type="button" @click="showContract = true" class="text-amber-600 hover:text-amber-700 underline underline-offset-2 font-medium">Condizioni Generali di Contratto per Venditori</button>*
+                                    Dichiaro di aver letto e accettato il 
+                                    <a href="{{ route('legal.vendor.contract') }}" target="_blank" class="text-amber-600 hover:text-amber-700 underline underline-offset-2 font-medium">Contratto Partner Master, il Regolamento Marketplace, il Codice Etico, le policy operative e gli altri documenti regolamentari applicabili ai servizi offerti su PartyLegacy</a>.
                                 </div>
                             </div>
                         </x-label>
-
-                        <!-- Modale Privacy -->
-                        <div x-show="showPrivacy" class="fixed inset-0 z-[100] overflow-y-auto" style="display: none;" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-                            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                                <div x-show="showPrivacy" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-slate-900/75 transition-opacity" @click="showPrivacy = false" aria-hidden="true"></div>
-                                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-                                <div x-show="showPrivacy" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl w-full">
-                                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                                        <div class="sm:flex sm:items-start">
-                                            <div class="mt-3 text-left sm:mt-0 sm:ml-4 sm:text-left w-full">
-                                                <h3 class="text-lg leading-6 font-semibold text-slate-900" id="modal-title">Privacy Policy</h3>
-                                                <div class="mt-4 text-sm text-slate-600 space-y-4 max-h-96 overflow-y-auto pr-2">
-                                                    <!-- Inserire qui il testo della Privacy fornito dal cliente -->
-                                                    <p class="font-medium">Testo della Privacy Policy in lavorazione... Da integrare al rilascio ufficiale dei documenti da parte della proprietà.</p>
-                                                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam in odio in libero rhoncus mattis. Integer lacinia, orci non congue vulputate, nibh eros facilisis mi, a volutpat arcu dui eu nisi. Fusce vitae finibus magna. Suspendisse pulvinar interdum consequat. Integer accumsan pretium convallis.</p>
-                                                    <p>Pellentesque id nunc est. Nunc condimentum lectus risus, in facilisis neque viverra non. Vestibulum ut aliquet nisi. Nunc dapibus mauris metus. Aenean vel velit id est interdum rutrum at ac ipsum.</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="bg-slate-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse rounded-b-xl border-t border-slate-200">
-                                        <button type="button" @click="showPrivacy = false" class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-slate-900 text-base font-medium text-white hover:bg-slate-800 sm:ml-3 sm:w-auto sm:text-sm">
-                                            Chiudi e Torna al Form
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Modale Contratto -->
-                        <div x-show="showContract" class="fixed inset-0 z-[100] overflow-y-auto" style="display: none;" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-                            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                                <div x-show="showContract" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-slate-900/75 transition-opacity" @click="showContract = false" aria-hidden="true"></div>
-                                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-                                <div x-show="showContract" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl w-full">
-                                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                                        <div class="sm:flex sm:items-start">
-                                            <div class="mt-3 text-left sm:mt-0 sm:ml-4 sm:text-left w-full">
-                                                <h3 class="text-lg leading-6 font-semibold text-slate-900" id="modal-title">Condizioni Generali di Contratto per Venditori</h3>
-                                                <div class="mt-4 text-sm text-slate-600 space-y-4 max-h-96 overflow-y-auto pr-2">
-                                                    <!-- Inserire qui il testo del Contratto fornito dal cliente -->
-                                                    <p class="font-medium">Condizioni di contratto in lavorazione... Da integrare al rilascio ufficiale dei documenti da parte dello studio legale della proprietà.</p>
-                                                    <p>Suspendisse potenti. Mauris vitae libero quis augue luctus tincidunt et et nisl. Quisque sit amet lectus varius, gravida nisi et, eleifend magna. Etiam et ex ante. Sed eleifend turpis et justo sollicitudin finibus.</p>
-                                                    <p>Ut id dui sapien. Fusce commodo metus in turpis imperdiet tristique. Ut sit amet nibh a nisi tristique dignissim. Vivamus lacinia neque iaculis urna congue bibendum. Aliquam efficitur ex in tellus suscipit pulvinar.</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="bg-slate-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse rounded-b-xl border-t border-slate-200">
-                                        <button type="button" @click="showContract = false" class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-slate-900 text-base font-medium text-white hover:bg-slate-800 sm:ml-3 sm:w-auto sm:text-sm">
-                                            Chiudi e Torna al Form
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
                     <div class="xl:col-span-2 flex items-center justify-between pt-2">

@@ -12,7 +12,6 @@ class EventTypesSeeder extends Seeder
     {
         $this->command->info('Creazione Event Types base (Globali)...');
 
-        \Illuminate\Support\Facades\DB::table('event_types')->delete();
 
         $types = [
             'Battesimo',
@@ -37,7 +36,10 @@ class EventTypesSeeder extends Seeder
         foreach ($types as $type) {
             EventType::firstOrCreate(
                 ['name' => $type],
-                ['is_active' => true]
+                [
+                    'is_active' => true,
+                    'is_homepage_visible' => true,
+                ]
             );
         }
         
