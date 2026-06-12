@@ -349,7 +349,7 @@
             <div class="mt-4 space-y-3 text-sm text-slate-700">
                 <label class="flex items-center gap-2">
                     <input type="checkbox" wire:model="form.privacy_accepted" class="rounded border-slate-300">
-                    <span>L'utente ha accettato la Privacy Policy</span>
+                    <span>L'utente ha accettato l'informativa <a href="{{ route('legal.vendor.privacy') }}" target="_blank" class="text-amber-600 hover:text-amber-700 underline underline-offset-2">Privacy e Compliance Vendor</a></span>
                 </label>
                 @error('form.privacy_accepted')
                     <div class="text-sm text-rose-600">{{ $message }}</div>
@@ -357,7 +357,7 @@
 
                 <label class="flex items-center gap-2">
                     <input type="checkbox" wire:model="form.contract_accepted" class="rounded border-slate-300">
-                    <span>L'utente ha accettato le Condizioni Contrattuali</span>
+                    <span>L'utente ha accettato il <a href="{{ route('legal.vendor.contract') }}" target="_blank" class="text-amber-600 hover:text-amber-700 underline underline-offset-2">Contratto Partner Master e le relative policy</a></span>
                 </label>
                 @error('form.contract_accepted')
                     <div class="text-sm text-rose-600">{{ $message }}</div>

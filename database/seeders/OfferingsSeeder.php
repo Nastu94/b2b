@@ -26,7 +26,7 @@ class OfferingsSeeder extends Seeder
                 'Gonfiabili e strutture ludiche',
                 'Bolle giganti e spettacoli interattivi',
             ],
-            'Animazione Teen Party' => [
+            'Giochi e Intrattenimento' => [
                 'Karaoke',
                 'Silent disco',
                 'Schiuma party',

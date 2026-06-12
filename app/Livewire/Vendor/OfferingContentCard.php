@@ -66,6 +66,14 @@ class OfferingContentCard extends Component
 
         $this->offering = Offering::findOrFail($offeringId);
 
+        if (
+            $this->offering->is_custom &&
+            $this->offering->status === Offering::STATUS_PENDING_REVIEW &&
+            (int) $this->offering->created_by_vendor_account_id === (int) $vendorAccount->id
+        ) {
+            abort(403);
+        }
+
         if ((int) $this->offering->category_id !== (int) $vendorAccount->category_id) {
             abort(403);
         }

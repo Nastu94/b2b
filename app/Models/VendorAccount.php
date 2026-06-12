@@ -87,6 +87,10 @@ class VendorAccount extends Model
         'status',
         'activated_at',
         'deactivated_at',
+
+        // Legal
+        'privacy_accepted_at',
+        'contract_accepted_at',
     ];
 
     // Cast espliciti per mantenere coerenti i tipi in lettura e scrittura.
@@ -99,6 +103,8 @@ class VendorAccount extends Model
         'prestashop_product_id' => 'integer',
         'activated_at' => 'datetime',
         'deactivated_at' => 'datetime',
+        'privacy_accepted_at' => 'datetime',
+        'contract_accepted_at' => 'datetime',
     ];
 
     // Ogni vendor appartiene a una categoria.

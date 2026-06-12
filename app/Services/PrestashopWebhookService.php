@@ -22,7 +22,9 @@ class PrestashopWebhookService
         $vendor->loadMissing([
             'category',
             'vendorOfferingProfiles' => function ($query) {
-                $query->where('is_published', true)->orderBy('id');
+                $query->where('is_published', true)
+                      ->where('is_approved', true)
+                      ->orderBy('id');
             },
         ]);
 
@@ -70,7 +72,7 @@ class PrestashopWebhookService
     protected function buildPayload(VendorAccount $vendor): array
     {
         $publishedProfiles = collect($vendor->vendorOfferingProfiles)
-            ->filter(fn ($profile) => (bool) $profile->is_published)
+            ->filter(fn ($profile) => (bool) $profile->is_published && (bool) $profile->is_approved)
             ->values();
 
         $representativeProfile = $publishedProfiles->first(function ($profile) {

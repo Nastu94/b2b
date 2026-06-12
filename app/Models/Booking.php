@@ -43,6 +43,11 @@ class Booking extends Model
         'declined_at',
         'vendor_notes',
         'decline_reason',
+        'is_commission_based',
+        'commission_rate',
+        'commission_amount',
+        'vendor_payment_status',
+        'vendor_transaction_id',
     ];
 
     protected $casts = [
