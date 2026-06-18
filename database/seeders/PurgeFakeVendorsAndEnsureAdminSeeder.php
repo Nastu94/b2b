@@ -31,14 +31,21 @@ class PurgeFakeVendorsAndEnsureAdminSeeder extends Seeder
             'ristorante.baia@partylegacy.it',
             'all.you.can.eat@partylegacy.it',
             'admin@admin.it',
+            'test-vendor-pending@example.com',
         ];
 
         if (!empty($fakeEmails)) {
             $users = User::whereIn('email', $fakeEmails)->get();
 
             foreach ($users as $user) {
-                // Delete associated vendor account if any
-                VendorAccount::where('user_id', $user->id)->delete();
+                // Find and delete associated vendor account and its cascaded data
+                $vendor = VendorAccount::where('user_id', $user->id)->first();
+                if ($vendor) {
+                    \App\Models\Offering::where('created_by_vendor_account_id', $vendor->id)->delete();
+                    \App\Models\VendorOfferingProfile::where('vendor_account_id', $vendor->id)->delete();
+                    // Additional cascading cleanup could be added here (e.g. Bookings) if fake data creates them.
+                    $vendor->delete();
+                }
 
                 // Clean up model_has_roles and model_has_permissions for this user specifically
                 DB::table('model_has_roles')

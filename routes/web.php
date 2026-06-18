@@ -112,6 +112,7 @@ Route::middleware([
         ->name('admin.')
         ->group(function () {
             Route::get('/dashboard', AdminDashboardPage::class)->name('dashboard');
+            Route::get('/approvals', \App\Livewire\Admin\Approvals\AdminApprovalsPage::class)->name('approvals');
             Route::get('/vendors/create', VendorCreatePage::class)->name('vendors.create');
             Route::get('/vendors/{vendorAccount}', VendorProfileTabs::class)->name('vendors.edit');
             Route::get('/bookings', AdminBookingsTabs::class)->name('bookings');

@@ -32,6 +32,12 @@
                     <span>Dashboard</span>
                 </a>
 
+                <a href="{{ route('admin.approvals') }}"
+                    class="pl-sidebar-link {{ $is('admin.approvals*') ? 'pl-sidebar-link-active' : '' }} flex items-center gap-3">
+                    <x-app-icon name="check-badge" class="w-5 h-5" />
+                    <span>Approvazioni</span>
+                </a>
+
                 <a href="{{ route('admin.bookings') }}"
                     class="pl-sidebar-link {{ $is('admin.bookings*') ? 'pl-sidebar-link-active' : '' }} flex items-center gap-3">
                     <x-app-icon name="calendar-days" class="w-5 h-5" />
