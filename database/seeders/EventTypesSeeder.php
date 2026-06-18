@@ -2,47 +2,50 @@
 
 namespace Database\Seeders;
 
-use App\Models\Category;
-use App\Models\EventType;
 use Illuminate\Database\Seeder;
+use App\Models\EventType;
+use Illuminate\Support\Str;
 
 class EventTypesSeeder extends Seeder
 {
+    /**
+     * Run the database seeds.
+     */
     public function run(): void
     {
-        $this->command->info('Creazione Event Types base (Globali)...');
+        // Disattiva tutti gli event types esistenti
+        EventType::query()->update(['is_active' => false]);
 
-
-        $types = [
-            'Battesimo',
-            'Comunione',
-            'Cresima',
+        $eventTypes = [
             'Matrimonio',
-            'Nozze d\'Argento/Oro',
-            'Festa di Compleanno Bambini',
-            'Festa di Compleanno Adulti',
+            'Compleanno Bambini',
+            'Compleanno Adulti',
             '18 Anni',
             'Festa di Laurea',
             'Addio al Celibato',
             'Addio al Nubilato',
-            'Festa Aziendale',
+            'Evento Aziendale',
             'Cena di Gala',
             'Lancio Prodotto',
+            'Festa Privata',
             'Festa in Barca',
-            'Evento in Piazza',
-            'Festa Privata (Generica)',
+            'Evento Pubblico',
+            'Team Building',
+            'Evento in Location',
+            'Battesimo',
+            'Comunione',
+            'Cresima',
         ];
 
-        foreach ($types as $type) {
-            EventType::firstOrCreate(
-                ['name' => $type],
+        foreach ($eventTypes as $name) {
+            EventType::updateOrCreate(
+                ['name' => $name],
                 [
                     'is_active' => true,
-                    'is_homepage_visible' => true,
                 ]
             );
         }
-        
-        $this->command->info('Event Types base globali creati con successo.');
+
+        $this->command->info('Event Types attivati con successo (18 record).');
     }
 }

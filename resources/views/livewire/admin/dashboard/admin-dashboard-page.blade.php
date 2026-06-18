@@ -109,7 +109,7 @@
                     @forelse($vendors as $vendor)
                         @php
                             $displayName =
-                                $vendor->account_type === 'COMPANY' && !empty($vendor->company_name)
+                                strtoupper($vendor->account_type ?? '') === 'COMPANY' && !empty($vendor->company_name)
                                     ? $vendor->company_name
                                     : trim(($vendor->first_name ?? '') . ' ' . ($vendor->last_name ?? ''));
 

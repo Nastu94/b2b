@@ -20,6 +20,7 @@ class AdminApprovalsPage extends Component
     public string $filterCategory = '';
     public string $filterStatus = 'pending';
     public string $search = '';
+    public string $filterVendorId = '';
 
     protected $queryString = [
         'filterType' => ['except' => 'all'],

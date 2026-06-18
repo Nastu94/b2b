@@ -2,55 +2,47 @@
 
 namespace Database\Seeders;
 
-use App\Models\Category;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
+use App\Models\Category;
 
 class CategoriesSeeder extends Seeder
 {
+    /**
+     * Run the database seeds.
+     */
     public function run(): void
     {
-        // Pulizia/Migrazione vecchi dati se il seeder viene lanciato senza refresh
-        \App\Models\Category::where('slug', 'animazione-teen-party')->update([
-            'slug' => 'giochi-e-intrattenimento',
-            'name' => 'Giochi e Intrattenimento'
-        ]);
+        // Disattiva tutte le categorie esistenti per non creare conflitti (soft "delete" operativo)
+        Category::query()->update(['is_active' => false]);
 
-        \App\Models\Offering::whereIn('name', [
-            'DJ set con animatore',
-            'DJ set personalizzato',
-            'DJ corporate',
-            'DJ set',
-            'DJ matrimonio'
-        ])->delete();
-
-        $macros = [
-            'Animazione Bambini',
-            'Giochi e Intrattenimento',
-            'Animazione Adulti - Feste Private',
-            'Addio al Celibato / Nubilato',
-            'Eventi Aziendali',
-            'Compleanni Adulti',
-            'Matrimoni ed Eventi Eleganti',
-            'Servizi di Supporto',
-            'Format Premium / Esperienze Esclusive',
-            'Artisti',
-            'Ristoranti',
+        $categories = [
+            ['name' => 'Artisti e Performer', 'slug' => 'artisti-e-performer'],
+            ['name' => 'Spettacoli per Adulti', 'slug' => 'spettacoli-per-adulti'],
+            ['name' => 'Hostess, Modelle e Promoter', 'slug' => 'hostess-modelle-e-promoter'],
+            ['name' => 'Fotografia e Video', 'slug' => 'fotografia-e-video'],
+            ['name' => 'Location', 'slug' => 'location'],
+            ['name' => 'Food & Beverage', 'slug' => 'food-beverage'],
+            ['name' => 'Trasporti e Noleggi', 'slug' => 'trasporti-e-noleggi'],
+            ['name' => 'Allestimenti e Service', 'slug' => 'allestimenti-e-service'],
+            ['name' => 'Organizzazione Eventi', 'slug' => 'organizzazione-eventi'],
+            ['name' => 'Esperienze e Attività', 'slug' => 'esperienze-e-attivita'],
+            ['name' => 'Benessere e Beauty', 'slug' => 'benessere-e-beauty'],
+            ['name' => 'Servizi Professionali', 'slug' => 'servizi-professionali'],
         ];
 
-        $order = 10;
-
-        foreach ($macros as $name) {
+        $sort = 10;
+        foreach ($categories as $cat) {
             Category::updateOrCreate(
-                ['slug' => Str::slug($name)],
+                ['slug' => $cat['slug']],
                 [
-                    'name' => $name,
+                    'name' => $cat['name'],
                     'is_active' => true,
-                    'sort_order' => $order,
+                    'sort_order' => $sort,
                 ]
             );
-
-            $order += 10;
+            $sort += 10;
         }
+
+        $this->command->info('Categorie macro attivate con successo (12 record).');
     }
 }
