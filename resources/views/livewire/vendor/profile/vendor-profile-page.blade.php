@@ -86,13 +86,14 @@
                 </span>
             </div>
 
-            <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                     <label class="text-sm text-slate-600">Status</label>
-                    <select class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-                            wire:model="form.status" @disabled(!$canEditNow)>
+                    <select class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400 disabled:opacity-50"
+                            wire:model="form.status" disabled>
                         <option value="ACTIVE">Attivo</option>
                         <option value="INACTIVE">Inattivo</option>
+                        <option value="PENDING">In Attesa</option>
                     </select>
                     @error('form.status') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
                 </div>
@@ -108,6 +109,16 @@
                 </div>
 
                 <div>
+                    <label class="text-sm text-slate-600">Modalità Prenotazione</label>
+                    <select class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                            wire:model="form.booking_capacity_mode" @disabled(!$canEditNow)>
+                        <option value="single_resource">Risorsa Singola</option>
+                        <option value="multiple_by_offering">Multipla per Servizio</option>
+                    </select>
+                    @error('form.booking_capacity_mode') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                </div>
+
+                <div>
                     <label class="text-sm text-slate-600">Categoria</label>
                     <select class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                             wire:model="form.category_id" @disabled(!$canEditNow)>
@@ -120,29 +131,30 @@
                 </div>
             </div>
 
-                <div class="mt-6 border-t border-slate-200 pt-6">
-                    <h3 class="text-sm font-semibold text-slate-900 mb-1">Tipi di Evento gestiti</h3>
-                    <p class="text-xs text-amber-600 font-medium mb-3">Puoi selezionare una o più opzioni.</p>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                        @foreach($eventTypes as $et)
-                            <label class="flex items-start gap-3 p-3 rounded-lg border {{ in_array($et->id, $form['event_type_ids'] ?? []) ? 'border-primary-200 bg-primary-50' : 'border-slate-200 hover:bg-slate-50' }} transition cursor-pointer">
-                                <div class="flex items-center h-5">
-                                    <input type="checkbox" 
-                                           wire:model="form.event_type_ids"
-                                           value="{{ $et->id }}"
-                                           class="w-4 h-4 text-primary-600 border-slate-300 rounded focus:ring-primary-500"
-                                           @disabled(!$canEditNow)>
-                                </div>
-                                <div class="flex flex-col">
-                                    <span class="text-sm font-medium text-slate-900">{{ $et->name }}</span>
-                                </div>
-                            </label>
-                        @endforeach
-                    </div>
-                </div>
+            <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500 space-y-2">
+                <p><strong>Modalità Prenotazione:</strong> Seleziona <strong>Risorsa Singola</strong> se puoi coprire un solo evento per fascia oraria (es. DJ o Fotografo). Seleziona <strong>Molteplici per Servizio</strong> se puoi gestire più prenotazioni contemporanee in base ai tuoi servizi o prodotti (es. noleggio auto, noleggio attrezzature).</p>
+                <p>La modalità di servizio (In Sede / Mobile) e il raggio operativo vengono configurati nei singoli servizi.</p>
+            </div>
 
-            <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                La modalità di servizio e il raggio operativo vengono configurati nei singoli servizi del vendor.
+            <div class="mt-6 border-t border-slate-200 pt-6">
+                <h3 class="text-sm font-semibold text-slate-900 mb-1">Tipi di Evento gestiti</h3>
+                <p class="text-xs text-amber-600 font-medium mb-3">Puoi selezionare una o più opzioni.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    @foreach($eventTypes as $et)
+                        <label class="flex items-start gap-3 p-3 rounded-lg border {{ in_array($et->id, $form['event_type_ids'] ?? []) ? 'border-primary-200 bg-primary-50' : 'border-slate-200 hover:bg-slate-50' }} transition cursor-pointer">
+                            <div class="flex items-center h-5">
+                                <input type="checkbox" 
+                                        wire:model="form.event_type_ids"
+                                        value="{{ $et->id }}"
+                                        class="w-4 h-4 text-primary-600 border-slate-300 rounded focus:ring-primary-500"
+                                        @disabled(!$canEditNow)>
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-sm font-medium text-slate-900">{{ $et->name }}</span>
+                            </div>
+                        </label>
+                    @endforeach
+                </div>
             </div>
         </div>
 

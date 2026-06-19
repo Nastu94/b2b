@@ -31,6 +31,7 @@ class CreateNewUser implements CreatesNewUsers
 
             // Vendor core
             'account_type' => ['required', Rule::in(['COMPANY', 'PRIVATE'])],
+            'booking_capacity_mode' => ['required', Rule::in(['single_resource', 'multiple_by_offering'])],
             'category_id' => ['required', 'integer', 'exists:categories,id'],
             'event_type_ids' => ['required', 'array', 'min:1'],
             'event_type_ids.*' => ['integer', 'exists:event_types,id'],
@@ -116,6 +117,7 @@ class CreateNewUser implements CreatesNewUsers
             'user_id' => $user->id,
             'category_id' => (int) $input['category_id'],
             'account_type' => $input['account_type'],
+            'booking_capacity_mode' => $input['booking_capacity_mode'],
             
             'first_name' => $input['account_type'] === 'PRIVATE' ? ($input['first_name'] ?? null) : null,
             'last_name' => $input['account_type'] === 'PRIVATE' ? ($input['last_name'] ?? null) : null,

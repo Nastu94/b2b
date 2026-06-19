@@ -52,6 +52,7 @@ class CreateVendorService
 
                 // Campi vendor dal form
                 'account_type' => $data['account_type'] ?? null,
+                'booking_capacity_mode' => $data['booking_capacity_mode'] ?? VendorAccount::BOOKING_SINGLE_RESOURCE,
 
                 'company_name' => $data['company_name'] ?? null,
                 'legal_entity_type' => $data['legal_entity_type'] ?? null,

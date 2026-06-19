@@ -169,6 +169,14 @@ class DemoVendorsSeeder extends Seeder
                 ]
             );
 
+            // Assegna ruolo e permessi se non li ha
+            if (!$user->hasRole('vendor')) {
+                $user->assignRole('vendor');
+            }
+            if (!$user->hasPermissionTo('vendor.access')) {
+                $user->givePermissionTo('vendor.access');
+            }
+
             // 2. Vendor Account
             $vendor = VendorAccount::updateOrCreate(
                 ['user_id' => $user->id],
@@ -221,6 +229,41 @@ class DemoVendorsSeeder extends Seeder
                     );
                 } else {
                     $this->command->warn("Offering '{$data['offering']}' non trovato per il vendor {$data['name']}.");
+                }
+            }
+            // 4. Slots e Weekly Schedule
+            $slotsData = [
+                ['slug' => 'mattina', 'label' => 'Mattina', 'start' => '09:00:00', 'end' => '13:00:00', 'sort' => 2],
+                ['slug' => 'pomeriggio', 'label' => 'Pomeriggio', 'start' => '14:00:00', 'end' => '20:00:00', 'sort' => 3],
+                ['slug' => 'sera', 'label' => 'Sera', 'start' => '20:00:00', 'end' => '23:00:00', 'sort' => 4],
+            ];
+
+            foreach ($slotsData as $slotData) {
+                $slot = \App\Models\VendorSlot::updateOrCreate(
+                    [
+                        'vendor_account_id' => $vendor->id,
+                        'slug' => $slotData['slug']
+                    ],
+                    [
+                        'label' => $slotData['label'],
+                        'start_time' => $slotData['start'],
+                        'end_time' => $slotData['end'],
+                        'sort_order' => $slotData['sort'],
+                        'is_active' => true,
+                    ]
+                );
+
+                for ($day = 0; $day <= 6; $day++) {
+                    \App\Models\VendorWeeklySchedule::updateOrCreate(
+                        [
+                            'vendor_account_id' => $vendor->id,
+                            'vendor_slot_id' => $slot->id,
+                            'day_of_week' => $day,
+                        ],
+                        [
+                            'is_open' => true,
+                        ]
+                    );
                 }
             }
         }

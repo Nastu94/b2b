@@ -59,6 +59,7 @@ class VendorProfilePage extends Component
         $this->form = [
             'status' => $vendorAccount->status,
             'account_type' => $vendorAccount->account_type,
+            'booking_capacity_mode' => $vendorAccount->booking_capacity_mode,
             'category_id' => $vendorAccount->category_id,
             'event_type_ids' => $vendorAccount->eventTypes->pluck('id')->all(),
 
@@ -132,6 +133,7 @@ class VendorProfilePage extends Component
             'profile_image' => ['nullable', 'image', 'max:5120'],
             'form.status' => ['required', 'in:ACTIVE,INACTIVE'],
             'form.account_type' => ['required', 'in:COMPANY,PRIVATE'],
+            'form.booking_capacity_mode' => ['required', 'in:single_resource,multiple_by_offering'],
             'form.category_id' => ['nullable', 'integer', 'exists:categories,id'],
             'form.event_type_ids' => ['nullable', 'array'],
             'form.event_type_ids.*' => ['integer', 'exists:event_types,id'],
@@ -183,6 +185,7 @@ class VendorProfilePage extends Component
             'status' => $this->form['status'],
             'category_id' => $this->form['category_id'],
             'account_type' => $this->form['account_type'],
+            'booking_capacity_mode' => $this->form['booking_capacity_mode'],
 
             'company_name' => $this->form['company_name'],
             'legal_entity_type' => $this->form['legal_entity_type'],

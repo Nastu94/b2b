@@ -47,6 +47,13 @@ class SlotController extends Controller
         $guests = array_key_exists('guests', $validated) ? (int) $validated['guests'] : null;
 
         try {
+            $vendorAccount = \App\Models\VendorAccount::findOrFail($vendorAccountId);
+            $bookingCapacityMode = $vendorAccount->bookingCapacityMode();
+
+            if ($bookingCapacityMode === \App\Models\VendorAccount::BOOKING_MULTIPLE_BY_OFFERING && empty($offeringId)) {
+                return $this->unprocessable('L\'offering_id è obbligatorio per questa modalità di prenotazione');
+            }
+
             $this->resolveVendorSlot($vendorAccountId, $vendorSlotId);
             $profile = $this->resolveOfferingProfile($vendorAccountId, $offeringId);
 
@@ -56,11 +63,13 @@ class SlotController extends Controller
 
             $now = CarbonImmutable::now();
             
+            $activeSlotKey = SlotLock::makeActiveSlotKey($vendorAccountId, $vendorSlotId, $date, $bookingCapacityMode, $offeringId);
+
             // Pre-check idempotente fuori transazione.
             // Se la richiesta combacia col fingerprint di un lock attivo, stiamo di fronte a un replay.
             // Il bypass permette alla richiesta di scendere nella DB::transaction dove avverrà il fetch protetto (lockForUpdate).
             $existingLock = SlotLock::query()
-                ->forSlot($vendorAccountId, $vendorSlotId, $date)
+                ->where('active_slot_key', $activeSlotKey)
                 ->active()
                 ->first();
 
@@ -96,13 +105,14 @@ class SlotController extends Controller
                 $date,
                 $distanceKm,
                 $guests,
+                $activeSlotKey,
                 $bookingPricingService
             ): JsonResponse {
                 $now = CarbonImmutable::now();
                 $expiresAt = $now->addMinutes(self::HOLD_TTL_MINUTES);
 
                 $activeLock = SlotLock::query()
-                    ->forSlot($vendorAccountId, $vendorSlotId, $date)
+                    ->where('active_slot_key', $activeSlotKey)
                     ->active()
                     ->lockForUpdate()
                     ->first();
@@ -156,11 +166,7 @@ class SlotController extends Controller
                         'hold_token'        => (string) Str::uuid(),
                         'expires_at'        => $expiresAt,
                         'is_active'         => true,
-                        'active_slot_key'   => SlotLock::makeActiveSlotKey(
-                            $vendorAccountId,
-                            $vendorSlotId,
-                            $date
-                        ),
+                        'active_slot_key'   => $activeSlotKey,
                     ]);
                 } catch (QueryException $e) {
                     if ($this->isUniqueConstraintViolation($e)) {

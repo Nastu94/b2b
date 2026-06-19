@@ -93,6 +93,15 @@
                                 </div>
                             </div>
 
+                            <div class="md:col-span-1">
+                                <x-label for="booking_capacity_mode" value="Modalità Prenotazione" />
+                                <select id="booking_capacity_mode" name="booking_capacity_mode"
+                                    class="block mt-1 w-full border-gray-300 rounded-md shadow-sm focus:border-slate-400 focus:ring-slate-400">
+                                    <option value="single_resource" {{ old('booking_capacity_mode') === 'single_resource' ? 'selected' : '' }}>Risorsa Singola</option>
+                                    <option value="multiple_by_offering" {{ old('booking_capacity_mode') === 'multiple_by_offering' ? 'selected' : '' }}>Molteplici per Servizio</option>
+                                </select>
+                            </div>
+
                             <div class="md:col-span-2">
                                 <x-label for="category_id" value="Categoria Servizio" />
                                 <select id="category_id" name="category_id"
@@ -105,6 +114,11 @@
                                     @endforeach
                                 </select>
                             </div>
+                        </div>
+
+                        <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500 space-y-2">
+                            <p><strong>Modalità Prenotazione:</strong> Seleziona <strong>Risorsa Singola</strong> se puoi coprire un solo evento per fascia oraria (es. DJ o Fotografo). Seleziona <strong>Molteplici per Servizio</strong> se puoi gestire più prenotazioni contemporanee in base ai tuoi servizi o prodotti (es. noleggio auto, noleggio attrezzature).</p>
+                            <p>La modalità di servizio (In Sede / Mobile) e il raggio operativo verranno configurati successivamente nei singoli servizi.</p>
                         </div>
 
                         <div class="mt-6 border-t border-gray-100 pt-5">
@@ -132,10 +146,6 @@
                             <input id="profile_image" type="file" name="profile_image" accept="image/*"
                                 class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100 border border-gray-200 rounded-md p-2" />
                             <p class="mt-1 text-xs text-gray-500">Questa immagine verrà mostrata sulla tua Vetrina PrestaShop.</p>
-                        </div>
-
-                        <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-                            La modalità di servizio e il raggio operativo verranno configurati successivamente nei singoli servizi del vendor.
                         </div>
                     </div>
 
