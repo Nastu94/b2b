@@ -70,6 +70,22 @@
                     <x-app-icon name="calendar-days" class="w-5 h-5" />
                     <span>Prenotazioni</span>
                 </a>
+
+                <a href="{{ route('vendor.conversations') }}"
+                    class="pl-sidebar-link {{ $is('vendor.conversations') || $is('vendor.conversations.show') ? 'pl-sidebar-link-active' : '' }} flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <x-app-icon name="chat-bubble-left-right" class="w-5 h-5" />
+                        <span>Messaggi</span>
+                    </div>
+                    @php
+                        $unreadConversationsCount = \App\Models\ConversationThread::where('vendor_account_id', auth()->user()->vendorAccount->id)
+                            ->where('vendor_unread_count', '>', 0)
+                            ->count();
+                    @endphp
+                    @if($unreadConversationsCount > 0)
+                        <span class="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{{ $unreadConversationsCount }}</span>
+                    @endif
+                </a>
             </nav>
 
             {{-- User box --}}

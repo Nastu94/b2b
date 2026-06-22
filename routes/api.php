@@ -45,5 +45,13 @@ Route::middleware('booking.bridge')->group(function () {
 
         // Libera lo slot manuale o timeout
         Route::post('/slots/release', [SlotController::class, 'release']);
+
+        // API Conversazioni
+        Route::post('/conversations/start', [\App\Http\Controllers\Api\ConversationController::class, 'start']);
+        Route::get('/conversations/{conversation}/messages', [\App\Http\Controllers\Api\ConversationController::class, 'messages']);
+        Route::post('/conversations/{conversation}/messages', [\App\Http\Controllers\Api\ConversationController::class, 'storeMessage']);
+        Route::post('/conversations/{conversation}/read', [\App\Http\Controllers\Api\ConversationController::class, 'markAsRead']);
+        Route::get('/conversations/by-token/{token}', [\App\Http\Controllers\Api\ConversationController::class, 'getByToken']);
+        Route::get('/conversations/unread', [\App\Http\Controllers\Api\ConversationController::class, 'unreadCount']);
     });
 });

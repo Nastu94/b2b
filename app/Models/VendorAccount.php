@@ -201,6 +201,11 @@ class VendorAccount extends Model
         return $this->hasMany(Booking::class);
     }
 
+    public function conversationThreads(): HasMany
+    {
+        return $this->hasMany(ConversationThread::class);
+    }
+
     /**
      * Relazione con i listini base del vendor.
      */

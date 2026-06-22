@@ -104,6 +104,8 @@ Route::middleware([
             Route::get('/billing', VendorBillingPage::class)->name('billing');
             Route::get('/bookings', VendorBookingsTabs::class)->name('bookings');
             Route::get('/bookings/{booking}', VendorBookingShowPage::class)->name('bookings.show');
+            Route::get('/conversations', \App\Livewire\Vendor\Conversations\VendorConversationsList::class)->name('conversations');
+            Route::get('/conversations/{conversation}', \App\Livewire\Vendor\Conversations\VendorConversationShow::class)->name('conversations.show');
         });
 
     // Admin area
@@ -118,5 +120,7 @@ Route::middleware([
             Route::get('/bookings', AdminBookingsTabs::class)->name('bookings');
             Route::get('/bookings/{booking}', AdminBookingShowPage::class)->name('bookings.show');
             Route::get('/billing', \App\Livewire\Admin\Billing\AdminBillingPage::class)->name('billing');
+            Route::get('/conversations', \App\Livewire\Admin\Conversations\AdminConversationsList::class)->name('conversations');
+            Route::get('/conversations/{conversation}', \App\Livewire\Admin\Conversations\AdminConversationShow::class)->name('conversations.show');
         });
 });

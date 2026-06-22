@@ -59,4 +59,9 @@ class Offering extends Model
     {
         return $this->belongsTo(VendorAccount::class, 'created_by_vendor_account_id');
     }
+
+    public function conversationThreads()
+    {
+        return $this->hasMany(ConversationThread::class);
+    }
 }
