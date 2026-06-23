@@ -18,20 +18,20 @@ class PurgeFakeVendorsAndEnsureAdminSeeder extends Seeder
     {
         // 1. Delete fake vendors by explicit email list
         $fakeEmails = [
-           'mario.rossi@partylegacy.it',
-            'luca.bianchi@partylegacy.it',
-            'giuseppe.verdi@partylegacy.it',
-            'antonio.greco@partylegacy.it',
-            'francesca.romano@partylegacy.it',
-            'alessandro.ferrara@partylegacy.it',
-            'valentina.esposito@partylegacy.it',
-            'marco.santoro@partylegacy.it',
-            'claudia.marino@partylegacy.it',
-            'david.guetta@partylegacy.it',
-            'ristorante.baia@partylegacy.it',
-            'all.you.can.eat@partylegacy.it',
             'admin@admin.it',
             'test-vendor-pending@example.com',
+            'demo.dj@partylegacy.it',
+            'demo.burlesque@partylegacy.it',
+            'demo.hostess@partylegacy.it',
+            'demo.fotografia@partylegacy.it',
+            'demo.location@partylegacy.it',
+            'demo.catering@partylegacy.it',
+            'demo.limousine@partylegacy.it',
+            'demo.service@partylegacy.it',
+            'demo.planner@partylegacy.it',
+            'demo.tour@partylegacy.it',
+            'demo.beauty@partylegacy.it',
+            'demo.security@partylegacy.it',
         ];
 
         if (!empty($fakeEmails)) {
