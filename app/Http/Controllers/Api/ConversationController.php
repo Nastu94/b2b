@@ -121,6 +121,10 @@ class ConversationController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized to send message'], 403);
         }
 
+        if ($conversation->status !== 'open') {
+            return response()->json(['success' => false, 'message' => 'Conversation is not open'], 403);
+        }
+
         $msg = $this->createMessage($conversation, $validated['message'], 'customer', $validated['prestashop_customer_id']);
 
         $conversation->update([
@@ -147,8 +151,14 @@ class ConversationController extends Controller
 
     public function markAsRead(Request $request, \App\Models\ConversationThread $conversation)
     {
+        $customerId = $request->input('prestashop_customer_id');
+
+        if (!$customerId || (int)$customerId !== (int)$conversation->prestashop_customer_id) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
+        }
+
         $type = $request->input('user_type', 'customer');
-        if ($type === 'customer') {
+        if ($type === 'customer' && $conversation->customer_unread_count > 0) {
             $conversation->update(['customer_unread_count' => 0]);
         }
 
@@ -165,6 +175,45 @@ class ConversationController extends Controller
         }
 
         return response()->json(['success' => true, 'unread_count' => $count]);
+    }
+
+    public function indexCustomer(Request $request)
+    {
+        $customerId = $request->input('prestashop_customer_id');
+
+        if (!$customerId) {
+            return response()->json(['success' => false, 'message' => 'Missing customer ID'], 400);
+        }
+
+        $threads = \App\Models\ConversationThread::with(['vendorAccount' => function($q) {
+                $q->select('id', 'company_name', 'profile_image_path');
+            }, 'offering' => function($q) {
+                $q->select('id', 'name');
+            }])
+            ->where('prestashop_customer_id', $customerId)
+            ->orderBy('last_message_at', 'desc')
+            ->get();
+
+        $mapped = $threads->map(function ($thread) {
+            $lastMsg = $thread->messages()->latest()->first();
+            return [
+                'conversation_id' => $thread->id,
+                'vendor_id' => $thread->vendor_account_id,
+                'vendor_name' => $thread->vendorAccount ? $thread->vendorAccount->company_name : 'Partner',
+                'vendor_logo' => $thread->vendorAccount && $thread->vendorAccount->profile_image_path ? url('storage/' . $thread->vendorAccount->profile_image_path) : null,
+                'offering_id' => $thread->offering_id,
+                'offering_title' => $thread->offering ? $thread->offering->name : null,
+                'last_message' => $lastMsg ? \Illuminate\Support\Str::limit($lastMsg->body_filtered ?? $lastMsg->body_original, 50) : null,
+                'last_message_at' => $thread->last_message_at ? $thread->last_message_at->toIso8601String() : null,
+                'unread_count' => $thread->customer_unread_count,
+                'status' => $thread->status,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'conversations' => $mapped
+        ]);
     }
 
     protected function createMessage(\App\Models\ConversationThread $thread, string $text, string $senderType, $senderId = null)
