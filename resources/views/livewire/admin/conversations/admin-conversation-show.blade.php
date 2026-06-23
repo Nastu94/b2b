@@ -4,7 +4,7 @@
         <div class="mb-4 flex justify-between items-center">
             <div>
                 <a href="{{ route('admin.conversations') }}" class="text-slate-600 hover:text-slate-900">&larr; Torna alle conversazioni</a>
-                <h1 class="text-2xl font-semibold text-gray-900 mt-2">Chat: {{ $conversation->vendorAccount->company_name ?? 'Vendor' }} vs {{ $conversation->guest_name ?? 'Cliente' }}</h1>
+                <h1 class="text-2xl font-semibold text-gray-900 mt-2">Chat: {{ $conversation->vendorAccount->company_name ?? 'Vendor' }} vs {{ $conversation->customer_name ?? 'Cliente' }}</h1>
                 <p class="text-sm text-gray-500">
                     Servizio: {{ $conversation->offering ? $conversation->offering->name : 'N/A' }} | 
                     Booking: {{ $conversation->booking_id ?? 'N/A' }}

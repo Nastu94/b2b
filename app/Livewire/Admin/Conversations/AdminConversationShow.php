@@ -48,8 +48,8 @@ class AdminConversationShow extends Component
             'last_message_at' => now(),
         ]);
 
-        if ($this->conversation->guest_email) {
-            \Illuminate\Support\Facades\Mail::to($this->conversation->guest_email)
+        if ($this->conversation->customer_email) {
+            \Illuminate\Support\Facades\Mail::to($this->conversation->customer_email)
                 ->queue(new \App\Mail\NewConversationMessageCustomerMail($this->conversation));
         }
 

@@ -10,7 +10,7 @@
                             <div class="px-4 py-4 sm:px-6 flex items-center justify-between">
                                 <div class="flex flex-col">
                                     <p class="text-sm font-medium text-slate-600 truncate">
-                                        {{ $conversation->guest_name ?? 'Cliente PrestaShop' }}
+                                        {{ $conversation->customer_name ?? 'Cliente PrestaShop' }}
                                         @if($conversation->vendor_unread_count > 0)
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                                 {{ $conversation->vendor_unread_count }} Nuovi

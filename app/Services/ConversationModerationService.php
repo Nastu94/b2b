@@ -24,7 +24,9 @@ class ConversationModerationService
             'telegram' => '/(?i)(telegram|t\.me)/',
             'instagram' => '/(?i)(instagram|\b(ig|insta)\b)/',
             'facebook' => '/(?i)(facebook|\bfb\b)/',
-            'tiktok' => '/(?i)(tiktok|\btt\b)/'
+            'tiktok' => '/(?i)(tiktok|\btt\b)/',
+            'email_word' => '/(?i)\b(email|e-mail|mail|chiocciola)\b/',
+            'phone_word' => '/(?i)\b(numero|cellulare|telefono|cell)\b/'
         ];
 
         foreach ($patterns as $type => $pattern) {

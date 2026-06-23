@@ -3,7 +3,7 @@
         
         <div class="mb-4">
             <a href="{{ route('vendor.conversations') }}" class="text-slate-600 hover:text-slate-900">&larr; Torna alle conversazioni</a>
-            <h1 class="text-2xl font-semibold text-gray-900 mt-2">Chat con {{ $conversation->guest_name ?? 'Cliente PrestaShop' }}</h1>
+            <h1 class="text-2xl font-semibold text-gray-900 mt-2">Chat con {{ $conversation->customer_name ?? 'Cliente PrestaShop' }}</h1>
             @if($conversation->offering)
                 <p class="text-sm text-gray-500">Servizio: {{ $conversation->offering->name }}</p>
             @endif

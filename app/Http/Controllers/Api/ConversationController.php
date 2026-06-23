@@ -22,6 +22,8 @@ class ConversationController extends Controller
             'offering_id' => 'nullable|exists:offerings,id',
             'booking_id' => 'nullable|exists:bookings,id',
             'prestashop_customer_id' => 'required|integer',
+            'customer_name' => 'nullable|string',
+            'customer_email' => 'nullable|email',
             'message' => 'required|string',
             'source' => 'nullable|string'
         ]);
@@ -61,6 +63,8 @@ class ConversationController extends Controller
             'offering_id' => $validated['offering_id'] ?? null,
             'booking_id' => $validated['booking_id'] ?? null,
             'prestashop_customer_id' => $validated['prestashop_customer_id'],
+            'customer_name' => $validated['customer_name'] ?? null,
+            'customer_email' => $validated['customer_email'] ?? null,
             'source' => $validated['source'] ?? 'prestashop',
             'status' => 'open',
             'vendor_unread_count' => 1,
