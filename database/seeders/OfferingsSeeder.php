@@ -2,139 +2,90 @@
 
 namespace Database\Seeders;
 
+use Illuminate\Database\Seeder;
 use App\Models\Category;
 use App\Models\Offering;
-use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 class OfferingsSeeder extends Seeder
 {
+    /**
+     * Run the database seeds.
+     */
     public function run(): void
     {
-        $catalog = [
-            'Animazione Bambini' => [
-                'Animatore / Truccabimbi',
-                'Sculture di palloncini',
-                'Baby dance e giochi di gruppo',
-                'Caccia al tesoro',
-                'Mascotte a tema',
-                'Spettacolo di magia',
-                'Teatro dei burattini',
-                'Laboratori creativi (slime, cucina, arte)',
-                'Feste a tema personalizzate',
-                'Mini escape room',
-                'Gonfiabili e strutture ludiche',
-                'Bolle giganti e spettacoli interattivi',
+        // Disattiva tutte le offering esistenti per non creare conflitti
+        Offering::query()->update(['is_active' => false]);
+
+        $offeringsData = [
+            'artisti-e-performer' => [
+                'DJ', 'Cantanti', 'Musicisti', 'Band', 'Animatori', 'Cabarettisti', 'Maghi', 'Artisti di strada'
             ],
-            'Giochi e Intrattenimento' => [
-                'Karaoke',
-                'Silent disco',
-                'Schiuma party',
-                'Glow / Neon party',
-                'Pool party',
-                'Talent show',
-                'Laser game',
-                'Tornei PlayStation e Just Dance',
+            'spettacoli-per-adulti' => [
+                'Spogliarellisti', 'Spogliarelliste', 'Burlesque', 'Pole Dance', 'Intrattenimento per addii al celibato e nubilato'
             ],
-            'Animazione Adulti - Feste Private' => [
-                'Live band',
-                'Sax / Violino elettrico con DJ',
-                'Percussionista live',
-                'Spogliarellista uomo/donna',
-                'Burlesque',
-                'Drag queen show',
-                'Cabaret e mentalista',
-                'Danza del ventre',
-                'Casino night',
-                'Cena con delitto',
+            'hostess-modelle-e-promoter' => [
+                'Hostess eventi', 'Steward', 'Modelle', 'Promoter'
             ],
-            'Addio al Celibato / Nubilato' => [
-                'Spogliarellista personalizzato',
-                'Show su misura per festeggiato/a',
-                'Limousine / Limobus / Bus inglese',
-                'Luxury bus',
-                'Yacht party',
-                'Cena con spettacolo',
-                'Apericena + show',
-                'Caccia al tesoro urbana',
-                'Corso pole dance / lap dance',
-                'Corso di cocktail',
+            'fotografia-e-video' => [
+                'Fotografi', 'Videomaker', 'Drone operator', 'Photo booth', '360 booth'
             ],
-            'Eventi Aziendali' => [
-                'Presentatore / Speaker',
-                'Live band elegante',
-                'Performer LED',
-                'Magician corporate',
-                'Team building (cooking challenge, escape room, quiz)',
-                'Photo booth / 360° booth',
-                'Simulatori VR / F1',
-                'Allestimenti personalizzati',
+            'location' => [
+                'Ville', 'Sale eventi', 'Loft', 'Rooftop', 'Agriturismi', 'Hotel', 'Discoteche', 'Beach club'
             ],
-            'Compleanni Adulti' => [
-                'Karaoke party',
-                'Pool party',
-                'Dinner show',
-                'Party in villa',
-                'Noleggio sala privata',
+            'food-beverage' => [
+                'Catering', 'Chef privati', 'Bartender', 'Open bar', 'Cake designer'
             ],
-            'Matrimoni ed Eventi Eleganti' => [
-                'Musica live cerimonia',
-                'Animazione bambini matrimonio',
-                'Effetti speciali (fumo basso, fontane fredde)',
-                'Sparkular',
-                'Led wall',
-                'Open bar show',
+            'trasporti-e-noleggi' => [
+                'NCC', 'Limousine', 'Party Bus', 'Auto sportive', "Auto d'epoca", 'Yacht e barche'
             ],
-            'Servizi di Supporto' => [
-                'Noleggio impianto audio',
-                'Noleggio luci',
-                'Noleggio palco',
-                'Allestimenti scenografici',
-                'Effetti speciali (neve, fumo, bolle)',
-                'Torte personalizzate',
-                'Security',
-                'Hostess e steward',
+            'allestimenti-e-service' => [
+                'Service audio', 'Service luci', 'Ledwall', 'Palchi', 'Decorazioni', 'Balloon art', 'Flower design'
             ],
-            'Format Premium / Esperienze Esclusive' => [
-                'Party in villa privata',
-                'Party su yacht',
-                'Rooftop party',
-                'Beach party',
-                'Evento in discoteca riservata',
-                'Secret party location',
+            'organizzazione-eventi' => [
+                'Event Planner', 'Wedding Planner', 'Party Planner', 'Coordinatori eventi'
             ],
-            'Artisti' => [
-                'DJ',
+            'esperienze-e-attivita' => [
+                'Tour', 'Escursioni', 'Attività sportive', 'Team building', 'Esperienze adrenaliniche'
             ],
-            'Ristoranti' => [
-                'Menu Pesce',
-                'Menu carne',
-                'Menu vegetariano',
-                'Catering',
-                'Menu all you can eat',
+            'benessere-e-beauty' => [
+                'Make-up artist', 'Hair stylist', 'Estetiste', 'Massaggiatori'
             ],
+            'servizi-professionali' => [
+                'Sicurezza privata', 'Vigilanza', 'Traduttori', 'Personale di supporto'
+            ]
         ];
 
-        foreach ($catalog as $categoryName => $offers) {
-            $category = Category::where('slug', Str::slug($categoryName))->firstOrFail();
+        $totalAdded = 0;
 
-            $sort = 10;
+        foreach ($offeringsData as $categorySlug => $offerings) {
+            $category = Category::where('slug', $categorySlug)->first();
+            
+            if (!$category) {
+                $this->command->warn("Categoria non trovata: {$categorySlug}");
+                continue;
+            }
 
-            foreach ($offers as $offerName) {
-                $slug = Str::slug($categoryName . ' ' . $offerName);
+            foreach ($offerings as $index => $offeringName) {
+                $offeringSlug = Str::slug($offeringName);
+                $fullSlug = "{$categorySlug}-{$offeringSlug}";
 
                 Offering::updateOrCreate(
-                    ['slug' => $slug],
+                    ['slug' => $fullSlug],
                     [
                         'category_id' => $category->id,
-                        'name' => $offerName,
+                        'name' => $offeringName,
                         'is_active' => true,
-                        'sort_order' => $sort,
+                        'sort_order' => ($index + 1) * 10,
+                        'status' => Offering::STATUS_APPROVED,
+                        'is_custom' => false,
                     ]
                 );
-
-                $sort += 10;
+                
+                $totalAdded++;
             }
         }
+
+        $this->command->info("Creati/Aggiornati {$totalAdded} offerings attivi.");
     }
 }

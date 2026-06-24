@@ -28,6 +28,7 @@ class VendorCreatePage extends Component
 
         // tipo + categoria
         'account_type' => 'COMPANY',
+        'booking_capacity_mode' => 'single_resource',
         'category_id' => null,
         'event_type_ids' => [],
 
@@ -119,6 +120,7 @@ class VendorCreatePage extends Component
 
             // tipo + categoria
             'form.account_type' => ['required', Rule::in(['COMPANY', 'PRIVATE'])],
+            'form.booking_capacity_mode' => ['required', Rule::in(['single_resource', 'multiple_by_offering'])],
             'form.category_id' => ['required', 'integer', 'exists:categories,id'],
             'form.event_type_ids' => ['nullable', 'array'],
             'form.event_type_ids.*' => ['integer', 'exists:event_types,id'],

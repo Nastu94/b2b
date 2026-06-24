@@ -59,6 +59,7 @@ class VendorAnagraficaTab extends Component
 
         $this->form = [
             'status' => $this->vendorAccount->status,
+            'booking_capacity_mode' => $this->vendorAccount->booking_capacity_mode ?? 'single_resource',
             'account_type' => $this->vendorAccount->account_type,
             'category_id' => $this->vendorAccount->category_id,
             'event_type_ids' => $this->vendorAccount->eventTypes->pluck('id')->all(),
@@ -119,6 +120,7 @@ class VendorAnagraficaTab extends Component
         $rules = [
             'profile_image' => ['nullable', 'image', 'max:5120'],
             'form.status' => ['required', 'in:PENDING,ACTIVE,INACTIVE'],
+            'form.booking_capacity_mode' => ['required', 'in:single_resource,multiple_by_offering'],
             'form.account_type' => ['required', 'in:COMPANY,PRIVATE'],
             'form.category_id' => ['nullable', 'integer', 'exists:categories,id'],
             'form.event_type_ids' => ['nullable', 'array'],
@@ -171,6 +173,7 @@ class VendorAnagraficaTab extends Component
 
         $this->vendorAccount->fill([
             'status' => $this->form['status'],
+            'booking_capacity_mode' => $this->form['booking_capacity_mode'],
             'category_id' => $this->form['category_id'],
             'account_type' => $this->form['account_type'],
 
@@ -227,6 +230,7 @@ class VendorAnagraficaTab extends Component
 
         $this->form = [
             'status' => $this->vendorAccount->status,
+            'booking_capacity_mode' => $this->vendorAccount->booking_capacity_mode ?? 'single_resource',
             'account_type' => $this->vendorAccount->account_type,
             'category_id' => $this->vendorAccount->category_id,
             'event_type_ids' => $this->vendorAccount->eventTypes->pluck('id')->all(),

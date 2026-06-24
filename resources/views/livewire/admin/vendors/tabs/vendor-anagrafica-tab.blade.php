@@ -61,7 +61,7 @@
                 </span>
             </div>
 
-            <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                     <label class="text-sm text-slate-600">Status</label>
                     <select class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
@@ -88,6 +88,18 @@
                 </div>
 
                 <div>
+                    <label class="text-sm text-slate-600">Modalità Prenotazione</label>
+                    <select class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
+                        wire:model="form.booking_capacity_mode" @disabled(!$canEditNow)>
+                        <option value="single_resource">Risorsa Singola</option>
+                        <option value="multiple_by_offering">Multipla per Servizio</option>
+                    </select>
+                    @error('form.booking_capacity_mode')
+                        <div class="text-sm text-rose-600 mt-1">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div>
                     <label class="text-sm text-slate-600">Categoria</label>
                     <select class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400"
                         wire:model="form.category_id" @disabled(!$canEditNow)>
@@ -102,8 +114,9 @@
                 </div>
             </div>
 
-            <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                La modalità di servizio e il raggio operativo vengono configurati nei singoli servizi del vendor.
+            <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500 space-y-2">
+                <p><strong>Modalità Prenotazione:</strong> Seleziona <strong>Risorsa Singola</strong> se il vendor può coprire un solo evento per fascia oraria (es. DJ o Fotografo). Seleziona <strong>Molteplici per Servizio</strong> se il vendor può gestire più prenotazioni contemporanee in base ai suoi servizi o prodotti (es. noleggio auto, noleggio attrezzature).</p>
+                <p>La modalità di servizio (In Sede / Mobile) e il raggio operativo vengono configurati nei singoli servizi del vendor.</p>
             </div>
 
             <div class="mt-6 border-t border-slate-200 pt-5">

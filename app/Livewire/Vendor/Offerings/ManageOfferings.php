@@ -242,7 +242,7 @@ class ManageOfferings extends Component
                 'created_by_vendor_account_id' => $vendorAccount->id,
             ]);
 
-            $vendorAccount->offerings()->attach($offering->id, ['is_active' => true]);
+            $vendorAccount->offerings()->attach($offering->id, ['is_active' => false]);
 
             VendorOfferingProfile::create([
                 'vendor_account_id' => $vendorAccount->id,

@@ -32,6 +32,12 @@
                     <span>Dashboard</span>
                 </a>
 
+                <a href="{{ route('admin.approvals') }}"
+                    class="pl-sidebar-link {{ $is('admin.approvals*') ? 'pl-sidebar-link-active' : '' }} flex items-center gap-3">
+                    <x-app-icon name="check-badge" class="w-5 h-5" />
+                    <span>Approvazioni</span>
+                </a>
+
                 <a href="{{ route('admin.bookings') }}"
                     class="pl-sidebar-link {{ $is('admin.bookings*') ? 'pl-sidebar-link-active' : '' }} flex items-center gap-3">
                     <x-app-icon name="calendar-days" class="w-5 h-5" />
@@ -42,6 +48,20 @@
                     class="pl-sidebar-link {{ $is('admin.billing*') ? 'pl-sidebar-link-active' : '' }} flex items-center gap-3">
                     <x-app-icon name="credit-card" class="w-5 h-5" />
                     <span>Abbonamenti</span>
+                </a>
+
+                <a href="{{ route('admin.conversations') }}"
+                    class="pl-sidebar-link {{ $is('admin.conversations*') ? 'pl-sidebar-link-active' : '' }} flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <x-app-icon name="chat-bubble-left-right" class="w-5 h-5" />
+                        <span>Messaggi</span>
+                    </div>
+                    @php
+                        $unreadAdminConversationsCount = \App\Models\ConversationThread::where('admin_unread_count', '>', 0)->count();
+                    @endphp
+                    @if($unreadAdminConversationsCount > 0)
+                        <span class="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{{ $unreadAdminConversationsCount }}</span>
+                    @endif
                 </a>
             </nav>
 
@@ -77,6 +97,7 @@
     </div>
 
     @livewireScripts
+    @include('cookie-consent::index')
 </body>
 
 </html>

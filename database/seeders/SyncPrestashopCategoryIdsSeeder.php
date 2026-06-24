@@ -3,56 +3,43 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use App\Models\Category;
 
 class SyncPrestashopCategoryIdsSeeder extends Seeder
 {
+    /**
+     * Run the database seeds.
+     */
     public function run(): void
     {
-        // ======================================================================================
-        // ISTRUZIONI PER PRODUZIONE
-        // ======================================================================================
-        // Poiché PrestaShop genera automaticamente gli ID delle categorie in modo incrementale,
-        // questi ID saranno diversi su ogni installazione pulita di PrestaShop.
-        // 
-        // COSA FARE:
-        // 1. Crea le categorie su PrestaShop (es. "Animazione Bambini", "Ristoranti", ecc.)
-        // 2. Annota l'ID che PrestaShop ha assegnato a ciascuna categoria.
-        // 3. Aggiorna l'elenco $mapping qui sotto inserendo l'ID corretto accanto al rispettivo slug.
-        // 4. Lancia il seeder: `php artisan db:seed` (o solo per questo file: `php artisan db:seed --class=SyncPrestashopCategoryIdsSeeder`)
-        // ======================================================================================
+        $this->command->info('Sincronizzazione ID PrestaShop fittizi o nulli sulle categorie...');
 
-        // Mapping categorie Laravel (slug) -> PrestaShop category ID
+        // Mappa provvisoria: inserire qui gli ID reali di PrestaShop una volta creati
         $mapping = [
-            'animazione-bambini' => 20,
-            'giochi-e-intrattenimento' => 21,
-            'animazione-adulti-feste-private' => 22,
-            'addio-al-celibato-nubilato' => 23,
-            'eventi-aziendali' => 24,
-            'compleanni-adulti' => 25,
-            'matrimoni-ed-eventi-eleganti' => 26,
-            'servizi-di-supporto' => 27,
-            'format-premium-esperienze-esclusive' => 28,
-            'ristoranti' => 30,
-            'artisti' => 31,
+            'artisti-e-performer' => 32, // Sostituire con l'ID reale
+            'spettacoli-per-adulti' => 33,
+            'hostess-modelle-e-promoter' => 34,
+            'fotografia-e-video' => 35,
+            'location' => 36,
+            'food-beverage' => 37,
+            'trasporti-e-noleggi' => 38,
+            'allestimenti-e-service' => 39,
+            'organizzazione-eventi' => 40,
+            'esperienze-e-attivita' => 41,
+            'benessere-e-beauty' => 42,
+            'servizi-professionali' => 43,
         ];
 
-        // Svuota tutti gli ID esistenti per evitare conflitti di unicità
-        DB::table('categories')->update(['prestashop_category_id' => null]);
-
+        $updatedCats = 0;
         foreach ($mapping as $slug => $prestashopId) {
-            $updated = DB::table('categories')
-                ->where('slug', $slug)
-                ->update(['prestashop_category_id' => $prestashopId]);
-
-            if ($updated === 0) {
-                // Registra un warning se non è stato trovato alcun record da aggiornare
-                Log::warning('SyncPrestashopCategoryIdsSeeder: slug non trovato', [
-                    'slug' => $slug,
-                    'prestashop_category_id' => $prestashopId,
-                ]);
+            $category = Category::where('slug', $slug)->first();
+            if ($category) {
+                // Impostiamo l'ID solo se valorizzato, altrimenti null
+                $category->update(['prestashop_category_id' => $prestashopId]);
+                $updatedCats++;
             }
         }
+
+        $this->command->info("Aggiornati gli ID PrestaShop per {$updatedCats} categorie.");
     }
 }

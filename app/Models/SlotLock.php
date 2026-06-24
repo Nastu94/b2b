@@ -59,11 +59,14 @@ class SlotLock extends Model
             }
 
             if ($lock->is_active && $lock->isBooked()) {
-                $lock->active_slot_key = self::makeActiveSlotKey(
-                    (int) $lock->vendor_account_id,
-                    (int) $lock->vendor_slot_id,
-                    (string) $lock->date->format('Y-m-d')
-                );
+                if (empty($lock->active_slot_key)) {
+                    $lock->active_slot_key = self::makeActiveSlotKey(
+                        (int) $lock->vendor_account_id,
+                        (int) $lock->vendor_slot_id,
+                        (string) $lock->date->format('Y-m-d'),
+                        VendorAccount::BOOKING_SINGLE_RESOURCE
+                    );
+                }
             }
         });
     }
@@ -157,8 +160,17 @@ class SlotLock extends Model
         return $this->isHold() && ! $this->isExpiredHold($now);
     }
 
-    public static function makeActiveSlotKey(int $vendorAccountId, int $vendorSlotId, string $date): string
-    {
+    public static function makeActiveSlotKey(
+        int $vendorAccountId, 
+        int $vendorSlotId, 
+        string $date,
+        string $mode,
+        ?int $offeringId = null
+    ): string {
+        if ($mode === VendorAccount::BOOKING_MULTIPLE_BY_OFFERING && $offeringId !== null) {
+            return "{$vendorAccountId}:{$vendorSlotId}:{$date}:{$offeringId}";
+        }
+
         return "{$vendorAccountId}:{$vendorSlotId}:{$date}";
     }
 

@@ -122,9 +122,15 @@ class AvailabilityService
         ?int $offeringId,
         CarbonImmutable $now
     ): array {
-        // Utilizza una cache in memoria per archiviare il contesto (slot, blackout, ecc.) e
-        // prevenire frammentazioni di query al database per lo stesso fornitore nella stessa richiesta.
-        $cacheKey = "{$vendorAccountId}_{$fromDate->toDateString()}_{$toDate->toDateString()}";
+        $vendorAccount = \App\Models\VendorAccount::find($vendorAccountId);
+        $mode = $vendorAccount?->bookingCapacityMode() ?? \App\Models\VendorAccount::BOOKING_SINGLE_RESOURCE;
+        
+        if ($mode === \App\Models\VendorAccount::BOOKING_MULTIPLE_BY_OFFERING && $offeringId === null) {
+            throw new InvalidArgumentException('L\'offering_id è obbligatorio per i vendor in modalità multiple_by_offering');
+        }
+
+        $offeringStr = $offeringId ?? 'null';
+        $cacheKey = "{$vendorAccountId}_{$fromDate->toDateString()}_{$toDate->toDateString()}_{$offeringStr}_{$mode}";
 
         if (!isset($this->contextCache[$cacheKey])) {
             /** @var Collection<int, VendorSlot> $slots */
@@ -156,7 +162,9 @@ class AvailabilityService
                 vendorAccountId: $vendorAccountId,
                 fromDate: $fromDate,
                 toDate: $toDate,
-                now: $now
+                now: $now,
+                requestedOfferingId: $offeringId,
+                mode: $mode
             );
 
             $this->contextCache[$cacheKey] = [
@@ -254,7 +262,9 @@ class AvailabilityService
         int $vendorAccountId,
         CarbonImmutable $fromDate,
         CarbonImmutable $toDate,
-        CarbonImmutable $now
+        CarbonImmutable $now,
+        ?int $requestedOfferingId,
+        string $mode
     ): array {
         $locks = SlotLock::query()
             ->where('vendor_account_id', $vendorAccountId)
@@ -268,14 +278,21 @@ class AvailabilityService
                             ->where('expires_at', '>', $now);
                     });
             })
-            ->get(['vendor_slot_id', 'date']);
+            ->get(['vendor_slot_id', 'date', 'offering_id']);
 
         $index = [];
 
         foreach ($locks as $lock) {
             $day = substr((string) $lock->date, 0, 10);
             $slotId = (int) $lock->vendor_slot_id;
-            $index[$day][$slotId] = true;
+            
+            if ($mode === \App\Models\VendorAccount::BOOKING_MULTIPLE_BY_OFFERING) {
+                if ($requestedOfferingId !== null && (int) $lock->offering_id === $requestedOfferingId) {
+                    $index[$day][$slotId] = true;
+                }
+            } else {
+                $index[$day][$slotId] = true;
+            }
         }
 
         return $index;

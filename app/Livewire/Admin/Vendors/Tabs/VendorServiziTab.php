@@ -104,54 +104,14 @@ class VendorServiziTab extends Component
     {
         $this->authorize('update', $this->vendorAccount);
 
-        $profile = VendorOfferingProfile::where('vendor_account_id', $this->vendorAccount->id)
-            ->where('offering_id', $offeringId)
-            ->first();
+        app(\App\Services\OfferingApprovalService::class)->approveOfferingProfile($this->vendorAccount, $offeringId);
 
-        if ($profile) {
-            DB::transaction(function () use ($profile, $offeringId) {
-                $offering = Offering::find($offeringId);
-
-                if (
-                    $offering &&
-                    $offering->is_custom &&
-                    $offering->status === Offering::STATUS_PENDING_REVIEW &&
-                    str_starts_with($offering->name, 'Proposta vendor #')
-                ) {
-                    throw \Illuminate\Validation\ValidationException::withMessages([
-                        'editOfferingName' => 'Prima di approvare devi impostare il nome interno definitivo del servizio.',
-                    ]);
-                }
-
-                if ($offering && $offering->is_custom && $offering->status === Offering::STATUS_PENDING_REVIEW) {
-                    $offering->update([
-                        'status' => Offering::STATUS_APPROVED,
-                        'is_active' => true,
-                    ]);
-                }
-
-                $profile->update([
-                    'is_approved' => true,
-                    'is_published' => true,
-                ]);
-            });
-
-            if ($this->vendorAccount->user && $this->vendorAccount->user->email) {
-                try {
-                    \Illuminate\Support\Facades\Mail::to($this->vendorAccount->user->email)
-                        ->send(new \App\Mail\VendorServiceApprovedMail($profile));
-                } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::error('Impossibile inviare email Servizio: ' . $e->getMessage());
-                }
-            }
-
-            session()->flash('status', 'Servizio approvato con successo. Email inviata e sincronizzazione avviata.');
-            $this->loadCardsData();
-            
-            // Se eravamo in modale, aggiorniamo il record caricato
-            if ($this->viewingProfile && $this->viewingProfile->offering_id === $offeringId) {
-                $this->viewingProfile->refresh();
-            }
+        session()->flash('status', 'Servizio approvato con successo. Email inviata e sincronizzazione avviata.');
+        $this->loadCardsData();
+        
+        // Se eravamo in modale, aggiorniamo il record caricato
+        if ($this->viewingProfile && $this->viewingProfile->offering_id === $offeringId) {
+            $this->viewingProfile->refresh();
         }
     }
 
@@ -159,35 +119,13 @@ class VendorServiziTab extends Component
     {
         $this->authorize('update', $this->vendorAccount);
 
-        $profile = VendorOfferingProfile::where('vendor_account_id', $this->vendorAccount->id)
-            ->where('offering_id', $offeringId)
-            ->first();
+        app(\App\Services\OfferingApprovalService::class)->rejectOfferingProfile($this->vendorAccount, $offeringId);
 
-        if ($profile) {
-            DB::transaction(function () use ($profile, $offeringId) {
-                $profile->update([
-                    'is_approved' => false,
-                    'is_published' => false,
-                ]);
-
-                $offering = Offering::find($offeringId);
-                if ($offering && $offering->is_custom && $offering->status === Offering::STATUS_PENDING_REVIEW) {
-                    $offering->update([
-                        'status' => Offering::STATUS_REJECTED,
-                        'is_active' => false,
-                    ]);
-                }
-
-                $this->vendorAccount->offerings()
-                    ->updateExistingPivot($offeringId, ['is_active' => false]);
-            });
-
-            session()->flash('status', 'Servizio rifiutato.');
-            $this->loadCardsData();
-            
-            if ($this->viewingProfile && $this->viewingProfile->offering_id === $offeringId) {
-                $this->viewingProfile->refresh();
-            }
+        session()->flash('status', 'Servizio rifiutato.');
+        $this->loadCardsData();
+        
+        if ($this->viewingProfile && $this->viewingProfile->offering_id === $offeringId) {
+            $this->viewingProfile->refresh();
         }
     }
 

@@ -131,8 +131,9 @@
 
     </div>
 
-    <div class="footer">
-        © {{ date('Y') }} Party Legacy - All rights reserved.
+    <div class="footer" style="display: flex; flex-direction: column; gap: 8px;">
+        <div>© {{ date('Y') }} Party Legacy - All rights reserved.</div>
+        <div>Realizzato da <a href="https://sodanoconsulting.it/" target="_blank" rel="noopener" style="color: #64748b; text-decoration: none; font-weight: bold; font-size: 13px;">Sodano Consulting S.r.l.</a></div>
     </div>
 
 </body>

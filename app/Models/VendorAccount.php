@@ -13,6 +13,9 @@ class VendorAccount extends Model
 {
     use SoftDeletes, Billable;
 
+    public const BOOKING_SINGLE_RESOURCE = 'single_resource';
+    public const BOOKING_MULTIPLE_BY_OFFERING = 'multiple_by_offering';
+
     protected static function booted()
     {
         static::saved(function ($vendor) {
@@ -85,6 +88,7 @@ class VendorAccount extends Model
 
         // Stato
         'status',
+        'booking_capacity_mode',
         'activated_at',
         'deactivated_at',
 
@@ -197,11 +201,31 @@ class VendorAccount extends Model
         return $this->hasMany(Booking::class);
     }
 
+    public function conversationThreads(): HasMany
+    {
+        return $this->hasMany(ConversationThread::class);
+    }
+
     /**
      * Relazione con i listini base del vendor.
      */
     public function pricings(): HasMany
     {
         return $this->hasMany(VendorOfferingPricing::class);
+    }
+
+    public function bookingCapacityMode(): string
+    {
+        return $this->booking_capacity_mode ?? self::BOOKING_SINGLE_RESOURCE;
+    }
+
+    public function isSingleResourceBooking(): bool
+    {
+        return $this->bookingCapacityMode() === self::BOOKING_SINGLE_RESOURCE;
+    }
+
+    public function isMultipleByOfferingBooking(): bool
+    {
+        return $this->bookingCapacityMode() === self::BOOKING_MULTIPLE_BY_OFFERING;
     }
 }

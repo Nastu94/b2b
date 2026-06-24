@@ -91,6 +91,11 @@ class Booking extends Model
         return $this->belongsTo(VendorSlot::class);
     }
 
+    public function conversationThreads()
+    {
+        return $this->hasMany(ConversationThread::class);
+    }
+
     // ─── Stato ─────────────────────────────────────────────
 
     public function isPendingVendorConfirmation(): bool
