@@ -46,11 +46,29 @@ class VendorServiziTab extends Component
     {
         $vendorId = $this->vendorAccount->id;
 
-        // Stesso criterio della dashboard vendor: offerings attive (pivot is_active = true)
+        // Stesso criterio della dashboard vendor, ma includiamo i custom in attesa o approvati
+        $vendorId = $this->vendorAccount->id;
+
         $offerings = $this->vendorAccount->offerings()
-            ->wherePivot('is_active', true)
+            ->where(function ($query) use ($vendorId) {
+                $query->where('vendor_offerings.is_active', true)
+                    ->orWhere(function ($subQuery) use ($vendorId) {
+                        $subQuery->where('offerings.is_custom', true)
+                            ->where('offerings.created_by_vendor_account_id', $vendorId)
+                            ->whereIn('offerings.status', [
+                                Offering::STATUS_PENDING_REVIEW,
+                                Offering::STATUS_APPROVED,
+                            ]);
+                    });
+            })
             ->orderBy('offerings.name')
-            ->get(['offerings.id', 'offerings.name', 'offerings.is_custom', 'offerings.status', 'offerings.created_by_vendor_account_id']);
+            ->get([
+                'offerings.id',
+                'offerings.name',
+                'offerings.is_custom',
+                'offerings.status',
+                'offerings.created_by_vendor_account_id',
+            ]);
 
         if ($offerings->isEmpty()) {
             $this->activeOfferings = [];
@@ -104,14 +122,31 @@ class VendorServiziTab extends Component
     {
         $this->authorize('update', $this->vendorAccount);
 
-        app(\App\Services\OfferingApprovalService::class)->approveOfferingProfile($this->vendorAccount, $offeringId);
+        try {
+            app(\App\Services\OfferingApprovalService::class)->approveOfferingProfile($this->vendorAccount, $offeringId);
 
-        session()->flash('status', 'Servizio approvato con successo. Email inviata e sincronizzazione avviata.');
-        $this->loadCardsData();
-        
-        // Se eravamo in modale, aggiorniamo il record caricato
-        if ($this->viewingProfile && $this->viewingProfile->offering_id === $offeringId) {
-            $this->viewingProfile->refresh();
+            session()->flash('status', 'Servizio approvato con successo. Email inviata e sincronizzazione avviata.');
+            $this->loadCardsData();
+            
+            // Se eravamo in modale, aggiorniamo il record caricato
+            if ($this->viewingProfile && $this->viewingProfile->offering_id === $offeringId) {
+                $this->viewingProfile->refresh();
+            }
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->addError('general', collect($e->errors())->flatten()->first());
+        }
+    }
+
+    public function approveViewingOffering(): void
+    {
+        if (!$this->viewingProfile) {
+            return;
+        }
+
+        $this->approveOfferingProfile((int) $this->viewingProfile->offering_id);
+
+        if (!$this->getErrorBag()->isNotEmpty()) {
+            $this->closeOfferingDetails();
         }
     }
 
@@ -182,9 +217,11 @@ class VendorServiziTab extends Component
                 ->whereKey($this->editingOfferingId)
                 ->firstOrFail();
 
-            $offering->update([
-                'name' => $this->editOfferingName,
-            ]);
+            if ($offering->is_custom) {
+                $offering->update([
+                    'name' => $this->editOfferingName,
+                ]);
+            }
 
             $profile->update([
                 'title' => $this->editProfileTitle,
