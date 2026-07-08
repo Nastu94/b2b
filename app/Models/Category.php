@@ -12,6 +12,7 @@ class Category extends Model
         'name',
         'is_active',
         'sort_order',
+        'prestashop_category_id',
     ];
 
     protected $casts = [
