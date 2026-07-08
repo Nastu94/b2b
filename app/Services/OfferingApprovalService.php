@@ -30,7 +30,7 @@ class OfferingApprovalService
             return;
         }
 
-        DB::transaction(function () use ($profile, $offeringId) {
+        DB::transaction(function () use ($vendorAccount, $profile, $offeringId) {
             $offering = Offering::find($offeringId);
 
             if (
@@ -57,6 +57,10 @@ class OfferingApprovalService
                     'is_published' => true,
                 ]);
             }
+
+            $vendorAccount->offerings()->syncWithoutDetaching([
+                $offeringId => ['is_active' => true],
+            ]);
         });
 
         if ($vendorAccount->user && $vendorAccount->user->email) {

@@ -39,16 +39,22 @@ class ConversationController extends Controller
             // Conversazione trovata: accodiamo il messaggio
             $this->createMessage($existingThread, $validated['message'], 'customer', $validated['prestashop_customer_id']);
             
+            $previousVendorUnreadCount = (int) $existingThread->vendor_unread_count;
+
             $existingThread->update([
-                'vendor_unread_count' => $existingThread->vendor_unread_count + 1,
+                'vendor_unread_count' => $previousVendorUnreadCount + 1,
                 'admin_unread_count' => $existingThread->admin_unread_count + 1,
                 'last_message_at' => now(),
             ]);
 
             // Se i non letti prima di questo messaggio erano 0, notifichiamo il vendor
-            if ($existingThread->vendor_unread_count === 1 && $existingThread->vendorAccount && $existingThread->vendorAccount->user) {
-                \Illuminate\Support\Facades\Mail::to($existingThread->vendorAccount->user->email)
-                    ->queue(new \App\Mail\NewConversationMessageVendorMail($existingThread));
+            if ($previousVendorUnreadCount === 0 && $existingThread->vendorAccount && $existingThread->vendorAccount->user) {
+                try {
+                    \Illuminate\Support\Facades\Mail::to($existingThread->vendorAccount->user->email)
+                        ->send(new \App\Mail\NewCustomerConversationMessageVendorMail($existingThread));
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Errore invio email chat (start-append): ' . $e->getMessage());
+                }
             }
 
             return response()->json([
@@ -75,8 +81,12 @@ class ConversationController extends Controller
         $this->createMessage($thread, $validated['message'], 'customer', $validated['prestashop_customer_id']);
 
         if ($thread->vendorAccount && $thread->vendorAccount->user) {
-            \Illuminate\Support\Facades\Mail::to($thread->vendorAccount->user->email)
-                ->queue(new \App\Mail\NewConversationMessageVendorMail($thread));
+            try {
+                \Illuminate\Support\Facades\Mail::to($thread->vendorAccount->user->email)
+                    ->send(new \App\Mail\NewCustomerConversationMessageVendorMail($thread));
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Errore invio email chat (start-new): ' . $e->getMessage());
+            }
         }
 
         return response()->json([
@@ -127,15 +137,21 @@ class ConversationController extends Controller
 
         $msg = $this->createMessage($conversation, $validated['message'], 'customer', $validated['prestashop_customer_id']);
 
+        $previousVendorUnreadCount = (int) $conversation->vendor_unread_count;
+
         $conversation->update([
-            'vendor_unread_count' => $conversation->vendor_unread_count + 1,
+            'vendor_unread_count' => $previousVendorUnreadCount + 1,
             'admin_unread_count' => $conversation->admin_unread_count + 1,
             'last_message_at' => now(),
         ]);
 
-        if ($conversation->vendorAccount && $conversation->vendorAccount->user) {
-            \Illuminate\Support\Facades\Mail::to($conversation->vendorAccount->user->email)
-                ->queue(new \App\Mail\NewConversationMessageVendorMail($conversation));
+        if ($previousVendorUnreadCount === 0 && $conversation->vendorAccount && $conversation->vendorAccount->user) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($conversation->vendorAccount->user->email)
+                    ->send(new \App\Mail\NewCustomerConversationMessageVendorMail($conversation));
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Errore invio email chat (storeMessage): ' . $e->getMessage());
+            }
         }
 
         return response()->json([

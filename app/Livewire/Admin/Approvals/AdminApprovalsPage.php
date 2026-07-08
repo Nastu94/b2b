@@ -170,7 +170,8 @@ class AdminApprovalsPage extends Component
         // 3. Custom Offerings
         if (in_array($type, ['all', 'custom_offering'])) {
             $query = Offering::with(['category', 'createdByVendor'])
-                ->where('is_custom', true);
+                ->where('is_custom', true)
+                ->whereDoesntHave('vendorProfiles');
 
             
             if ($status === 'pending') {

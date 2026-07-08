@@ -156,11 +156,19 @@
                 @endif
                 <div class="space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <div>
-                            <label class="text-sm font-semibold text-slate-700">Nome interno servizio catalogo</label>
-                            <input type="text" wire:model.defer="editOfferingName" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
-                            @error('editOfferingName')<div class="mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
-                        </div>
+                        @if($viewingProfile->offering->is_custom ?? false)
+                            <div>
+                                <label class="text-sm font-semibold text-slate-700">Nome interno servizio catalogo</label>
+                                <input type="text" wire:model.defer="editOfferingName" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
+                                @error('editOfferingName')<div class="mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
+                            </div>
+                        @else
+                            <div>
+                                <label class="text-sm font-semibold text-slate-700">Nome interno servizio catalogo</label>
+                                <input type="text" value="{{ $editOfferingName }}" disabled class="mt-1 w-full rounded-lg border-slate-300 text-sm bg-slate-100 text-slate-500 cursor-not-allowed">
+                                <p class="text-[10px] text-slate-500 mt-1">Non modificabile (servizio standard)</p>
+                            </div>
+                        @endif
                         <div>
                             <label class="text-sm font-semibold text-slate-700">Titolo pubblico vendor</label>
                             <input type="text" wire:model.defer="editProfileTitle" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
@@ -244,7 +252,7 @@
             @endif
 
             @if($viewingProfile && !$viewingProfile->is_approved)
-                <button type="button" wire:click="approveOfferingProfile({{ $viewingProfile->offering_id }}); closeOfferingDetails()"
+                <button type="button" wire:click="approveViewingOffering"
                     class="ml-2 inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 transition"
                     wire:loading.attr="disabled">
                     <x-app-icon name="check-circle" class="w-4 h-4" />

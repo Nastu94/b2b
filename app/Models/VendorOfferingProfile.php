@@ -53,6 +53,7 @@ class VendorOfferingProfile extends Model
         'service_radius_km' => 'float',
         'max_guests' => 'integer',
         'is_published' => 'boolean',
+        'is_approved' => 'boolean',
     ];
 
     // ─── Relazioni ─────────────────────────────────────────
