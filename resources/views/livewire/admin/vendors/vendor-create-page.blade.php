@@ -359,6 +359,21 @@
         </div>
 
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-slate-900">Documenti vendor (opzionali)</h2>
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-slate-700">File documenti autorizzativi</label>
+                <input type="file" wire:model="document_files" multiple accept=".pdf,.jpg,.jpeg,.png,.webp" class="mt-1 block w-full text-sm text-slate-500 border border-slate-200 rounded-md p-2">
+                <div wire:loading wire:target="document_files" class="text-xs text-indigo-600 mt-1">Caricamento in corso...</div>
+                <p class="mt-1 text-xs text-slate-500">
+                    Formati ammessi: PDF, JPG, PNG, WEBP. Max 10MB per file. 
+                    Puoi caricare più file. I dettagli (tipo, scadenza) potranno essere sistemati nella tab Documenti dopo la creazione.
+                </p>
+                @error('document_files') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                @error('document_files.*') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+            </div>
+        </div>
+
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
             <h2 class="text-lg font-semibold text-slate-900">Consensi Legali</h2>
             <div class="mt-4 space-y-3 text-sm text-slate-700">
                 <label class="flex items-center gap-2">

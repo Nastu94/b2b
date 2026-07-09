@@ -33,9 +33,12 @@
                 </a>
 
                 <a href="{{ route('admin.approvals') }}"
-                    class="pl-sidebar-link {{ $is('admin.approvals*') ? 'pl-sidebar-link-active' : '' }} flex items-center gap-3">
-                    <x-app-icon name="check-badge" class="w-5 h-5" />
-                    <span>Approvazioni</span>
+                    class="pl-sidebar-link {{ $is('admin.approvals*') ? 'pl-sidebar-link-active' : '' }} flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <x-app-icon name="check-badge" class="w-5 h-5" />
+                        <span>Approvazioni</span>
+                    </div>
+                    <livewire:admin.approvals.approvals-sidebar-badge />
                 </a>
 
                 <a href="{{ route('admin.bookings') }}"

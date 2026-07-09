@@ -7,7 +7,7 @@
     <div class="mb-6 bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex flex-col md:flex-row gap-4">
         <div class="flex-1">
             <label class="block text-sm font-semibold text-slate-700">Ricerca</label>
-            <input type="text" wire:model.live.debounce.300ms="search" class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Cerca vendor o servizio...">
+            <input type="text" wire:model.live.debounce.300ms="search" class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Cerca vendor, servizio o documento...">
         </div>
         <div class="w-full md:w-48">
             <label class="block text-sm font-semibold text-slate-700">Vendor</label>
@@ -25,6 +25,7 @@
                 <option value="vendor">Vendor</option>
                 <option value="services">Servizi e Contenuti</option>
                 <option value="custom_offering">Offering Custom</option>
+                <option value="documents">Documenti</option>
             </select>
         </div>
         <div class="w-full md:w-48">
@@ -75,6 +76,41 @@
             </div>
         </div>
     @enderror
+
+    @if($rejectingDocumentId)
+        <div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <h3 class="text-sm font-semibold text-amber-900">Rifiuta documento</h3>
+            <p class="mt-1 text-xs text-amber-800">
+                Inserisci una motivazione. Sarà visibile al vendor.
+            </p>
+
+            <form wire:submit="rejectDocument" class="mt-3 space-y-3">
+                <textarea
+                    wire:model="documentReviewNote"
+                    rows="3"
+                    class="w-full rounded-lg border-amber-200 text-sm focus:border-amber-400 focus:ring-amber-400"
+                    placeholder="Motivazione del rifiuto..."
+                ></textarea>
+
+                @error('documentReviewNote')
+                    <div class="text-xs text-rose-600">{{ $message }}</div>
+                @enderror
+
+                <div class="flex gap-2">
+                    <button type="submit"
+                        class="inline-flex items-center justify-center rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700">
+                        Conferma rifiuto
+                    </button>
+
+                    <button type="button"
+                        wire:click="$set('rejectingDocumentId', null)"
+                        class="inline-flex items-center justify-center rounded-lg border border-amber-200 bg-white px-4 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100">
+                        Annulla
+                    </button>
+                </div>
+            </form>
+        </div>
+    @endif
 
     <!-- Results List (Bookings Style) -->
     <div class="bg-white rounded-lg shadow-sm border border-slate-200 divide-y divide-slate-200">
@@ -164,6 +200,32 @@
                                 class="inline-flex items-center justify-center p-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 transition hover:bg-rose-100" title="Rifiuta">
                                 <x-app-icon name="x-mark" class="w-5 h-5" />
                             </button>
+                        @endif
+
+                        @if($item['type'] === 'document')
+                            <a href="{{ route('vendor-documents.download', $item['related_document_id']) }}"
+                               target="_blank"
+                               class="inline-flex items-center justify-center p-2 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 transition hover:bg-indigo-100"
+                               title="Scarica documento">
+                                <x-app-icon name="arrow-down-tray" class="w-5 h-5" />
+                            </a>
+
+                            @if($item['status'] === 'PENDING')
+                                <button type="button"
+                                    wire:click="approveDocument({{ $item['related_document_id'] }})"
+                                    wire:confirm="Sei sicuro di voler approvare questo documento?"
+                                    class="inline-flex items-center justify-center p-2 rounded-lg bg-emerald-600 text-white transition hover:bg-emerald-700"
+                                    title="Approva documento">
+                                    <x-app-icon name="check" class="w-5 h-5" />
+                                </button>
+
+                                <button type="button"
+                                    wire:click="startRejectDocument({{ $item['related_document_id'] }})"
+                                    class="inline-flex items-center justify-center p-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 transition hover:bg-rose-100"
+                                    title="Rifiuta documento">
+                                    <x-app-icon name="x-mark" class="w-5 h-5" />
+                                </button>
+                            @endif
                         @endif
                     @endif
                 </div>

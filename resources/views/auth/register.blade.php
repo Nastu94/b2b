@@ -147,6 +147,20 @@
                                 class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100 border border-gray-200 rounded-md p-2" />
                             <p class="mt-1 text-xs text-gray-500">Questa immagine verrà mostrata sulla tua Vetrina PrestaShop.</p>
                         </div>
+                        
+                        <div class="mt-5 pt-5 border-t border-gray-100">
+                            <x-label for="vendor_documents" value="Documenti autorizzativi facoltativi" />
+                            <p class="mt-1 text-xs text-gray-500">Puoi caricare ora eventuali documenti autorizzativi (licenze, assicurazioni). Potrai aggiungerli anche dopo dal tuo profilo.</p>
+                            <input id="vendor_documents" type="file" name="vendor_documents[]" multiple accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                class="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100 border border-gray-200 rounded-md p-2" />
+                            <p class="mt-1 text-xs text-gray-500">Formati ammessi: PDF, JPG, PNG, WEBP. Max 10MB per file.</p>
+                            @error('vendor_documents')
+                                <p class="mt-2 text-xs text-rose-600 font-medium">{{ $message }}</p>
+                            @enderror
+                            @error('vendor_documents.*')
+                                <p class="mt-2 text-xs text-rose-600 font-medium">{{ $message }}</p>
+                            @enderror
+                        </div>
                     </div>
 
                     <div id="company-fields"

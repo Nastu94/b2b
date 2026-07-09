@@ -57,6 +57,10 @@ class CreateNewUser implements CreatesNewUsers
 
             // Immagine profilo
             'profile_image' => ['nullable', 'image', 'max:8192'], // MAX 8MB
+            
+            // Documenti (opzionali)
+            'vendor_documents' => ['nullable', 'array', 'max:10'],
+            'vendor_documents.*' => ['file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:10240'],
         ])->after(function ($validator) use ($input) {
             $type = $input['account_type'] ?? null;
 
@@ -164,6 +168,25 @@ class CreateNewUser implements CreatesNewUsers
 
         if (!empty($input['event_type_ids'])) {
             $vendor->eventTypes()->sync($input['event_type_ids']);
+        }
+
+        // Salva eventuali documenti opzionali caricati durante la registrazione
+        if (isset($input['vendor_documents']) && is_array($input['vendor_documents'])) {
+            $documentService = app(\App\Services\VendorDocumentService::class);
+            foreach ($input['vendor_documents'] as $file) {
+                if ($file instanceof \Illuminate\Http\UploadedFile) {
+                    $documentService->store(
+                        $vendor,
+                        $file,
+                        [
+                            'type' => 'OTHER',
+                            'title' => $file->getClientOriginalName(),
+                            'status' => \App\Models\VendorDocument::STATUS_PENDING,
+                        ],
+                        $user
+                    );
+                }
+            }
         }
 
         // Geocoding della sede legale.

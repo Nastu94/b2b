@@ -18,6 +18,7 @@ class VendorCreatePage extends Component
     use AuthorizesRequests, WithFileUploads;
 
     public $profile_image;
+    public $document_files = [];
 
     public array $form = [
         // accesso
@@ -104,6 +105,8 @@ class VendorCreatePage extends Component
     {
         $rules = [
             'profile_image' => ['nullable', 'image', 'max:5120'],
+            'document_files' => ['nullable', 'array', 'max:10'],
+            'document_files.*' => ['file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:10240'],
 
             // accesso
             'form.name' => ['required', 'string', 'max:255'],
@@ -200,6 +203,22 @@ class VendorCreatePage extends Component
         if ($this->profile_image) {
             $vendorAccount->profile_image_path = $this->profile_image->store('vendor-profiles', 'public');
             $vendorAccount->save();
+        }
+
+        if (!empty($this->document_files)) {
+            $documentService = app(\App\Services\VendorDocumentService::class);
+            foreach ($this->document_files as $file) {
+                $documentService->store(
+                    $vendorAccount,
+                    $file,
+                    [
+                        'type' => 'OTHER',
+                        'title' => $file->getClientOriginalName(),
+                        'status' => \App\Models\VendorDocument::STATUS_PENDING,
+                    ],
+                    auth()->user()
+                );
+            }
         }
 
         session()->flash('status', 'Vendor creato con successo.');

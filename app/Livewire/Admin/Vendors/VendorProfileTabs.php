@@ -22,7 +22,7 @@ class VendorProfileTabs extends Component
     public bool $editing = false;
     public bool $confirmingDelete = false;
 
-    private const TABS = ['anagrafica', 'servizi', 'billing'];
+    private const TABS = ['anagrafica', 'servizi', 'documenti', 'billing'];
 
     public function mount(VendorAccount $vendorAccount): void
     {

@@ -85,6 +85,15 @@
                 <span>Servizi</span>
             </button>
 
+            <button type="button" wire:click="setTab('documenti')"
+                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition
+                {{ ($activeTab ?? 'anagrafica') === 'documenti'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/70' }}">
+                <x-app-icon name="document-text" class="w-4 h-4" />
+                <span>Documenti</span>
+            </button>
+
             <button type="button" wire:click="setTab('billing')"
                 class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition
                 {{ ($activeTab ?? 'anagrafica') === 'billing'
@@ -105,6 +114,11 @@
     @if (($activeTab ?? 'anagrafica') === 'servizi')
         <livewire:admin.vendors.tabs.vendor-servizi-tab :vendor-account-id="$vendorAccount->id"
             wire:key="admin-vendor-servizi-{{ $vendorAccount->id }}" />
+    @endif
+
+    @if (($activeTab ?? 'anagrafica') === 'documenti')
+        <livewire:admin.vendors.tabs.vendor-documenti-tab :vendor-account-id="$vendorAccount->id"
+            wire:key="admin-vendor-documenti-{{ $vendorAccount->id }}" />
     @endif
 
     @if (($activeTab ?? 'anagrafica') === 'billing')
