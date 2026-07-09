@@ -11,6 +11,7 @@ class ConversationThread extends Model
     protected $casts = [
         'last_message_at' => 'datetime',
         'guest_token_expires_at' => 'datetime',
+        'customer_deleted_at' => 'datetime',
     ];
 
     public function vendorAccount()
