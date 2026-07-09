@@ -47,8 +47,8 @@ class ConversationController extends Controller
                 'last_message_at' => now(),
             ]);
 
-            // Se i non letti prima di questo messaggio erano 0, notifichiamo il vendor
-            if ($previousVendorUnreadCount === 0 && $existingThread->vendorAccount && $existingThread->vendorAccount->user) {
+            // Notifichiamo sempre il vendor quando il cliente invia un messaggio
+            if ($existingThread->vendorAccount && $existingThread->vendorAccount->user) {
                 try {
                     \Illuminate\Support\Facades\Mail::to($existingThread->vendorAccount->user->email)
                         ->send(new \App\Mail\NewCustomerConversationMessageVendorMail($existingThread));
@@ -145,7 +145,8 @@ class ConversationController extends Controller
             'last_message_at' => now(),
         ]);
 
-        if ($previousVendorUnreadCount === 0 && $conversation->vendorAccount && $conversation->vendorAccount->user) {
+        // Notifichiamo sempre il vendor quando il cliente invia un messaggio
+        if ($conversation->vendorAccount && $conversation->vendorAccount->user) {
             try {
                 \Illuminate\Support\Facades\Mail::to($conversation->vendorAccount->user->email)
                     ->send(new \App\Mail\NewCustomerConversationMessageVendorMail($conversation));
