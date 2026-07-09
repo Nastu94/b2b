@@ -78,6 +78,7 @@ class ManageOfferings extends Component
                             ->whereIn('status', [
                                 Offering::STATUS_PENDING_REVIEW,
                                 Offering::STATUS_APPROVED,
+                                Offering::STATUS_REJECTED,
                             ]);
                     });
             })
@@ -88,6 +89,7 @@ class ManageOfferings extends Component
         // Pre-seleziona quelle già associate e attive
         $this->selectedOfferingIds = $vendorAccount->offerings()
             ->wherePivot('is_active', true)
+            ->where('offerings.is_active', true)
             ->pluck('offerings.id')
             ->map(fn ($id) => (int) $id)
             ->toArray();
@@ -115,17 +117,7 @@ class ManageOfferings extends Component
         // Sicurezza: allowed IDs ricalcolati dal DB (source of truth)
         $allowedIds = Offering::query()
             ->where('category_id', $vendorAccount->category_id)
-            ->where(function ($query) use ($vendorAccount) {
-                $query->where('is_active', true)
-                    ->orWhere(function ($subQuery) use ($vendorAccount) {
-                        $subQuery->where('is_custom', true)
-                            ->where('created_by_vendor_account_id', $vendorAccount->id)
-                            ->whereIn('status', [
-                                Offering::STATUS_PENDING_REVIEW,
-                                Offering::STATUS_APPROVED,
-                            ]);
-                    });
-            })
+            ->where('is_active', true)
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->toArray();
@@ -142,16 +134,17 @@ class ManageOfferings extends Component
             ->map(fn ($id) => (int) $id)
             ->toArray();
 
-        foreach ($allowedIds as $offeringId) {
-            $isActive = in_array($offeringId, $finalIds, true);
+        foreach ($current as $offeringId) {
+            if (!in_array($offeringId, $finalIds, true)) {
+                $vendorAccount->offerings()->updateExistingPivot($offeringId, ['is_active' => false]);
+            }
+        }
 
+        foreach ($finalIds as $offeringId) {
             if (in_array($offeringId, $current, true)) {
-                $vendorAccount->offerings()->updateExistingPivot($offeringId, ['is_active' => $isActive]);
+                $vendorAccount->offerings()->updateExistingPivot($offeringId, ['is_active' => true]);
             } else {
-                // Inseriamo la pivot solo se l’offering è selezionata (evita righe inutili)
-                if ($isActive) {
-                    $vendorAccount->offerings()->attach($offeringId, ['is_active' => true]);
-                }
+                $vendorAccount->offerings()->attach($offeringId, ['is_active' => true]);
             }
         }
 
@@ -193,17 +186,7 @@ class ManageOfferings extends Component
         // Filtra subito gli ID selezionati: solo quelli ammessi (categoria + attivi o propri custom).
         $allowedIds = Offering::query()
             ->where('category_id', $vendorAccount->category_id)
-            ->where(function ($query) use ($vendorAccount) {
-                $query->where('is_active', true)
-                    ->orWhere(function ($subQuery) use ($vendorAccount) {
-                        $subQuery->where('is_custom', true)
-                            ->where('created_by_vendor_account_id', $vendorAccount->id)
-                            ->whereIn('status', [
-                                Offering::STATUS_PENDING_REVIEW,
-                                Offering::STATUS_APPROVED,
-                            ]);
-                    });
-            })
+            ->where('is_active', true)
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->toArray();
@@ -229,13 +212,19 @@ class ManageOfferings extends Component
         abort_unless($user && $user->can('vendor.access'), 403);
         $vendorAccount = $user->vendorAccount;
 
-        $technicalName = 'Proposta vendor #' . $vendorAccount->id . ' - ' . now()->format('YmdHis');
+        $serviceName = trim($this->newOfferingTitle);
 
-        DB::transaction(function () use ($vendorAccount, $technicalName) {
+        $profile = DB::transaction(function () use ($vendorAccount, $serviceName) {
+            $baseSlug = Str::slug($serviceName);
+
+            if ($baseSlug === '') {
+                $baseSlug = 'servizio-vendor';
+            }
+
             $offering = Offering::create([
                 'category_id' => $vendorAccount->category_id,
-                'slug' => 'proposta-vendor-' . $vendorAccount->id . '-' . Str::random(8),
-                'name' => $technicalName,
+                'slug' => $baseSlug . '-' . $vendorAccount->id . '-' . Str::lower(Str::random(8)),
+                'name' => $serviceName,
                 'is_active' => false,
                 'is_custom' => true,
                 'status' => Offering::STATUS_PENDING_REVIEW,
@@ -244,16 +233,25 @@ class ManageOfferings extends Component
 
             $vendorAccount->offerings()->attach($offering->id, ['is_active' => false]);
 
-            VendorOfferingProfile::create([
+            return VendorOfferingProfile::create([
                 'vendor_account_id' => $vendorAccount->id,
                 'offering_id' => $offering->id,
-                'title' => $this->newOfferingTitle,
+                'title' => $serviceName,
                 'short_description' => $this->newOfferingShortDesc,
                 'description' => $this->newOfferingFullDesc,
                 'is_published' => true,
                 'is_approved' => false,
             ]);
         });
+
+        try {
+            \Illuminate\Support\Facades\Mail::to(config('mail.from.address'))
+                ->send(new \App\Mail\NewServiceSubmittedAdminMail(
+                    $profile->fresh(['vendorAccount', 'offering'])
+                ));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Impossibile inviare notifica Admin per nuovo servizio proposto: ' . $e->getMessage());
+        }
 
         $this->reset(['newOfferingTitle', 'newOfferingShortDesc', 'newOfferingFullDesc']);
         

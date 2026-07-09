@@ -13,7 +13,7 @@
 
 Ciao **{{ $profile->vendorAccount?->first_name ?? $profile->vendorAccount?->company_name ?? 'Fornitore' }}**,
 
-Ottime notizie! La tua scheda servizio **"{{ $profile->offering?->name ?? 'Servizio' }}"** è stata analizzata e formalmente approvata dal nostro team di moderazione.
+Ottime notizie! La tua scheda servizio **"{{ $profile->title ?: ($profile->offering?->name ?? 'Servizio') }}"** è stata analizzata e formalmente approvata dal nostro team di moderazione.
 
 La scheda è ora **visibile a tutti i clienti** sul catalogo ufficiale di Party Legacy ed è pronta a ricevere da subito le prime richieste di prenotazione.
 

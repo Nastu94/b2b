@@ -16,8 +16,18 @@
         <form wire:submit.prevent="save" class="mt-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 @foreach ($availableOfferings as $offering)
+                    @php
+                        $isPendingCustom = $offering->is_custom && $offering->status === \App\Models\Offering::STATUS_PENDING_REVIEW;
+                        $isRejectedCustom = $offering->is_custom && $offering->status === \App\Models\Offering::STATUS_REJECTED;
+                        $isDisabled = $isPendingCustom || $isRejectedCustom;
+                    @endphp
                     <label class="flex items-center gap-2 p-3 border rounded">
-                        <input type="checkbox" wire:model="selectedOfferingIds" value="{{ $offering->id }}" />
+                        <input
+                            type="checkbox"
+                            wire:model="selectedOfferingIds"
+                            value="{{ $offering->id }}"
+                            @disabled($isDisabled)
+                        />
                         <div class="flex-1">
                             <span class="block">{{ $offering->name }}</span>
                             @if($offering->is_custom && $offering->status === \App\Models\Offering::STATUS_PENDING_REVIEW)
@@ -43,12 +53,12 @@
     <div class="bg-white shadow-sm rounded-lg p-6 mt-6">
         <h2 class="text-lg font-semibold">Proponi nuovo servizio</h2>
         <p class="text-sm text-gray-600 mt-1">
-            Se non trovi il servizio che offri, proponi uno nuovo al nostro team.
+            Inserisci il nome del servizio che vuoi proporre. Il team potrà revisionarlo prima della pubblicazione.
         </p>
 
         <form wire:submit.prevent="proposeCustomOffering" class="mt-6 space-y-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700">Titolo pubblico</label>
+                <label class="block text-sm font-medium text-gray-700">Nome servizio</label>
                 <input type="text" wire:model="newOfferingTitle" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm" required>
             </div>
             <div>

@@ -158,19 +158,20 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
                         @if($viewingProfile->offering->is_custom ?? false)
                             <div>
-                                <label class="text-sm font-semibold text-slate-700">Nome interno servizio catalogo</label>
+                                <label class="text-sm font-semibold text-slate-700">Nome servizio nel catalogo</label>
                                 <input type="text" wire:model.defer="editOfferingName" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
+                                <p class="text-[10px] text-slate-500 mt-1">Il nome catalogo è globale. Dopo l’approvazione sarà visibile anche ai futuri vendor della stessa categoria.</p>
                                 @error('editOfferingName')<div class="mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
                             </div>
                         @else
                             <div>
-                                <label class="text-sm font-semibold text-slate-700">Nome interno servizio catalogo</label>
+                                <label class="text-sm font-semibold text-slate-700">Nome servizio nel catalogo</label>
                                 <input type="text" value="{{ $editOfferingName }}" disabled class="mt-1 w-full rounded-lg border-slate-300 text-sm bg-slate-100 text-slate-500 cursor-not-allowed">
                                 <p class="text-[10px] text-slate-500 mt-1">Non modificabile (servizio standard)</p>
                             </div>
                         @endif
                         <div>
-                            <label class="text-sm font-semibold text-slate-700">Titolo pubblico vendor</label>
+                            <label class="text-sm font-semibold text-slate-700">Titolo mostrato per questo vendor</label>
                             <input type="text" wire:model.defer="editProfileTitle" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
                             @error('editProfileTitle')<div class="mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
                         </div>
