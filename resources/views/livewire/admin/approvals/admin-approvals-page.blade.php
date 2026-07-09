@@ -149,6 +149,12 @@
                             <x-app-icon name="{{ $icon }}" class="w-3.5 h-3.5" />
                             <span>{{ $label }}</span>
                         </span>
+
+                        @if($item['type'] === 'service' && ($item['is_custom'] ?? false))
+                            <span class="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium bg-blue-100 text-blue-800">
+                                Nuovo servizio proposto dal vendor
+                            </span>
+                        @endif
                     </div>
 
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-3 text-sm">

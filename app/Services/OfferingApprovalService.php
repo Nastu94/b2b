@@ -33,17 +33,6 @@ class OfferingApprovalService
         DB::transaction(function () use ($vendorAccount, $profile, $offeringId) {
             $offering = Offering::find($offeringId);
 
-            if (
-                $offering &&
-                $offering->is_custom &&
-                $offering->status === Offering::STATUS_PENDING_REVIEW &&
-                str_starts_with($offering->name, 'Proposta vendor #')
-            ) {
-                throw ValidationException::withMessages([
-                    'editOfferingName' => 'Prima di approvare devi impostare il nome interno definitivo del servizio.',
-                ]);
-            }
-
             if ($offering && $offering->is_custom && $offering->status === Offering::STATUS_PENDING_REVIEW) {
                 $offering->update([
                     'status' => Offering::STATUS_APPROVED,

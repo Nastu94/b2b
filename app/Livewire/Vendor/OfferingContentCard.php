@@ -81,6 +81,7 @@ class OfferingContentCard extends Component
         $this->profile = VendorOfferingProfile::firstOrCreate(
             ['vendor_account_id' => $vendorId, 'offering_id' => $offeringId],
             [
+                'title' => $this->offering->name,
                 'service_mode' => 'FIXED_LOCATION',
                 'service_radius_km' => null,
                 'max_guests' => null,

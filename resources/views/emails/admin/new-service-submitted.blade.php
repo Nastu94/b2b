@@ -26,7 +26,7 @@
         <p>Prima di essere pubblicato e sincronizzato su PrestaShop, il servizio attende la tua ispezione e approvazione.</p>
 
         <div style="text-align: center;">
-            <a href="{{ route('admin.dashboard') }}" class="btn">Vai alla Dashboard Admin</a>
+            <a href="{{ route('admin.approvals') }}" class="btn">Vai alle Approvazioni</a>
         </div>
 
         <div class="footer">

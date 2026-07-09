@@ -21,7 +21,7 @@ class NewServiceSubmittedAdminMail extends Mailable
      */
     public function __construct(VendorOfferingProfile $service)
     {
-        $this->service = $service->loadMissing('vendorAccount');
+        $this->service = $service->loadMissing(['vendorAccount', 'offering']);
     }
 
     /**
@@ -48,7 +48,7 @@ class NewServiceSubmittedAdminMail extends Mailable
         return new Content(
             view: 'emails.admin.new-service-submitted',
             with: [
-                'serviceName' => $this->service->name,
+                'serviceName' => $this->service->title ?: $this->service->offering?->name ?: 'Servizio senza nome',
                 'vendorName'  => $vendorName,
             ]
         );

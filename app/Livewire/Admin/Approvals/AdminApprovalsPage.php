@@ -160,13 +160,17 @@ class AdminApprovalsPage extends Component
                 $items->push([
                     'type' => 'service',
                     'id' => $p->id,
-                    'title' => $p->title ?: 'Servizio senza titolo',
-                    'subtitle' => $p->offering?->name,
+                    'title' => $p->title ?: $p->offering?->name ?: 'Servizio senza titolo',
+                    'subtitle' => $p->offering?->is_custom
+                        ? 'Nuovo servizio proposto dal vendor'
+                        : $p->offering?->name,
                     'category' => $p->vendorAccount?->category?->name,
                     'status' => $itemStatus,
                     'vendor_account_id' => $p->vendor_account_id,
                     'vendor_name' => $this->getVendorName($p->vendorAccount),
                     'related_offering_id' => $p->offering_id,
+                    'is_custom' => (bool) $p->offering?->is_custom,
+                    'offering_name' => $p->offering?->name,
                 ]);
             }
         }
