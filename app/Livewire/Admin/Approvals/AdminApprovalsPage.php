@@ -6,6 +6,7 @@ use App\Models\VendorAccount;
 use App\Models\VendorOfferingProfile;
 use App\Models\Offering;
 use App\Models\Category;
+use App\Models\VendorDocument;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -21,6 +22,9 @@ class AdminApprovalsPage extends Component
     public string $filterStatus = 'pending';
     public string $search = '';
     public string $filterVendorId = '';
+
+    public ?int $rejectingDocumentId = null;
+    public string $documentReviewNote = '';
 
     protected $queryString = [
         'filterType' => ['except' => 'all'],
@@ -212,6 +216,64 @@ class AdminApprovalsPage extends Component
             }
         }
 
+        // 4. Vendor Documents
+        if (in_array($type, ['all', 'documents'])) {
+            $query = VendorDocument::with(['vendorAccount.user', 'vendorAccount.category', 'uploader', 'reviewer']);
+
+            if ($status === 'pending') {
+                $query->where('status', VendorDocument::STATUS_PENDING);
+            } elseif ($status === 'approved') {
+                $query->where('status', VendorDocument::STATUS_APPROVED);
+            } elseif ($status === 'rejected') {
+                $query->where('status', VendorDocument::STATUS_REJECTED);
+            }
+
+            if ($vendorId) {
+                $query->where('vendor_account_id', $vendorId);
+            }
+
+            $documents = $query->get();
+
+            if ($categoryId) {
+                $documents = $documents->filter(fn ($d) => $d->vendorAccount?->category_id == $categoryId);
+            }
+
+            $documents = $documents->filter(function ($d) use ($search) {
+                if (!$search) {
+                    return true;
+                }
+
+                $vendorName = $this->getVendorName($d->vendorAccount);
+                $typeLabel = VendorDocument::TYPES[$d->type] ?? $d->type;
+
+                return str_contains(strtolower($d->title ?? ''), $search)
+                    || str_contains(strtolower($d->original_filename ?? ''), $search)
+                    || str_contains(strtolower($typeLabel), $search)
+                    || str_contains(strtolower($vendorName), $search)
+                    || str_contains(strtolower($d->vendorAccount?->user?->email ?? ''), $search);
+            });
+
+            foreach ($documents as $d) {
+                $typeLabel = VendorDocument::TYPES[$d->type] ?? $d->type;
+
+                $items->push([
+                    'type' => 'document',
+                    'id' => $d->id,
+                    'title' => $d->title ?: $typeLabel,
+                    'subtitle' => $d->original_filename,
+                    'category' => $d->vendorAccount?->category?->name,
+                    'status' => $d->status,
+                    'vendor_account_id' => $d->vendor_account_id,
+                    'vendor_name' => $this->getVendorName($d->vendorAccount),
+                    'related_offering_id' => null,
+                    'related_document_id' => $d->id,
+                    'document_type' => $d->type,
+                    'document_type_label' => $typeLabel,
+                    'expires_at' => $d->expires_at,
+                ]);
+            }
+        }
+
         return $items->sortBy('title')->values();
     }
 
@@ -234,6 +296,47 @@ class AdminApprovalsPage extends Component
         $this->authorize('update', $vendor);
         app(\App\Services\OfferingApprovalService::class)->rejectOfferingProfile($vendor, $offeringId);
         session()->flash('status', 'Servizio rifiutato.');
+    }
+
+    public function approveDocument(int $documentId): void
+    {
+        $document = VendorDocument::findOrFail($documentId);
+
+        $document->update([
+            'status' => VendorDocument::STATUS_APPROVED,
+            'reviewed_by' => auth()->id(),
+            'reviewed_at' => now(),
+            'review_note' => null,
+        ]);
+
+        session()->flash('status', 'Documento approvato con successo.');
+    }
+
+    public function startRejectDocument(int $documentId): void
+    {
+        $this->rejectingDocumentId = $documentId;
+        $this->documentReviewNote = '';
+    }
+
+    public function rejectDocument(): void
+    {
+        $this->validate([
+            'documentReviewNote' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $document = VendorDocument::findOrFail($this->rejectingDocumentId);
+
+        $document->update([
+            'status' => VendorDocument::STATUS_REJECTED,
+            'reviewed_by' => auth()->id(),
+            'reviewed_at' => now(),
+            'review_note' => $this->documentReviewNote,
+        ]);
+
+        $this->rejectingDocumentId = null;
+        $this->documentReviewNote = '';
+
+        session()->flash('status', 'Documento rifiutato.');
     }
 
     public function render()

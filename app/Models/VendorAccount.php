@@ -124,9 +124,14 @@ class VendorAccount extends Model
     }
 
     // Tipi di evento che il vendor è abilitato a servire.
-    public function eventTypes(): BelongsToMany
+    public function eventTypes()
     {
-        return $this->belongsToMany(EventType::class, 'event_type_vendor_account');
+        return $this->belongsToMany(EventType::class, 'event_type_vendor_account', 'vendor_account_id', 'event_type_id');
+    }
+
+    public function documents()
+    {
+        return $this->hasMany(VendorDocument::class);
     }
 
     // Relazione many-to-many con il catalogo offerings.

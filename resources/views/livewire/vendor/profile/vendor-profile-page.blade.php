@@ -380,4 +380,7 @@
             @endcannot
         </div>
     </form>
+
+    <livewire:vendor.profile.vendor-documents-section
+        wire:key="vendor-documents" />
 </div>

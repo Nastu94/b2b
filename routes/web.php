@@ -92,6 +92,10 @@ Route::middleware([
         return view('dashboard');
     })->name('dashboard');
 
+    // Download documenti vendor
+    Route::get('/vendor-documents/{document}/download', [\App\Http\Controllers\VendorDocumentController::class, 'download'])
+        ->name('vendor-documents.download');
+
     // Vendor area
     Route::middleware(['role:vendor', 'permission:vendor.access', 'active.vendor'])
         ->prefix('vendor')
