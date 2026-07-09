@@ -51,6 +51,7 @@ Route::middleware('booking.bridge')->group(function () {
         Route::get('/conversations/{conversation}/messages', [\App\Http\Controllers\Api\ConversationController::class, 'messages']);
         Route::post('/conversations/{conversation}/messages', [\App\Http\Controllers\Api\ConversationController::class, 'storeMessage']);
         Route::post('/conversations/{conversation}/read', [\App\Http\Controllers\Api\ConversationController::class, 'markAsRead']);
+        Route::post('/conversations/{conversation}/delete', [\App\Http\Controllers\Api\ConversationController::class, 'deleteCustomer']);
         Route::get('/conversations/unread', [\App\Http\Controllers\Api\ConversationController::class, 'unreadCount']);
         Route::get('/conversations', [\App\Http\Controllers\Api\ConversationController::class, 'indexCustomer']);
     });

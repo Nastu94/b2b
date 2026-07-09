@@ -33,6 +33,7 @@ class ConversationController extends Controller
             ->where('prestashop_customer_id', $validated['prestashop_customer_id'])
             ->where('offering_id', $validated['offering_id'] ?? null)
             ->where('status', 'open')
+            ->whereNull('customer_deleted_at')
             ->first();
 
         if ($existingThread) {
@@ -188,7 +189,9 @@ class ConversationController extends Controller
 
         $count = 0;
         if ($customerId) {
-            $count = \App\Models\ConversationThread::where('prestashop_customer_id', $customerId)->sum('customer_unread_count');
+            $count = \App\Models\ConversationThread::where('prestashop_customer_id', $customerId)
+                ->whereNull('customer_deleted_at')
+                ->sum('customer_unread_count');
         }
 
         return response()->json(['success' => true, 'unread_count' => $count]);
@@ -208,6 +211,7 @@ class ConversationController extends Controller
                 $q->select('id', 'name');
             }])
             ->where('prestashop_customer_id', $customerId)
+            ->whereNull('customer_deleted_at')
             ->orderBy('last_message_at', 'desc')
             ->get();
 
@@ -230,6 +234,28 @@ class ConversationController extends Controller
         return response()->json([
             'success' => true,
             'conversations' => $mapped
+        ]);
+    }
+
+    public function deleteCustomer(Request $request, \App\Models\ConversationThread $conversation)
+    {
+        $customerId = $request->input('prestashop_customer_id');
+
+        if (!$customerId || (int) $customerId !== (int) $conversation->prestashop_customer_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized access',
+            ], 403);
+        }
+
+        $conversation->update([
+            'customer_deleted_at' => now(),
+            'customer_unread_count' => 0,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Conversation deleted for customer',
         ]);
     }
 
