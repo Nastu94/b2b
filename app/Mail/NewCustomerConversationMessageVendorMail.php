@@ -10,16 +10,13 @@ class NewCustomerConversationMessageVendorMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public $thread;
-
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct($thread = null)
+    public function __construct(public \App\Models\ConversationThread $thread)
     {
-        $this->thread = $thread;
     }
 
     /**

@@ -17,6 +17,7 @@ class SlotLock extends Model
     protected $table = 'slot_locks';
 
     protected $fillable = [
+        'idempotency_key',
         'vendor_account_id',
         'vendor_slot_id',
         'offering_id',
@@ -67,6 +68,12 @@ class SlotLock extends Model
                         VendorAccount::BOOKING_SINGLE_RESOURCE
                     );
                 }
+            }
+        });
+
+        static::updating(function (self $lock): void {
+            if ($lock->isDirty('idempotency_key')) {
+                throw new \InvalidArgumentException('idempotency_key is immutable');
             }
         });
     }

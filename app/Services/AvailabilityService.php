@@ -57,7 +57,8 @@ class AvailabilityService
                     blackouts: $context['blackouts'],
                     lockedIndex: $context['lockedIndex'],
                     profile: $context['profile'],
-                    guests: $guests
+                    guests: $guests,
+                    offeringId: $offeringId
                 );
 
                 $out[$dayKey][] = $this->row(
@@ -107,11 +108,12 @@ class AvailabilityService
             blackouts: $context['blackouts'],
             lockedIndex: $context['lockedIndex'],
             profile: $context['profile'],
-            guests: $guests
+            guests: $guests,
+            offeringId: $offeringId
         );
 
         if ($result['status'] !== 'AVAILABLE') {
-            throw new RuntimeException($this->reasonToMessage($result['reason']));
+            throw new \App\Exceptions\SlotUnavailableException($this->reasonToMessage($result['reason']));
         }
     }
 
@@ -124,9 +126,24 @@ class AvailabilityService
     ): array {
         $vendorAccount = \App\Models\VendorAccount::find($vendorAccountId);
         $mode = $vendorAccount?->bookingCapacityMode() ?? \App\Models\VendorAccount::BOOKING_SINGLE_RESOURCE;
-        
+        if (!$vendorAccount || $vendorAccount->status !== 'ACTIVE' || $vendorAccount->deleted_at !== null) {
+            throw new \App\Exceptions\AvailabilityValidationException('Vendor non trovato, inattivo o eliminato');
+        }
+
         if ($mode === \App\Models\VendorAccount::BOOKING_MULTIPLE_BY_OFFERING && $offeringId === null) {
-            throw new InvalidArgumentException('L\'offering_id è obbligatorio per i vendor in modalità multiple_by_offering');
+            throw new \App\Exceptions\AvailabilityValidationException('L\'offering_id è obbligatorio per i vendor in modalità multiple_by_offering');
+        }
+
+        if ($offeringId === null) {
+            // Check if there is at least one bookable offering for this vendor
+            $hasBookable = \App\Models\VendorOfferingProfile::query()
+                ->where('vendor_account_id', $vendorAccountId)
+                ->bookable()
+                ->exists();
+
+            if (!$hasBookable) {
+                throw new \App\Exceptions\AvailabilityValidationException('Il vendor non ha alcun servizio prenotabile al momento');
+            }
         }
 
         $offeringStr = $offeringId ?? 'null';
@@ -208,6 +225,7 @@ class AvailabilityService
         return VendorOfferingProfile::query()
             ->where('vendor_account_id', $vendorAccountId)
             ->where('offering_id', $offeringId)
+            ->bookable()
             ->first();
     }
 
@@ -221,7 +239,8 @@ class AvailabilityService
         array $blackouts,
         array $lockedIndex,
         ?VendorOfferingProfile $profile,
-        ?int $guests
+        ?int $guests,
+        ?int $offeringId = null
     ): array {
         $lead = $leadTimes->get($dayOfWeek);
         $minNoticeHours = (int) ($lead->min_notice_hours ?? 48);
@@ -249,6 +268,10 @@ class AvailabilityService
 
         if ($this->isSlotLockedFromIndex($lockedIndex, $date->toDateString(), (int) $slot->id)) {
             return ['status' => 'BLOCKED', 'reason' => 'BOOKED'];
+        }
+
+        if ($offeringId !== null && $profile === null) {
+            return ['status' => 'BLOCKED', 'reason' => 'UNAVAILABLE_OFFERING'];
         }
 
         if ($this->profileExceedsCapacity($profile, $guests)) {

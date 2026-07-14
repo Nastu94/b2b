@@ -19,7 +19,7 @@ class VendorOfferingProfile extends Model
             if ($profile->vendor_account_id && $profile->is_approved) {
                 $vendor = \App\Models\VendorAccount::find($profile->vendor_account_id);
                 if ($vendor && $vendor->status === 'ACTIVE') {
-                    \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor);
+                    \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor)->afterCommit();
                 }
             }
         });
@@ -29,7 +29,7 @@ class VendorOfferingProfile extends Model
             if ($profile->vendor_account_id) {
                 $vendor = \App\Models\VendorAccount::find($profile->vendor_account_id);
                 if ($vendor && $vendor->status === 'ACTIVE') {
-                    \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor);
+                    \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor)->afterCommit();
                 }
             }
         });
@@ -55,6 +55,32 @@ class VendorOfferingProfile extends Model
         'is_published' => 'boolean',
         'is_approved' => 'boolean',
     ];
+
+    // ─── Scope ─────────────────────────────────────────────
+
+    public function scopeBookable(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query
+            ->where('is_published', true)
+            ->where('is_approved', true)
+            ->whereHas('vendorAccount', function ($q) {
+                $q->whereNull('deleted_at')
+                  ->where('status', 'ACTIVE')
+                  ->whereHas('category', function ($qc) {
+                      $qc->where('is_active', true);
+                  });
+            })
+            ->whereHas('offering', function ($q) {
+                $q->where('is_active', true);
+            })
+            ->whereExists(function ($q) {
+                $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                  ->from('vendor_offerings')
+                  ->whereColumn('vendor_offerings.vendor_account_id', 'vendor_offering_profiles.vendor_account_id')
+                  ->whereColumn('vendor_offerings.offering_id', 'vendor_offering_profiles.offering_id')
+                  ->where('vendor_offerings.is_active', true);
+            });
+    }
 
     // ─── Relazioni ─────────────────────────────────────────
 

@@ -43,7 +43,7 @@ class NewVendorRegisteredAdminMail extends Mailable
             view: 'emails.admin.new-vendor-registered',
             with: [
                 'vendorName' => $this->vendor->first_name ? $this->vendor->first_name . ' ' . $this->vendor->last_name : $this->vendor->company_name,
-                'vendorEmail' => $this->vendor->user->email,
+                'vendorEmail' => $this->vendor->notificationEmail(),
                 'vendorType' => $this->vendor->account_type,
             ]
         );

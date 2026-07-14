@@ -16,7 +16,7 @@ Route::middleware('auth:sanctum')->get('/user', MeController::class);
 Route::middleware('booking.bridge')->group(function () {
 
     // API in LETTURA (Throttle morbido: 120 rate/min)
-    Route::middleware('throttle:120,1')->group(function () {
+    Route::middleware('throttle:api-read')->group(function () {
         // Ricerca vendor disponibili per data/ospiti/città
         Route::get('/vendors/search', [\App\Http\Controllers\Api\VendorSearchController::class, 'search']);
         Route::get('/event-types', [\App\Http\Controllers\Api\EventTypeController::class, 'index']);
@@ -36,7 +36,7 @@ Route::middleware('booking.bridge')->group(function () {
     });
 
     // API in SCRITTURA / MUTAZIONE (Throttle severo anti-bot: 60 rate/min)
-    Route::middleware('throttle:60,1')->group(function () {
+    Route::middleware('throttle:api-write')->group(function () {
         // Blocca temporaneamente uno slot (hold)
         Route::post('/slots/hold', [SlotController::class, 'hold']);
 

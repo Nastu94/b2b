@@ -45,8 +45,7 @@ class VendorSearchService
                       $q->whereRaw('LOWER(legal_city) = ?', [$city])
                         ->orWhereRaw('LOWER(operational_city) = ?', [$city])
                         ->orWhereHas('vendorOfferingProfiles', function ($profQ) use ($distSql) {
-                            $profQ->where('is_published', true)
-                                  ->where('is_approved', true)
+                            $profQ->bookable()
                                   ->where(function ($modeQ) use ($distSql) {
                                       $modeQ->where(function ($radiusQ) use ($distSql) {
                                           $radiusQ->whereNotNull('service_radius_km')
@@ -65,8 +64,7 @@ class VendorSearchService
                       $q->whereRaw('LOWER(legal_city) = ?', [$city])
                         ->orWhereRaw('LOWER(operational_city) = ?', [$city])
                         ->orWhereHas('vendorOfferingProfiles', function ($profQ) {
-                            $profQ->where('is_published', true)
-                                  ->where('is_approved', true)
+                            $profQ->bookable()
                                   ->where('service_mode', 'FIXED_LOCATION');
                         });
                   })
@@ -131,14 +129,12 @@ class VendorSearchService
     $query = VendorAccount::query()
         ->where('status', 'ACTIVE')
         ->whereHas('vendorOfferingProfiles', function ($query) {
-            $query->where('is_published', true)
-                  ->where('is_approved', true);
+            $query->bookable();
         })
         ->with([
             'category:id,name,slug,prestashop_category_id',
             'vendorOfferingProfiles' => function ($query) {
-                $query->where('is_published', true)
-                    ->where('is_approved', true)
+                $query->bookable()
                     ->with(['offering:id,name,slug', 'images']);
             },
         ]);

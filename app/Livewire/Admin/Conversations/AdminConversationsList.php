@@ -22,7 +22,7 @@ class AdminConversationsList extends Component
 
     public function render()
     {
-        $query = ConversationThread::with(['vendorAccount', 'offering']);
+        $query = ConversationThread::visibleToAdmin()->with(['vendorAccount', 'offering']);
 
         if ($this->filter === 'open') {
             $query->where('status', 'open');
@@ -39,5 +39,11 @@ class AdminConversationsList extends Component
         return view('livewire.admin.conversations.admin-conversations-list', [
             'conversations' => $conversations,
         ]);
+    }
+
+    public function deleteConversation(int $conversationId): void
+    {
+        $conversation = ConversationThread::findOrFail($conversationId);
+        $conversation->deleteForAdmin();
     }
 }

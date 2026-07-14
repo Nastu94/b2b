@@ -42,7 +42,7 @@ class SlotCapacityModeTest extends TestCase
     {
         parent::setUp();
 
-        $category = Category::create(['name' => 'Test', 'slug' => 'test']);
+        $category = Category::create(['name' => 'Test', 'slug' => 'test', 'is_active' => true, 'commission_rate' => 15]);
         $user1 = User::factory()->create();
 
         // 1. DJ Vendor (single_resource)
@@ -60,10 +60,12 @@ class SlotCapacityModeTest extends TestCase
             'end_time' => '20:00:00',
             'is_active' => true,
         ]);
-        $this->djSetOffering = Offering::create(['category_id' => $category->id, 'name' => 'DJ Set', 'slug' => 'dj-set']);
-        $this->djMatrimonioOffering = Offering::create(['category_id' => $category->id, 'name' => 'DJ Matrimonio', 'slug' => 'dj-matrimonio']);
-        VendorOfferingProfile::create(['vendor_account_id' => $this->djVendor->id, 'offering_id' => $this->djSetOffering->id, 'is_published' => true]);
-        VendorOfferingProfile::create(['vendor_account_id' => $this->djVendor->id, 'offering_id' => $this->djMatrimonioOffering->id, 'is_published' => true]);
+        $this->djSetOffering = Offering::create(['category_id' => $category->id, 'name' => 'DJ Set', 'slug' => 'dj-set', 'is_active' => true]);
+        $this->djMatrimonioOffering = Offering::create(['category_id' => $category->id, 'name' => 'DJ Matrimonio', 'slug' => 'dj-matrimonio', 'is_active' => true]);
+        $this->djVendor->offerings()->attach($this->djSetOffering->id, ['is_active' => true]);
+        $this->djVendor->offerings()->attach($this->djMatrimonioOffering->id, ['is_active' => true]);
+        VendorOfferingProfile::create(['vendor_account_id' => $this->djVendor->id, 'offering_id' => $this->djSetOffering->id, 'is_published' => true, 'is_approved' => true]);
+        VendorOfferingProfile::create(['vendor_account_id' => $this->djVendor->id, 'offering_id' => $this->djMatrimonioOffering->id, 'is_published' => true, 'is_approved' => true]);
         $this->setupSchedules($this->djVendor, $this->djSlot);
 
         // 2. Noleggio Vendor (multiple_by_offering)
@@ -82,10 +84,12 @@ class SlotCapacityModeTest extends TestCase
             'end_time' => '20:00:00',
             'is_active' => true,
         ]);
-        $this->limousineOffering = Offering::create(['category_id' => $category->id, 'name' => 'Limousine', 'slug' => 'limousine']);
-        $this->partyBusOffering = Offering::create(['category_id' => $category->id, 'name' => 'Party Bus', 'slug' => 'party-bus']);
-        VendorOfferingProfile::create(['vendor_account_id' => $this->noleggioVendor->id, 'offering_id' => $this->limousineOffering->id, 'is_published' => true]);
-        VendorOfferingProfile::create(['vendor_account_id' => $this->noleggioVendor->id, 'offering_id' => $this->partyBusOffering->id, 'is_published' => true]);
+        $this->limousineOffering = Offering::create(['category_id' => $category->id, 'name' => 'Limousine', 'slug' => 'limousine', 'is_active' => true]);
+        $this->partyBusOffering = Offering::create(['category_id' => $category->id, 'name' => 'Party Bus', 'slug' => 'party-bus', 'is_active' => true]);
+        $this->noleggioVendor->offerings()->attach($this->limousineOffering->id, ['is_active' => true]);
+        $this->noleggioVendor->offerings()->attach($this->partyBusOffering->id, ['is_active' => true]);
+        VendorOfferingProfile::create(['vendor_account_id' => $this->noleggioVendor->id, 'offering_id' => $this->limousineOffering->id, 'is_published' => true, 'is_approved' => true]);
+        VendorOfferingProfile::create(['vendor_account_id' => $this->noleggioVendor->id, 'offering_id' => $this->partyBusOffering->id, 'is_published' => true, 'is_approved' => true]);
         $this->setupSchedules($this->noleggioVendor, $this->noleggioSlot);
 
         // 3. Location Vendor (multiple_by_offering)
@@ -104,10 +108,12 @@ class SlotCapacityModeTest extends TestCase
             'end_time' => '23:59:59',
             'is_active' => true,
         ]);
-        $this->salaPremiumOffering = Offering::create(['category_id' => $category->id, 'name' => 'Sala Premium', 'slug' => 'sala-premium']);
-        $this->salaRealeOffering = Offering::create(['category_id' => $category->id, 'name' => 'Sala Reale', 'slug' => 'sala-reale']);
-        VendorOfferingProfile::create(['vendor_account_id' => $this->locationVendor->id, 'offering_id' => $this->salaPremiumOffering->id, 'is_published' => true]);
-        VendorOfferingProfile::create(['vendor_account_id' => $this->locationVendor->id, 'offering_id' => $this->salaRealeOffering->id, 'is_published' => true]);
+        $this->salaPremiumOffering = Offering::create(['category_id' => $category->id, 'name' => 'Sala Premium', 'slug' => 'sala-premium', 'is_active' => true]);
+        $this->salaRealeOffering = Offering::create(['category_id' => $category->id, 'name' => 'Sala Reale', 'slug' => 'sala-reale', 'is_active' => true]);
+        $this->locationVendor->offerings()->attach($this->salaPremiumOffering->id, ['is_active' => true]);
+        $this->locationVendor->offerings()->attach($this->salaRealeOffering->id, ['is_active' => true]);
+        VendorOfferingProfile::create(['vendor_account_id' => $this->locationVendor->id, 'offering_id' => $this->salaPremiumOffering->id, 'is_published' => true, 'is_approved' => true]);
+        VendorOfferingProfile::create(['vendor_account_id' => $this->locationVendor->id, 'offering_id' => $this->salaRealeOffering->id, 'is_published' => true, 'is_approved' => true]);
         $this->setupSchedules($this->locationVendor, $this->locationSlot);
 
         // Mock BookingPricingService in the container so it returns a fixed price
@@ -158,7 +164,8 @@ class SlotCapacityModeTest extends TestCase
             'vendor_slot_id' => $this->djSlot->id,
             'offering_id' => $this->djSetOffering->id,
             'date' => $date,
-        ]);
+        ], ['Idempotency-Key' => 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']);
+        if ($res1->status() !== 201) { dump($res1->json()); }
         $res1->assertStatus(201);
         $this->assertEquals(SlotLock::STATUS_HOLD, SlotLock::first()->status);
 
@@ -168,9 +175,9 @@ class SlotCapacityModeTest extends TestCase
             'vendor_slot_id' => $this->djSlot->id,
             'offering_id' => $this->djMatrimonioOffering->id,
             'date' => $date,
-        ]);
+        ], ['Idempotency-Key' => 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']);
         
-        $res2->assertStatus(422); // Let's expect 422 and assert the message if it's just "Slot non disponibile"
+        $res2->assertStatus(409); // Let's expect 409 because SlotUnavailableException returns 409
     }
 
     public function test_noleggio_multiple_by_offering_capacity_mode()
@@ -184,7 +191,7 @@ class SlotCapacityModeTest extends TestCase
             'vendor_slot_id' => $this->noleggioSlot->id,
             'offering_id' => $this->limousineOffering->id,
             'date' => $date,
-        ]);
+        ], ['Idempotency-Key' => 'cccccccccccccccccccccccccccccccc']);
         $res1->assertStatus(201);
 
         // 2. Party Bus ore 18 OK
@@ -193,7 +200,7 @@ class SlotCapacityModeTest extends TestCase
             'vendor_slot_id' => $this->noleggioSlot->id,
             'offering_id' => $this->partyBusOffering->id,
             'date' => $date,
-        ]);
+        ], ['Idempotency-Key' => 'dddddddddddddddddddddddddddddddd']);
         $res2->assertStatus(201); // Works because it's a different offering
 
         // 3. Limousine ore 18 seconda volta (Idempotency Replay)
@@ -204,7 +211,7 @@ class SlotCapacityModeTest extends TestCase
             'vendor_slot_id' => $this->noleggioSlot->id,
             'offering_id' => $this->limousineOffering->id,
             'date' => $date,
-        ]);
+        ], ['Idempotency-Key' => 'cccccccccccccccccccccccccccccccc']);
         
         $res3->assertStatus(200); 
         $this->assertCount(2, SlotLock::where('vendor_account_id', $this->noleggioVendor->id)->get());
@@ -222,7 +229,7 @@ class SlotCapacityModeTest extends TestCase
             'vendor_slot_id' => $this->locationSlot->id,
             'offering_id' => $this->salaPremiumOffering->id,
             'date' => $date,
-        ]);
+        ], ['Idempotency-Key' => 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee']);
         $res1->assertStatus(201);
 
         // 2. Sala Reale ore 20 OK
@@ -231,7 +238,7 @@ class SlotCapacityModeTest extends TestCase
             'vendor_slot_id' => $this->locationSlot->id,
             'offering_id' => $this->salaRealeOffering->id,
             'date' => $date,
-        ]);
+        ], ['Idempotency-Key' => 'ffffffffffffffffffffffffffffffff']);
         $res2->assertStatus(201);
 
         // 3. Confirm order retains offering_id in active_slot_key
@@ -245,7 +252,7 @@ class SlotCapacityModeTest extends TestCase
             'hold_token' => $holdData['hold_token'],
             'prestashop_order_id' => '12345',
             'prestashop_order_line_id' => '1',
-        ]);
+        ], ['Idempotency-Key' => 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee']);
         $res3->assertStatus(200);
 
         $lock->refresh();

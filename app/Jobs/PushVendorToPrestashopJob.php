@@ -21,16 +21,20 @@ class PushVendorToPrestashopJob implements ShouldQueue
         $this->vendor = $vendor;
     }
 
+    public $tries = 3;
+    public $backoff = [10, 30, 60];
+
     public function handle(PrestashopWebhookService $service, \App\Services\PrestashopProductSyncService $productSync)
     {
         // 1. Sync full PrestaShop native product (per scaricare/aggiornare l'immagine fisicamente in PS)
-        try {
-            $productSync->sync($this->vendor);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('PushVendorToPrestashopJob (Product Sync) failed: ' . $e->getMessage());
-        }
+        $productSync->sync($this->vendor);
 
         // 2. Sync JSON data bypassando il prodotto per il frontend React/Smarty veloce
-        $service->pushVendor($this->vendor);
+        $result = $service->pushVendor($this->vendor);
+
+        if ($result === PrestashopWebhookService::RESULT_ERROR) {
+            throw new \RuntimeException("Errore di configurazione Webhook o errore fatale (verificare i log).");
+        }
+        // Se RESULT_SKIPPED, non fa nulla e il job finisce con successo.
     }
 }

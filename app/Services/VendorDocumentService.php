@@ -37,6 +37,15 @@ class VendorDocumentService
                 'local'
             );
 
+            // Soft delete vecchi documenti della stessa categoria
+            $type = $data['type'] ?? 'OTHER';
+            $oldDocuments = VendorDocument::where('vendor_account_id', $vendorAccount->id)
+                ->where('type', $type)
+                ->get();
+            foreach ($oldDocuments as $oldDoc) {
+                $oldDoc->delete();
+            }
+
             return VendorDocument::create([
                 'vendor_account_id' => $vendorAccount->id,
                 'type' => $data['type'] ?? 'OTHER',

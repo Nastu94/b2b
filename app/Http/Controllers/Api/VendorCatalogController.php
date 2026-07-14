@@ -31,7 +31,7 @@ class VendorCatalogController extends Controller
                 $query->where('is_active', true);
             })
             ->whereHas('vendorOfferingProfiles', function ($query) {
-                $query->where('is_published', true);
+                $query->bookable();
             })
             ->with([
                 'category:id,name,slug,is_active',
@@ -49,7 +49,7 @@ class VendorCatalogController extends Controller
                         'max_guests',
                         'is_published',
                     ])
-                    ->where('is_published', true)
+                    ->bookable()
                     ->orderBy('id');
                 },
             ]);
@@ -64,7 +64,7 @@ class VendorCatalogController extends Controller
                     ->orWhere('first_name', 'like', '%' . $q . '%')
                     ->orWhere('last_name', 'like', '%' . $q . '%')
                     ->orWhereHas('vendorOfferingProfiles', function ($profilesQuery) use ($q) {
-                        $profilesQuery->where('is_published', true)
+                        $profilesQuery->bookable()
                             ->where(function ($innerQuery) use ($q) {
                                 $innerQuery->where('title', 'like', '%' . $q . '%')
                                     ->orWhere('short_description', 'like', '%' . $q . '%')
@@ -85,7 +85,7 @@ class VendorCatalogController extends Controller
                 $query->whereNull('deleted_at')
                     ->where('status', 'ACTIVE')
                     ->whereHas('vendorOfferingProfiles', function ($profilesQuery) {
-                        $profilesQuery->where('is_published', true);
+                        $profilesQuery->bookable();
                     });
             })
             ->orderBy('sort_order')
@@ -130,7 +130,7 @@ class VendorCatalogController extends Controller
                 $query->where('is_active', true);
             })
             ->whereHas('vendorOfferingProfiles', function ($query) {
-                $query->where('is_published', true);
+                $query->bookable();
             })
             ->with([
                 'category:id,name,slug,is_active',
@@ -148,7 +148,7 @@ class VendorCatalogController extends Controller
                         'max_guests',
                         'is_published',
                     ])
-                    ->where('is_published', true)
+                    ->bookable()
                     ->orderBy('id');
                 },
             ])
@@ -196,7 +196,7 @@ class VendorCatalogController extends Controller
                 $query->where('is_active', true);
             })
             ->whereHas('vendorOfferingProfiles', function ($query) {
-                $query->where('is_published', true);
+                $query->bookable();
             })
             ->with([
                 'category:id,name,slug,is_active',
@@ -214,7 +214,7 @@ class VendorCatalogController extends Controller
                         'max_guests',
                         'is_published',
                     ])
-                    ->where('is_published', true)
+                    ->bookable()
                     ->orderBy('id');
                 },
             ]);

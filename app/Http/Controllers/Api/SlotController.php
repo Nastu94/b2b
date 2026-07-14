@@ -30,21 +30,36 @@ class SlotController extends Controller
         AvailabilityService $availabilityService
     ): JsonResponse {
         $validated = $request->validate([
-            'vendor_account_id' => 'required|integer|exists:vendor_accounts,id',
-            'vendor_slot_id'    => 'required|integer|exists:vendor_slots,id',
-            'offering_id'       => 'required|integer|exists:offerings,id',
-            'date'              => 'required|date_format:Y-m-d|after_or_equal:today',
-            'distance_km'       => 'nullable|numeric|min:0',
-            'guests'            => 'nullable|integer|min:1',
+            'vendor_account_id'      => 'required|integer|exists:vendor_accounts,id',
+            'vendor_slot_id'         => 'required|integer|exists:vendor_slots,id',
+            'offering_id'            => 'required|integer|exists:offerings,id',
+            'date'                   => 'required|date_format:Y-m-d|after_or_equal:today',
+            'distance_km'            => 'nullable|numeric|min:0',
+            'guests'                 => 'nullable|integer|min:1',
+            'prestashop_shop_id'     => 'nullable|integer',
+            'prestashop_cart_id'     => 'nullable|integer',
+            'prestashop_customer_id' => 'nullable|integer',
         ]);
 
+        $idempotencyKey = $request->header('Idempotency-Key');
+        if (empty($idempotencyKey)) {
+            throw new \App\Exceptions\BookingBridge\MissingIdempotencyKeyException();
+        }
+        $idempotencyKey = strtolower(trim($idempotencyKey));
+        if (!preg_match('/^[a-f0-9]{32}$/', $idempotencyKey)) {
+            throw new \App\Exceptions\BookingBridge\InvalidIdempotencyKeyException();
+        }
+
         $vendorAccountId = (int) $validated['vendor_account_id'];
-        
         $vendorSlotId = (int) $validated['vendor_slot_id'];
         $offeringId = (int) $validated['offering_id'];
         $date = $validated['date'];
-        $distanceKm = array_key_exists('distance_km', $validated) ? (float) $validated['distance_km'] : null;
-        $guests = array_key_exists('guests', $validated) ? (int) $validated['guests'] : null;
+        $distanceKm = array_key_exists('distance_km', $validated) && $validated['distance_km'] !== null ? round((float) $validated['distance_km'], 2) : null;
+        $guests = array_key_exists('guests', $validated) && $validated['guests'] !== null ? (int) $validated['guests'] : null;
+        
+        $shopId = isset($validated['prestashop_shop_id']) ? (int) $validated['prestashop_shop_id'] : null;
+        $cartId = isset($validated['prestashop_cart_id']) ? (int) $validated['prestashop_cart_id'] : null;
+        $customerId = isset($validated['prestashop_customer_id']) ? (int) $validated['prestashop_customer_id'] : null;
 
         try {
             $vendorAccount = \App\Models\VendorAccount::findOrFail($vendorAccountId);
@@ -65,21 +80,14 @@ class SlotController extends Controller
             
             $activeSlotKey = SlotLock::makeActiveSlotKey($vendorAccountId, $vendorSlotId, $date, $bookingCapacityMode, $offeringId);
 
-            // Pre-check idempotente fuori transazione.
-            // Se la richiesta combacia col fingerprint di un lock attivo, stiamo di fronte a un replay.
-            // Il bypass permette alla richiesta di scendere nella DB::transaction dove avverrà il fetch protetto (lockForUpdate).
-            $existingLock = SlotLock::query()
-                ->where('active_slot_key', $activeSlotKey)
-                ->active()
-                ->first();
-
-            if ($existingLock && $existingLock->isExpiredHold($now)) {
-                $existingLock = null;
+            $existingIdempotentLock = null;
+            if ($idempotencyKey) {
+                $existingIdempotentLock = SlotLock::query()
+                    ->where('idempotency_key', $idempotencyKey)
+                    ->first();
             }
 
-            $isIdempotentReplay = $existingLock && $this->isSameFingerprint($existingLock, $offeringId, $distanceKm, $guests);
-
-            if (!$isIdempotentReplay) {
+            if (! $existingIdempotentLock) {
                 $availabilityService->assertSlotBookable(
                     vendorAccountId: $vendorAccountId,
                     vendorSlotId: $vendorSlotId,
@@ -90,10 +98,18 @@ class SlotController extends Controller
             }
         } catch (ValidationException $e) {
             throw $e;
+        } catch (\App\Exceptions\SlotUnavailableException $e) {
+            return response()->json([
+                'success' => false,
+                'code' => 'SLOT_UNAVAILABLE',
+                'error' => 'Slot non disponibile'
+            ], 409);
         } catch (RuntimeException $e) {
             return $this->unprocessable($e->getMessage());
+        } catch (\App\Exceptions\BookingBridge\BookingBridgeApiException $e) {
+            throw $e;
         } catch (Throwable $e) {
-            \Illuminate\Support\Facades\Log::error("Errore imprevisto in preliminari Hold: " . $e->getMessage(), ['exception' => $e]);
+            \Illuminate\Support\Facades\Log::error("Errore imprevisto in preliminari Hold: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return $this->serverError('Errore calcolo hold');
         }
 
@@ -105,11 +121,38 @@ class SlotController extends Controller
                 $date,
                 $distanceKm,
                 $guests,
+                $shopId,
+                $cartId,
+                $customerId,
                 $activeSlotKey,
+                $idempotencyKey,
                 $bookingPricingService
             ): JsonResponse {
                 $now = CarbonImmutable::now();
                 $expiresAt = $now->addMinutes(self::HOLD_TTL_MINUTES);
+
+                if ($idempotencyKey) {
+                    $idempotentLock = SlotLock::query()
+                        ->where('idempotency_key', $idempotencyKey)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($idempotentLock) {
+                        return $this->handleIdempotentLockOnHold(
+                            $idempotentLock,
+                            $vendorAccountId,
+                            $vendorSlotId,
+                            $date,
+                            $offeringId,
+                            $distanceKm,
+                            $guests,
+                            $shopId,
+                            $cartId,
+                            $customerId,
+                            $now
+                        );
+                    }
+                }
 
                 $activeLock = SlotLock::query()
                     ->where('active_slot_key', $activeSlotKey)
@@ -122,16 +165,8 @@ class SlotController extends Controller
                     $activeLock = null;
                 }
 
-                // Riutilizza il pricing salvato nel database se esiste già un lock attivo,
-                // mantenendo la consistenza dei prezzi durante il checkout.
                 if ($activeLock) {
-                    return $this->handleExistingActiveLockOnHold(
-                        $activeLock,
-                        $offeringId,
-                        $distanceKm,
-                        $guests,
-                        $now
-                    );
+                    throw new \App\Exceptions\BookingBridge\SlotUnavailableException();
                 }
 
                 // Calcola il pricing dinamicamente solo se è necessario creare un nuovo lock,
@@ -153,12 +188,16 @@ class SlotController extends Controller
 
                 try {
                     $lock = SlotLock::create([
+                        'idempotency_key'   => $idempotencyKey,
                         'vendor_account_id' => $vendorAccountId,
                         'vendor_slot_id'    => $vendorSlotId,
                         'offering_id'       => $offeringId,
                         'date'              => $date,
                         'distance_km'       => $distanceKm,
                         'guests'            => $guests,
+                        'prestashop_shop_id'=> $shopId,
+                        'prestashop_cart_id'=> $cartId,
+                        'prestashop_customer_id'=> $customerId,
                         'quoted_amount'     => $pricing['final_price'],
                         'currency'          => $pricing['currency'],
                         'pricing_breakdown' => $this->normalizePricingBreakdown($pricing),
@@ -170,7 +209,38 @@ class SlotController extends Controller
                     ]);
                 } catch (QueryException $e) {
                     if ($this->isUniqueConstraintViolation($e)) {
-                        return $this->conflict('Slot non disponibile');
+                        // Rileggi per idempotency_key
+                        if ($idempotencyKey) {
+                            $idempotentLock = SlotLock::query()
+                                ->where('idempotency_key', $idempotencyKey)
+                                ->first();
+
+                            if ($idempotentLock) {
+                                return $this->handleIdempotentLockOnHold(
+                                    $idempotentLock,
+                                    $vendorAccountId,
+                                    $vendorSlotId,
+                                    $date,
+                                    $offeringId,
+                                    $distanceKm,
+                                    $guests,
+                                    $shopId,
+                                    $cartId,
+                                    $customerId,
+                                    $now
+                                );
+                            }
+                        }
+
+                        // Rileggi per logica di occupazione slot
+                        $activeLock = SlotLock::query()
+                            ->where('active_slot_key', $activeSlotKey)
+                            ->active()
+                            ->first();
+
+                        if ($activeLock && !$activeLock->isExpiredHold($now)) {
+                            throw new \App\Exceptions\BookingBridge\SlotUnavailableException();
+                        }
                     }
 
                     throw $e;
@@ -181,14 +251,16 @@ class SlotController extends Controller
                     'data' => $this->buildHoldResponseData($lock, $now),
                 ], 201);
             });
+        } catch (\App\Exceptions\BookingBridge\BookingBridgeApiException $e) {
+            throw $e;
         } catch (Throwable $e) {
-            \Illuminate\Support\Facades\Log::error("Errore nascosto in transazione Hold: " . $e->getMessage(), ['exception' => $e]);
+            \Illuminate\Support\Facades\Log::error("Errore nascosto in transazione Hold: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return $this->serverError('Errore hold');
         }
     }
 
     // Conferma un hold dopo il pagamento.
-    public function confirm(Request $request): JsonResponse
+    public function confirm(Request $request, \App\Services\CommissionResolver $commissionResolver): JsonResponse
     {
         $validated = $request->validate([
             'hold_token'               => 'required|uuid',
@@ -197,8 +269,16 @@ class SlotController extends Controller
             'customer_data'            => 'nullable|array',
         ]);
 
+        $idempotencyKey = $request->header('Idempotency-Key');
+        if (!empty($idempotencyKey)) {
+            $idempotencyKey = strtolower(trim($idempotencyKey));
+            if (!preg_match('/^[a-f0-9]{32}$/', $idempotencyKey)) {
+                throw new \App\Exceptions\BookingBridge\InvalidIdempotencyKeyException();
+            }
+        }
+
         try {
-            return DB::transaction(function () use ($validated): JsonResponse {
+            return DB::transaction(function () use ($validated, $idempotencyKey, $commissionResolver): JsonResponse {
                 $holdToken = $validated['hold_token'];
                 $orderId = $validated['prestashop_order_id'];
                 $lineId = $validated['prestashop_order_line_id'];
@@ -218,12 +298,14 @@ class SlotController extends Controller
                         ->first();
 
                     if (! $lock) {
-                        return $this->conflict('Incoerenza booking/lock');
+                        return $this->conflict('INCOHERENT_BOOKING', 'Incoerenza booking/lock');
                     }
 
                     if ($lock->hold_token !== $holdToken) {
-                        return $this->conflict('Ordine già associato a un hold diverso');
+                        throw new \App\Exceptions\BookingBridge\IdempotencyMismatchException('Ordine già associato a un hold diverso');
                     }
+
+                    $this->checkIdempotencyKey($lock, $idempotencyKey);
 
                     if (! $lock->isBooked()) {
                         $lock->markBooked($existingBooking->id);
@@ -238,11 +320,10 @@ class SlotController extends Controller
                     ->first();
 
                 if (! $lock) {
-                    return response()->json([
-                        'success' => false,
-                        'error' => 'Hold non trovato',
-                    ], 404);
+                    throw new \App\Exceptions\BookingBridge\LockTerminatedException('Hold non trovato', null, 404);
                 }
+
+                $this->checkIdempotencyKey($lock, $idempotencyKey);
 
                 if ($lock->isBooked()) {
                     $booking = Booking::query()
@@ -251,14 +332,14 @@ class SlotController extends Controller
                         ->first();
 
                     if (! $booking) {
-                        return $this->conflict('Lock BOOKED senza booking associata');
+                        return $this->conflict('INCOHERENT_BOOKING', 'Lock BOOKED senza booking associata');
                     }
 
                     if (
                         (string) $booking->prestashop_order_id !== (string) $orderId ||
                         (string) $booking->prestashop_order_line_id !== (string) $lineId
                     ) {
-                        return $this->conflict('Hold già confermato per un altro ordine');
+                        return $this->conflict('IDEMPOTENCY_MISMATCH', 'Hold già confermato per un altro ordine');
                     }
 
                     return $this->confirmSuccess($lock, $booking);
@@ -268,17 +349,14 @@ class SlotController extends Controller
                     if ($lock->isExpiredHold($now)) {
                         $lock->markExpired();
 
-                        return response()->json([
-                            'success' => false,
-                            'error' => 'Hold scaduto',
-                        ], 410);
+                        throw new \App\Exceptions\BookingBridge\LockTerminatedException('Hold scaduto');
                     }
 
-                    return $this->conflict('Lock non confermabile');
+                    throw new \App\Exceptions\BookingBridge\LockTerminatedException('Lock non confermabile');
                 }
 
                 if ($lock->quoted_amount === null || $lock->currency === null) {
-                    return $this->conflict('Prezzo non disponibile per questo hold');
+                    return $this->conflict('INCOHERENT_BOOKING', 'Prezzo non disponibile per questo hold');
                 }
 
                 $booking = Booking::query()
@@ -289,21 +367,14 @@ class SlotController extends Controller
                 if (! $booking) {
                     try {
                         $vendor = \App\Models\VendorAccount::with('category')->find($lock->vendor_account_id);
-                        
-                        $isCommissionBased = true;
-                        
-                        // Gerarchia Commissione: Override Speciale > Standard Categoria > 20% Fallback Universale
-                        $commissionRate = $vendor->custom_commission_rate 
-                            ?? $vendor?->category?->commission_rate 
-                            ?? 20.00;
-                            
-                        $commissionAmount = round(($lock->quoted_amount * $commissionRate) / 100, 2);
-
-                        if ($vendor && $vendor->subscribed('default') && $vendor->payment_model === 'SUBSCRIPTION') {
-                            $isCommissionBased = false;
-                            $commissionRate = 0;
-                            $commissionAmount = 0;
+                        if (!$vendor) {
+                            throw new \App\Exceptions\BookingBridge\ConfigurationErrorException("Vendor account non trovato.");
                         }
+
+                        $commissionResult = $commissionResolver->resolve($vendor);
+                        $isCommissionBased = $commissionResult['is_commission_based'];
+                        $commissionRate = $commissionResult['commission_rate'];
+                        $commissionAmount = $isCommissionBased ? round(($lock->quoted_amount * $commissionRate) / 100, 2) : 0;
 
                         $booking = Booking::create([
                             'slot_lock_id'             => $lock->id,
@@ -341,7 +412,7 @@ class SlotController extends Controller
                         }
 
                         if ((int) $booking->slot_lock_id !== (int) $lock->id) {
-                            return $this->conflict('Ordine già associato a un hold diverso');
+                            throw new \App\Exceptions\BookingBridge\IdempotencyMismatchException('Ordine già associato a un hold diverso');
                         }
                     }
                 } else {
@@ -349,7 +420,7 @@ class SlotController extends Controller
                         (string) $booking->prestashop_order_id !== (string) $orderId ||
                         (string) $booking->prestashop_order_line_id !== (string) $lineId
                     ) {
-                        return $this->conflict('Hold già associato a un altro ordine');
+                        throw new \App\Exceptions\BookingBridge\IdempotencyMismatchException('Hold già associato a un altro ordine');
                     }
                 }
 
@@ -357,9 +428,11 @@ class SlotController extends Controller
 
                 return $this->confirmSuccess($lock, $booking);
             });
+        } catch (\App\Exceptions\BookingBridge\BookingBridgeApiException $e) {
+            throw $e;
         } catch (Throwable $e) {
-            \Illuminate\Support\Facades\Log::error("Errore nascosto in Confirm: " . $e->getMessage(), ['exception' => $e]);
-            return $this->serverError('Errore confirm: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error("Errore nascosto in Confirm: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return $this->serverError('Impossibile confermare la prenotazione.');
         }
     }
 
@@ -370,22 +443,29 @@ class SlotController extends Controller
             'hold_token' => 'required|uuid',
         ]);
 
+        $idempotencyKey = $request->header('Idempotency-Key');
+        if (!empty($idempotencyKey)) {
+            $idempotencyKey = strtolower(trim($idempotencyKey));
+            if (!preg_match('/^[a-f0-9]{32}$/', $idempotencyKey)) {
+                throw new \App\Exceptions\BookingBridge\InvalidIdempotencyKeyException();
+            }
+        }
+
         try {
-            return DB::transaction(function () use ($validated): JsonResponse {
+            return DB::transaction(function () use ($validated, $idempotencyKey): JsonResponse {
                 $lock = SlotLock::query()
                     ->where('hold_token', $validated['hold_token'])
                     ->lockForUpdate()
                     ->first();
 
                 if (! $lock) {
-                    return response()->json([
-                        'success' => false,
-                        'error' => 'Lock non trovato',
-                    ], 404);
+                    throw new \App\Exceptions\BookingBridge\LockTerminatedException('Lock non trovato', null, 404);
                 }
 
+                $this->checkIdempotencyKey($lock, $idempotencyKey);
+
                 if ($lock->isBooked()) {
-                    return $this->conflict('Lock già BOOKED');
+                    throw new \App\Exceptions\BookingBridge\LockTerminatedException('Lock già BOOKED', null, 409);
                 }
 
                 if ($lock->isCancelled() || $lock->isExpired()) {
@@ -411,9 +491,23 @@ class SlotController extends Controller
                     'data' => ['status' => SlotLock::STATUS_CANCELLED],
                 ], 200);
             });
+        } catch (\App\Exceptions\BookingBridge\BookingBridgeApiException $e) {
+            throw $e;
         } catch (Throwable $e) {
-            \Illuminate\Support\Facades\Log::error("Errore nascosto in transazione Release: " . $e->getMessage(), ['exception' => $e]);
+            \Illuminate\Support\Facades\Log::error("Errore nascosto in transazione Release: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return $this->serverError('Errore release');
+        }
+    }
+
+    private function checkIdempotencyKey(SlotLock $lock, ?string $requestKey): void
+    {
+        if ($lock->idempotency_key !== null) {
+            if (empty($requestKey)) {
+                throw new \App\Exceptions\BookingBridge\MissingIdempotencyKeyException('Idempotency-Key header mancante ma richiesto');
+            }
+            if ($lock->idempotency_key !== $requestKey) {
+                throw new \App\Exceptions\BookingBridge\IdempotencyMismatchException('Chiave idempotente non corrispondente');
+            }
         }
     }
 
@@ -438,30 +532,37 @@ class SlotController extends Controller
         $profile = VendorOfferingProfile::query()
             ->where('vendor_account_id', $vendorAccountId)
             ->where('offering_id', $offeringId)
+            ->bookable()
             ->first();
 
-        if (! $profile || (isset($profile->is_published) && ! $profile->is_published)) {
+        if (! $profile) {
             throw ValidationException::withMessages([
-                'offering_id' => ['Offering non valida'],
+                'offering_id' => ['Offering non valida o non prenotabile'],
             ]);
         }
 
         return $profile;
     }
 
-    private function handleExistingActiveLockOnHold(
+    private function handleIdempotentLockOnHold(
         SlotLock $lock,
+        int $vendorAccountId,
+        int $vendorSlotId,
+        string $date,
         int $offeringId,
         ?float $distanceKm,
         ?int $guests,
+        ?int $shopId,
+        ?int $cartId,
+        ?int $customerId,
         CarbonImmutable $now
     ): JsonResponse {
-        if (! $lock->isHold()) {
-            return $this->conflict('Slot non disponibile');
+        if (! $this->isSameData($lock, $vendorAccountId, $vendorSlotId, $date, $offeringId, $distanceKm, $guests, $shopId, $cartId, $customerId)) {
+            throw new \App\Exceptions\BookingBridge\IdempotencyMismatchException('Chiave idempotente utilizzata con dati differenti');
         }
 
-        if (! $this->isSameFingerprint($lock, $offeringId, $distanceKm, $guests)) {
-            return $this->conflict('Slot non disponibile');
+        if ($lock->isExpiredHold($now) || $lock->isCancelled() || $lock->isBooked() || $lock->status === 'EXPIRED') {
+            throw new \App\Exceptions\BookingBridge\LockTerminatedException('Chiave idempotente utilizzata per un lock terminale. Si prega di generarne una nuova.');
         }
 
         return response()->json([
@@ -470,18 +571,30 @@ class SlotController extends Controller
         ], 200);
     }
 
-    private function isSameFingerprint(
+    private function isSameData(
         SlotLock $lock,
+        int $vendorAccountId,
+        int $vendorSlotId,
+        string $date,
         int $offeringId,
         ?float $distanceKm,
-        ?int $guests
+        ?int $guests,
+        ?int $shopId,
+        ?int $cartId,
+        ?int $customerId
     ): bool {
-        return (int) $lock->offering_id === $offeringId
-            && $this->sameNullableNumber($lock->distance_km, $distanceKm)
-            && $this->sameNullableNumber($lock->guests, $guests);
+        return (int) $lock->vendor_account_id === $vendorAccountId
+            && (int) $lock->vendor_slot_id === $vendorSlotId
+            && $lock->date->format('Y-m-d') === $date
+            && (int) $lock->offering_id === $offeringId
+            && $this->sameNullableFloat($lock->distance_km, $distanceKm)
+            && $this->sameNullableInt($lock->guests, $guests)
+            && $this->sameNullableInt($lock->prestashop_shop_id, $shopId)
+            && $this->sameNullableInt($lock->prestashop_cart_id, $cartId)
+            && $this->sameNullableInt($lock->prestashop_customer_id, $customerId);
     }
 
-    private function sameNullableNumber(mixed $left, mixed $right): bool
+    private function sameNullableFloat(mixed $left, mixed $right, int $decimals = 2): bool
     {
         if ($left === null && $right === null) {
             return true;
@@ -491,7 +604,23 @@ class SlotController extends Controller
             return false;
         }
 
-        return (string) $left === (string) $right;
+        $scaledLeft = (int) round((float) $left * (10 ** $decimals));
+        $scaledRight = (int) round((float) $right * (10 ** $decimals));
+
+        return $scaledLeft === $scaledRight;
+    }
+
+    private function sameNullableInt(mixed $left, mixed $right): bool
+    {
+        if ($left === null && $right === null) {
+            return true;
+        }
+
+        if ($left === null || $right === null) {
+            return false;
+        }
+
+        return (int) $left === (int) $right;
     }
 
     private function buildHoldResponseData(SlotLock $lock, CarbonImmutable $now): array
@@ -554,10 +683,11 @@ class SlotController extends Controller
         return $sqlState === '23000' || $sqlState === '23505' || $driver === 1062;
     }
 
-    private function conflict(string $message): JsonResponse
+    private function conflict(string $code, string $message): JsonResponse
     {
         return response()->json([
             'success' => false,
+            'code' => $code,
             'error' => $message,
         ], 409);
     }

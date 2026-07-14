@@ -2,14 +2,11 @@
 
 namespace App\Models;
 
-use App\Mail\NuovaPrenotazioneVendor;
+use App\Jobs\SendVendorNewBookingEmail;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
-use Throwable;
 
 class Booking extends Model
 {
@@ -65,7 +62,7 @@ class Booking extends Model
     protected static function booted(): void
     {
         static::created(function (Booking $booking): void {
-            $booking->notifyVendorNewBookingAfterCommit();
+            SendVendorNewBookingEmail::dispatch($booking->id)->afterCommit();
         });
     }
 
@@ -206,48 +203,5 @@ class Booking extends Model
         return $query->whereDate('event_date', '>=', now()->toDateString());
     }
 
-    // ─── Notifica vendor ───────────────────────────────────
 
-    public function notifyVendorNewBookingAfterCommit(): void
-    {
-        $this->loadMissing(['vendorAccount', 'offering', 'vendorSlot']);
-
-        $vendorEmail = $this->vendorAccount?->billing_email
-            ?: $this->vendorAccount?->pec_email;
-
-        if (! $vendorEmail) {
-            Log::warning('Booking vendor email mancante', [
-                'booking_id' => $this->id,
-                'vendor_account_id' => $this->vendor_account_id,
-            ]);
-
-            return;
-        }
-
-        try {
-            $connection = $this->getConnection();
-
-            if ($connection) {
-                $connection->afterCommit(function () use ($vendorEmail): void {
-                    try {
-                        Mail::to($vendorEmail)->send(new NuovaPrenotazioneVendor($this));
-                    } catch (Throwable $e) {
-                        Log::error('Invio email nuova prenotazione fallito', [
-                            'booking_id' => $this->id,
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
-                });
-
-                return;
-            }
-
-            Mail::to($vendorEmail)->send(new NuovaPrenotazioneVendor($this));
-        } catch (Throwable $e) {
-            Log::error('Invio email nuova prenotazione fallito', [
-                'booking_id' => $this->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
 }

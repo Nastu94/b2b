@@ -19,11 +19,11 @@ class VendorAccount extends Model
     protected static function booted()
     {
         static::saved(function ($vendor) {
-            \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor);
+            \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor)->afterCommit();
         });
 
         static::deleted(function ($vendor) {
-            \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor);
+            \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor)->afterCommit();
         });
     }
 
@@ -232,5 +232,22 @@ class VendorAccount extends Model
     public function isMultipleByOfferingBooking(): bool
     {
         return $this->bookingCapacityMode() === self::BOOKING_MULTIPLE_BY_OFFERING;
+    }
+
+    public function notificationEmail(): ?string
+    {
+        foreach ([
+            $this->user?->email,
+            $this->billing_email,
+            $this->pec_email,
+        ] as $email) {
+            $email = trim((string) $email);
+
+            if ($email !== '') {
+                return $email;
+            }
+        }
+
+        return null;
     }
 }

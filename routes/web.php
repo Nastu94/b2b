@@ -34,7 +34,7 @@ Route::get('/legal/vendor/contratto', [LegalDocumentController::class, 'vendorCo
     ->name('legal.vendor.contract');
 
 Route::get('/legal/vendor/file/{filename}', [LegalDocumentController::class, 'vendorFile'])
-    ->where('filename', '.*')
+    ->where('filename', '[A-Za-z0-9._-]+')
     ->name('legal.vendor.file');
 
 /**

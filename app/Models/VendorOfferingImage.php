@@ -12,7 +12,7 @@ class VendorOfferingImage extends Model
             if ($image->vendor_offering_profile_id) {
                 $profile = \App\Models\VendorOfferingProfile::with('vendorAccount')->find($image->vendor_offering_profile_id);
                 if ($profile && $profile->is_approved && $profile->vendorAccount && $profile->vendorAccount->status === 'ACTIVE') {
-                    \App\Jobs\PushVendorToPrestashopJob::dispatch($profile->vendorAccount);
+                    \App\Jobs\PushVendorToPrestashopJob::dispatch($profile->vendorAccount)->afterCommit();
                 }
             }
         });
@@ -21,7 +21,7 @@ class VendorOfferingImage extends Model
             if ($image->vendor_offering_profile_id) {
                 $profile = \App\Models\VendorOfferingProfile::with('vendorAccount')->find($image->vendor_offering_profile_id);
                 if ($profile && $profile->is_approved && $profile->vendorAccount && $profile->vendorAccount->status === 'ACTIVE') {
-                    \App\Jobs\PushVendorToPrestashopJob::dispatch($profile->vendorAccount);
+                    \App\Jobs\PushVendorToPrestashopJob::dispatch($profile->vendorAccount)->afterCommit();
                 }
             }
         });

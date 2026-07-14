@@ -84,9 +84,9 @@ class VendorProfileTabs extends Component
             'activated_at' => now(),
         ]);
 
-        if ($this->vendorAccount->user && $this->vendorAccount->user->email) {
+        if ($this->vendorAccount->notificationEmail()) {
             try {
-                \Illuminate\Support\Facades\Mail::to($this->vendorAccount->user->email)
+                \Illuminate\Support\Facades\Mail::to($this->vendorAccount->notificationEmail())
                     ->send(new \App\Mail\VendorAccountApprovedMail($this->vendorAccount));
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error('Impossibile inviare email Vendor: ' . $e->getMessage());

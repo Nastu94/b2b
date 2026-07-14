@@ -7,6 +7,7 @@ use App\Models\VendorAccount;
 use App\Services\GeocodingService;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
 use Laravel\Jetstream\Jetstream;
@@ -60,7 +61,7 @@ class CreateNewUser implements CreatesNewUsers
             
             // Documenti (opzionali)
             'vendor_documents' => ['nullable', 'array', 'max:10'],
-            'vendor_documents.*' => ['file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:10240'],
+            'vendor_documents.*' => ['file', 'mimetypes:application/pdf', 'max:10240'],
         ])->after(function ($validator) use ($input) {
             $type = $input['account_type'] ?? null;
 
@@ -98,95 +99,111 @@ class CreateNewUser implements CreatesNewUsers
             }
         })->validate();
 
-        // Salva eventuale immagine profilo
-        $profileImagePath = null;
-        if (isset($input['profile_image']) && $input['profile_image'] instanceof \Illuminate\Http\UploadedFile) {
-            $file = $input['profile_image'];
-            $filename = \Illuminate\Support\Str::random(40) . '.' . $file->getClientOriginalExtension();
-            $profileImagePath = $file->storeAs('vendors/profiles', $filename, 'public');
-        }
+        try {
+            DB::beginTransaction();
 
-        // Crea user.
-        $user = User::create([
-            'name' => $input['name'],
-            'email' => $input['email'],
-            'password' => Hash::make($input['password']),
-        ]);
+            // Salva eventuale immagine profilo
+            $profileImagePath = null;
+            if (isset($input['profile_image']) && $input['profile_image'] instanceof \Illuminate\Http\UploadedFile) {
+                $file = $input['profile_image'];
+                $filename = \Illuminate\Support\Str::random(40) . '.' . $file->getClientOriginalExtension();
+                $profileImagePath = $file->storeAs('vendors/profiles', $filename, 'public');
+            }
 
-        // Assegna ruolo vendor.
-        $user->assignRole('vendor');
+            // Crea user.
+            $user = User::create([
+                'name' => $input['name'],
+                'email' => $input['email'],
+                'password' => Hash::make($input['password']),
+            ]);
 
-        // Crea vendor account.
-        $vendor = VendorAccount::create([
-            'user_id' => $user->id,
-            'category_id' => (int) $input['category_id'],
-            'account_type' => $input['account_type'],
-            'booking_capacity_mode' => $input['booking_capacity_mode'],
-            
-            'first_name' => $input['account_type'] === 'PRIVATE' ? ($input['first_name'] ?? null) : null,
-            'last_name' => $input['account_type'] === 'PRIVATE' ? ($input['last_name'] ?? null) : null,
+            // Assegna ruolo vendor.
+            $user->assignRole('vendor');
 
-            'billing_email' => $input['billing_email'] ?? null,
-            'phone' => $input['phone'] ?? null,
+            // Crea vendor account.
+            $vendor = VendorAccount::create([
+                'user_id' => $user->id,
+                'category_id' => (int) $input['category_id'],
+                'account_type' => $input['account_type'],
+                'booking_capacity_mode' => $input['booking_capacity_mode'],
+                
+                'first_name' => $input['account_type'] === 'PRIVATE' ? ($input['first_name'] ?? null) : null,
+                'last_name' => $input['account_type'] === 'PRIVATE' ? ($input['last_name'] ?? null) : null,
 
-            'privacy_accepted_at' => now(),
-            'contract_accepted_at' => now(),
+                'billing_email' => $input['billing_email'] ?? null,
+                'phone' => $input['phone'] ?? null,
 
-            // Dati fiscali
-            'company_name' => $input['account_type'] === 'COMPANY'
-                ? ($input['company_name'] ?? null)
-                : null,
-            'vat_number' => $input['account_type'] === 'COMPANY'
-                ? ($input['vat_number'] ?? null)
-                : null,
-            'legal_entity_type' => $input['account_type'] === 'COMPANY'
-                ? ($input['legal_entity_type'] ?? null)
-                : null,
-            'tax_code' => $input['account_type'] === 'PRIVATE'
-                ? ($input['tax_code'] ?? null)
-                : null,
+                'privacy_accepted_at' => now(),
+                'contract_accepted_at' => now(),
 
-            // Sede legale minima
-            'legal_country' => $input['legal_country'] ?? 'IT',
-            'legal_region' => $input['legal_region'] ?? null,
-            'legal_city' => $input['legal_city'],
-            'legal_postal_code' => $input['legal_postal_code'],
-            'legal_address_line1' => $input['legal_address_line1'],
+                // Dati fiscali
+                'company_name' => $input['account_type'] === 'COMPANY'
+                    ? ($input['company_name'] ?? null)
+                    : null,
+                'vat_number' => $input['account_type'] === 'COMPANY'
+                    ? ($input['vat_number'] ?? null)
+                    : null,
+                'legal_entity_type' => $input['account_type'] === 'COMPANY'
+                    ? ($input['legal_entity_type'] ?? null)
+                    : null,
+                'tax_code' => $input['account_type'] === 'PRIVATE'
+                    ? ($input['tax_code'] ?? null)
+                    : null,
 
-            // Per ora manteniamo la sede operativa uguale alla legale.
-            'operational_same_as_legal' => true,
+                // Sede legale minima
+                'legal_country' => $input['legal_country'] ?? 'IT',
+                'legal_region' => $input['legal_region'] ?? null,
+                'legal_city' => $input['legal_city'],
+                'legal_postal_code' => $input['legal_postal_code'],
+                'legal_address_line1' => $input['legal_address_line1'],
 
-            // Immagine
-            'profile_image_path' => $profileImagePath,
+                // Per ora manteniamo la sede operativa uguale alla legale.
+                'operational_same_as_legal' => true,
 
-            // Stato: PENDING di default, in attesa di approvazione Admin (Fase 2)
-            'status' => 'PENDING',
-            'activated_at' => null,
-        ]);
+                // Immagine
+                'profile_image_path' => $profileImagePath,
 
-        // Il prodotto ombra verrà creato solo quando l'Admin imposterà lo status su ACTIVE.
+                // Stato: PENDING di default, in attesa di approvazione Admin (Fase 2)
+                'status' => 'PENDING',
+                'activated_at' => null,
+            ]);
 
-        if (!empty($input['event_type_ids'])) {
-            $vendor->eventTypes()->sync($input['event_type_ids']);
-        }
+            // Il prodotto ombra verrà creato solo quando l'Admin imposterà lo status su ACTIVE.
 
-        // Salva eventuali documenti opzionali caricati durante la registrazione
-        if (isset($input['vendor_documents']) && is_array($input['vendor_documents'])) {
-            $documentService = app(\App\Services\VendorDocumentService::class);
-            foreach ($input['vendor_documents'] as $file) {
-                if ($file instanceof \Illuminate\Http\UploadedFile) {
-                    $documentService->store(
-                        $vendor,
-                        $file,
-                        [
-                            'type' => 'OTHER',
-                            'title' => $file->getClientOriginalName(),
-                            'status' => \App\Models\VendorDocument::STATUS_PENDING,
-                        ],
-                        $user
-                    );
+            if (!empty($input['event_type_ids'])) {
+                $vendor->eventTypes()->sync($input['event_type_ids']);
+            }
+
+            // Salva eventuali documenti opzionali caricati durante la registrazione
+            if (isset($input['vendor_documents']) && is_array($input['vendor_documents'])) {
+                $documentService = app(\App\Services\VendorDocumentService::class);
+                foreach ($input['vendor_documents'] as $file) {
+                    if ($file instanceof \Illuminate\Http\UploadedFile) {
+                        $documentService->store(
+                            $vendor,
+                            $file,
+                            [
+                                'type' => 'OTHER',
+                                'title' => $file->getClientOriginalName(),
+                                'status' => \App\Models\VendorDocument::STATUS_PENDING,
+                            ],
+                            $user
+                        );
+                    }
                 }
             }
+
+            DB::commit();
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            if (isset($profileImagePath) && $profileImagePath) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($profileImagePath);
+            }
+            if (isset($vendor) && $vendor->id) {
+                \Illuminate\Support\Facades\Storage::disk('local')->deleteDirectory('vendor-documents/' . $vendor->id);
+            }
+            throw $e;
         }
 
         // Geocoding della sede legale.

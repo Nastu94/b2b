@@ -37,6 +37,11 @@ class AvailabilityController extends Controller
                 'data'    => $availability,
             ], 200);
 
+        } catch (\App\Exceptions\AvailabilityValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'error'   => $e->getMessage(),
+            ], 422);
         } catch (\InvalidArgumentException $e) {
             return response()->json([
                 'success' => false,

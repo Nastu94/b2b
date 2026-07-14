@@ -15,6 +15,10 @@ class AdminConversationShow extends Component
 
     public function mount(ConversationThread $conversation)
     {
+        if ($conversation->admin_deleted_at !== null) {
+            abort(404);
+        }
+
         $this->conversation = $conversation;
         
         if ($this->conversation->admin_unread_count > 0) {
@@ -34,32 +38,64 @@ class AdminConversationShow extends Component
             'newMessage' => 'required|string|max:2000',
         ]);
 
-        $this->conversation->messages()->create([
-            'sender_type' => 'admin',
-            'sender_id' => Auth::id(),
-            'body_original' => $this->newMessage,
-            'body_filtered' => $this->newMessage,
-            'moderation_status' => 'clean',
-        ]);
+        $sent = \Illuminate\Support\Facades\DB::transaction(function () {
+            $lockedConversation = ConversationThread::query()
+                ->whereKey($this->conversation->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $this->conversation->update([
-            'vendor_unread_count' => $this->conversation->vendor_unread_count + 1,
-            'customer_unread_count' => $this->conversation->customer_unread_count + 1,
-            'last_message_at' => now(),
-        ]);
+            if ($lockedConversation->status !== 'open') {
+                return false;
+            }
 
-        if ($this->conversation->customer_email) {
-            \Illuminate\Support\Facades\Mail::to($this->conversation->customer_email)
-                ->queue(new \App\Mail\NewConversationMessageCustomerMail($this->conversation));
-        }
+            $lockedConversation->messages()->create([
+                'sender_type' => 'admin',
+                'sender_id' => Auth::id(),
+                'body_original' => $this->newMessage,
+                'body_filtered' => $this->newMessage,
+                'moderation_status' => 'clean',
+                'moderation_flags' => null,
+            ]);
 
-        if ($this->conversation->vendorAccount && $this->conversation->vendorAccount->user) {
-            \Illuminate\Support\Facades\Mail::to($this->conversation->vendorAccount->user->email)
-                ->queue(new \App\Mail\NewConversationMessageVendorMail($this->conversation));
+            $lockedConversation->update([
+                'vendor_unread_count' => $lockedConversation->vendor_unread_count + 1,
+                'customer_unread_count' => $lockedConversation->customer_unread_count + 1,
+                'last_message_at' => now(),
+                'vendor_deleted_at' => null,
+            ]);
+
+            // Invia notifica al Vendor (solo se il VendorAccount esiste)
+            if ($lockedConversation->vendorAccount) {
+                $vendorEmail = $lockedConversation->vendorAccount->notificationEmail();
+                if ($vendorEmail) {
+                    \Illuminate\Support\Facades\Mail::to($vendorEmail)
+                        ->queue((new \App\Mail\NewCustomerConversationMessageVendorMail($lockedConversation))->afterCommit());
+                }
+            }
+
+            // Invia notifica al Cliente (solo se ha l'email)
+            if ($lockedConversation->customer_email) {
+                \Illuminate\Support\Facades\Mail::to($lockedConversation->customer_email)
+                    ->queue((new \App\Mail\NewConversationMessageCustomerMail($lockedConversation))->afterCommit());
+            }
+
+            return true;
+        });
+
+        if (!$sent) {
+            $this->addError('newMessage', 'Questa conversazione è stata chiusa.');
+            $this->conversation->refresh();
+            return;
         }
 
         $this->newMessage = '';
         $this->conversation->refresh();
+    }
+
+    public function deleteConversation()
+    {
+        $this->conversation->deleteForAdmin();
+        return redirect()->route('admin.conversations');
     }
 
     public function render()

@@ -88,14 +88,18 @@
 
             <div class="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                    <label class="text-sm text-slate-600">Status</label>
-                    <select class="mt-1 w-full rounded-lg border-slate-200 focus:border-slate-400 focus:ring-slate-400 disabled:opacity-50"
-                            wire:model="form.status" disabled>
-                        <option value="ACTIVE">Attivo</option>
-                        <option value="INACTIVE">Inattivo</option>
-                        <option value="PENDING">In Attesa</option>
-                    </select>
-                    @error('form.status') <div class="text-sm text-rose-600 mt-1">{{ $message }}</div> @enderror
+                    <label class="text-sm text-slate-600 block mb-1">Status</label>
+                    <div class="px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-sm font-medium">
+                        @if($vendorAccount->status === 'ACTIVE')
+                            Attivo
+                        @elseif($vendorAccount->status === 'INACTIVE')
+                            Inattivo
+                        @elseif($vendorAccount->status === 'PENDING')
+                            In Attesa
+                        @else
+                            {{ $vendorAccount->status }}
+                        @endif
+                    </div>
                 </div>
 
                 <div>

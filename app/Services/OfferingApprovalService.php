@@ -52,9 +52,9 @@ class OfferingApprovalService
             ]);
         });
 
-        if ($vendorAccount->user && $vendorAccount->user->email) {
+        if ($vendorAccount->notificationEmail()) {
             try {
-                Mail::to($vendorAccount->user->email)
+                Mail::to($vendorAccount->notificationEmail())
                     ->send(new \App\Mail\VendorServiceApprovedMail($profile));
             } catch (\Exception $e) {
                 Log::error('Impossibile inviare email Servizio: ' . $e->getMessage());

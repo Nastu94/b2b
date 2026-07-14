@@ -57,7 +57,6 @@ class VendorProfilePage extends Component
         $vendorAccount = $this->vendorAccount;
 
         $this->form = [
-            'status' => $vendorAccount->status,
             'account_type' => $vendorAccount->account_type,
             'booking_capacity_mode' => $vendorAccount->booking_capacity_mode,
             'category_id' => $vendorAccount->category_id,
@@ -131,7 +130,6 @@ class VendorProfilePage extends Component
     {
         $rules = [
             'profile_image' => ['nullable', 'image', 'max:5120'],
-            'form.status' => ['required', 'in:ACTIVE,INACTIVE'],
             'form.account_type' => ['required', 'in:COMPANY,PRIVATE'],
             'form.booking_capacity_mode' => ['required', 'in:single_resource,multiple_by_offering'],
             'form.category_id' => ['nullable', 'integer', 'exists:categories,id'],
@@ -182,7 +180,6 @@ class VendorProfilePage extends Component
         $this->validate();
 
         $this->vendorAccount->fill([
-            'status' => $this->form['status'],
             'category_id' => $this->form['category_id'],
             'account_type' => $this->form['account_type'],
             'booking_capacity_mode' => $this->form['booking_capacity_mode'],

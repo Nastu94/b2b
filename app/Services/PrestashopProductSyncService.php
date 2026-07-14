@@ -341,7 +341,7 @@ class PrestashopProductSyncService
         $endpoint = $this->resolveEndpoint();
         $apiKey = $this->resolveApiKey();
 
-        $response = Http::withHeaders([
+        $response = Http::timeout(15)->withHeaders([
             'Authorization' => 'Bearer ' . $apiKey,
             'Accept' => 'application/json',
         ])->post(
@@ -387,6 +387,7 @@ class PrestashopProductSyncService
             default => 'Richiesta PrestaShop fallita',
         };
 
-        return $prefix . ': ' . $response->body();
+        $bodyPreview = Str::limit(strip_tags($response->body()), 255);
+        return $prefix . ': ' . $bodyPreview;
     }
 }

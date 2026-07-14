@@ -13,11 +13,13 @@ class Category extends Model
         'is_active',
         'sort_order',
         'prestashop_category_id',
+        'commission_rate',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'sort_order' => 'integer',
+        'commission_rate' => 'float',
     ];
 
     public function vendorAccounts(): HasMany

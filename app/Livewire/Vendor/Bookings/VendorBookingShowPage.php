@@ -32,11 +32,11 @@ class VendorBookingShowPage extends Component
     {
         $this->authorize('update', $this->booking);
 
-        DB::transaction(function () {
+        $confirmed = DB::transaction(function (): bool {
             $b = Booking::lockForUpdate()->findOrFail($this->booking->id);
 
             if ($b->status !== 'PENDING_VENDOR_CONFIRMATION') {
-                return;
+                return false;
             }
 
             $b->update([
@@ -44,9 +44,15 @@ class VendorBookingShowPage extends Component
                 'confirmed_at' => now(),
                 'vendor_notes' => $this->vendorNotes,
             ]);
+
+            return true;
         });
 
         $this->booking->refresh();
+
+        if (! $confirmed) {
+            return;
+        }
 
         // Email al cliente: prenotazione confermata con dati del vendor
         $this->sendConfirmEmailToClient();
@@ -59,21 +65,18 @@ class VendorBookingShowPage extends Component
     {
         $this->authorize('update', $this->booking);
 
-        DB::transaction(function () {
+        $declined = DB::transaction(function (): bool {
             $b = Booking::lockForUpdate()->findOrFail($this->booking->id);
 
             if ($b->status !== 'PENDING_VENDOR_CONFIRMATION') {
-                return;
+                return false;
             }
 
             // Rilascia lock → lo slot torna disponibile
             if ($b->slot_lock_id) {
                 $lock = SlotLock::lockForUpdate()->find($b->slot_lock_id);
                 if ($lock && $lock->is_active) {
-                    $lock->update([
-                        'status'    => 'CANCELLED',
-                        'is_active' => false,
-                    ]);
+                    $lock->markCancelled();
                 }
             }
 
@@ -83,9 +86,15 @@ class VendorBookingShowPage extends Component
                 'decline_reason' => $this->declineReason,
                 'vendor_notes'   => $this->vendorNotes,
             ]);
+
+            return true;
         });
 
         $this->booking->refresh();
+
+        if (! $declined) {
+            return;
+        }
 
         // Email al cliente: prenotazione rifiutata con eventuale motivo
         $this->sendDeclineEmailToClient();
@@ -103,7 +112,7 @@ class VendorBookingShowPage extends Component
         try {
             $this->booking->loadMissing(['vendorAccount', 'offering', 'vendorSlot']);
 
-            Mail::to($clientEmail)->send(new PrenotazioneConfermata($this->booking));
+            Mail::to($clientEmail)->queue((new PrenotazioneConfermata($this->booking))->afterCommit());
         } catch (\Throwable $e) {
             Log::error('BookingConfirm: invio email cliente fallito', [
                 'booking_id' => $this->booking->id,
@@ -115,8 +124,7 @@ class VendorBookingShowPage extends Component
     protected function sendConfirmEmailToVendor(): void
     {
         $this->booking->loadMissing('vendorAccount');
-        $vendorEmail = $this->booking->vendorAccount?->billing_email
-            ?? $this->booking->vendorAccount?->pec_email;
+        $vendorEmail = $this->booking->vendorAccount?->notificationEmail();
 
         if (empty($vendorEmail)) {
             Log::warning('BookingConfirm: email vendor mancante', ['booking_id' => $this->booking->id]);
@@ -126,7 +134,7 @@ class VendorBookingShowPage extends Component
         try {
             $this->booking->loadMissing(['offering', 'vendorSlot']);
 
-            Mail::to($vendorEmail)->send(new PrenotazioneConfermataVendor($this->booking));
+            Mail::to($vendorEmail)->queue((new PrenotazioneConfermataVendor($this->booking))->afterCommit());
         } catch (\Throwable $e) {
             Log::error('BookingConfirm: invio email vendor fallito', [
                 'booking_id' => $this->booking->id,
@@ -147,7 +155,7 @@ class VendorBookingShowPage extends Component
         try {
             $this->booking->loadMissing(['vendorAccount', 'offering', 'vendorSlot']);
 
-            Mail::to($clientEmail)->send(new PrenotazioneRifiutata($this->booking));
+            Mail::to($clientEmail)->queue((new PrenotazioneRifiutata($this->booking))->afterCommit());
         } catch (\Throwable $e) {
             Log::error('BookingDecline: invio email cliente fallito', [
                 'booking_id' => $this->booking->id,

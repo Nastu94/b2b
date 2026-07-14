@@ -24,76 +24,108 @@ class ConversationController extends Controller
             'prestashop_customer_id' => 'required|integer',
             'customer_name' => 'nullable|string',
             'customer_email' => 'nullable|email',
-            'message' => 'required|string',
+            'message' => 'required|string|max:2000',
             'source' => 'nullable|string'
         ]);
 
-        // 1. Cerchiamo se c'è già una conversazione aperta per questo utente e vendor
-        $existingThread = \App\Models\ConversationThread::where('vendor_account_id', $validated['vendor_account_id'])
-            ->where('prestashop_customer_id', $validated['prestashop_customer_id'])
-            ->where('offering_id', $validated['offering_id'] ?? null)
-            ->where('status', 'open')
-            ->whereNull('customer_deleted_at')
-            ->first();
-
-        if ($existingThread) {
-            // Conversazione trovata: accodiamo il messaggio
-            $this->createMessage($existingThread, $validated['message'], 'customer', $validated['prestashop_customer_id']);
-            
-            $previousVendorUnreadCount = (int) $existingThread->vendor_unread_count;
-
-            $existingThread->update([
-                'vendor_unread_count' => $previousVendorUnreadCount + 1,
-                'admin_unread_count' => $existingThread->admin_unread_count + 1,
-                'last_message_at' => now(),
-            ]);
-
-            // Notifichiamo sempre il vendor quando il cliente invia un messaggio
-            if ($existingThread->vendorAccount && $existingThread->vendorAccount->user) {
-                try {
-                    \Illuminate\Support\Facades\Mail::to($existingThread->vendorAccount->user->email)
-                        ->send(new \App\Mail\NewCustomerConversationMessageVendorMail($existingThread));
-                } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::error('Errore invio email chat (start-append): ' . $e->getMessage());
-                }
-            }
-
+        $validated['message'] = trim($validated['message']);
+        if ($validated['message'] === '') {
             return response()->json([
-                'success' => true,
-                'conversation_id' => $existingThread->id,
-            ]);
+                'message' => 'The message field is required.'
+            ], 422);
         }
 
-        // 2. Nessuna conversazione aperta trovata: ne creiamo una nuova
-        $thread = \App\Models\ConversationThread::create([
-            'vendor_account_id' => $validated['vendor_account_id'],
-            'offering_id' => $validated['offering_id'] ?? null,
-            'booking_id' => $validated['booking_id'] ?? null,
-            'prestashop_customer_id' => $validated['prestashop_customer_id'],
-            'customer_name' => $validated['customer_name'] ?? null,
-            'customer_email' => $validated['customer_email'] ?? null,
-            'source' => $validated['source'] ?? 'prestashop',
-            'status' => 'open',
-            'vendor_unread_count' => 1,
-            'admin_unread_count' => 1,
-            'last_message_at' => now(),
-        ]);
-
-        $this->createMessage($thread, $validated['message'], 'customer', $validated['prestashop_customer_id']);
-
-        if ($thread->vendorAccount && $thread->vendorAccount->user) {
-            try {
-                \Illuminate\Support\Facades\Mail::to($thread->vendorAccount->user->email)
-                    ->send(new \App\Mail\NewCustomerConversationMessageVendorMail($thread));
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Errore invio email chat (start-new): ' . $e->getMessage());
+        if (!empty($validated['offering_id'])) {
+            $hasOffering = \App\Models\VendorOfferingProfile::where('vendor_account_id', $validated['vendor_account_id'])
+                ->where('offering_id', $validated['offering_id'])
+                ->exists();
+            if (!$hasOffering) {
+                return response()->json(['message' => 'L\'offering specificato non appartiene al vendor.'], 422);
             }
         }
 
-        return response()->json([
-            'success' => true,
-            'conversation_id' => $thread->id,
-        ]);
+        if (!empty($validated['booking_id'])) {
+            $booking = \App\Models\Booking::find($validated['booking_id']);
+            if (!$booking || $booking->vendor_account_id != $validated['vendor_account_id']) {
+                return response()->json(['message' => 'La prenotazione specificata non appartiene al vendor.'], 422);
+            }
+            if (!empty($validated['offering_id']) && $booking->offering_id && $booking->offering_id != $validated['offering_id']) {
+                return response()->json(['message' => 'L\'offering specificato non corrisponde a quello della prenotazione.'], 422);
+            }
+        }
+
+        $attempts = 0;
+        while ($attempts < 2) {
+            try {
+                return \Illuminate\Support\Facades\DB::transaction(function () use ($validated) {
+                    $existingThread = \App\Models\ConversationThread::where('vendor_account_id', $validated['vendor_account_id'])
+                        ->where('prestashop_customer_id', $validated['prestashop_customer_id'])
+                        ->where('offering_id', $validated['offering_id'] ?? null)
+                        ->where('status', 'open')
+                        ->whereNull('customer_deleted_at')
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($existingThread) {
+                        $msg = $this->createMessage($existingThread, $validated['message'], 'customer', $validated['prestashop_customer_id']);
+                        
+                        $existingThread->update([
+                            'vendor_unread_count' => $existingThread->vendor_unread_count + 1,
+                            'admin_unread_count' => $existingThread->admin_unread_count + 1,
+                            'last_message_at' => now(),
+                            'vendor_deleted_at' => null,
+                            'admin_deleted_at' => null,
+                        ]);
+
+                        \App\Jobs\SendVendorChatMessageEmail::dispatch($msg->id)->afterCommit();
+
+                        return response()->json([
+                            'success' => true,
+                            'conversation_id' => $existingThread->id,
+                        ]);
+                    }
+
+                    $thread = \App\Models\ConversationThread::create([
+                        'vendor_account_id' => $validated['vendor_account_id'],
+                        'offering_id' => $validated['offering_id'] ?? null,
+                        'booking_id' => $validated['booking_id'] ?? null,
+                        'prestashop_customer_id' => $validated['prestashop_customer_id'],
+                        'customer_name' => $validated['customer_name'] ?? null,
+                        'customer_email' => $validated['customer_email'] ?? null,
+                        'source' => $validated['source'] ?? 'prestashop',
+                        'status' => 'open',
+                        'vendor_unread_count' => 1,
+                        'admin_unread_count' => 1,
+                        'last_message_at' => now(),
+                    ]);
+
+                    $msg = $this->createMessage($thread, $validated['message'], 'customer', $validated['prestashop_customer_id']);
+
+                    \App\Jobs\SendVendorChatMessageEmail::dispatch($msg->id)->afterCommit();
+
+                    return response()->json([
+                        'success' => true,
+                        'conversation_id' => $thread->id,
+                    ]);
+                });
+            } catch (\Illuminate\Database\QueryException $e) {
+                $sqlState = $e->errorInfo[0] ?? null;
+                $driverCode = $e->errorInfo[1] ?? null;
+
+                if ($sqlState === '23000' || $sqlState === '23505' || $driverCode === 1062) {
+                    $attempts++;
+                    if ($attempts >= 2) {
+                        return response()->json([
+                            'success' => false,
+                            'code' => 'CONVERSATION_ALREADY_OPEN',
+                            'error' => 'Una conversazione per questo servizio è già aperta.'
+                        ], 409);
+                    }
+                    continue; // Riprova, e questa volta dovrebbe trovare la conversazione esistente
+                }
+                throw $e;
+            }
+        }
     }
 
     public function messages(Request $request, \App\Models\ConversationThread $conversation)
@@ -102,6 +134,10 @@ class ConversationController extends Controller
 
         if (!$customerId || (int)$customerId !== (int)$conversation->prestashop_customer_id) {
             return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
+        }
+
+        if ($conversation->customer_deleted_at !== null) {
+            return response()->json(['success' => false, 'message' => 'Conversation not found'], 404);
         }
 
         $messages = $conversation->messages()->orderBy('created_at', 'asc')->get();
@@ -124,9 +160,16 @@ class ConversationController extends Controller
     public function storeMessage(Request $request, \App\Models\ConversationThread $conversation)
     {
         $validated = $request->validate([
-            'message' => 'required|string',
+            'message' => 'required|string|max:2000',
             'prestashop_customer_id' => 'required|integer',
         ]);
+
+        $validated['message'] = trim($validated['message']);
+        if ($validated['message'] === '') {
+            return response()->json([
+                'message' => 'The message field is required.'
+            ], 422);
+        }
 
         if ((int)$validated['prestashop_customer_id'] !== (int)$conversation->prestashop_customer_id) {
             return response()->json(['success' => false, 'message' => 'Unauthorized to send message'], 403);
@@ -136,35 +179,46 @@ class ConversationController extends Controller
             return response()->json(['success' => false, 'message' => 'Conversation is not open'], 403);
         }
 
-        $msg = $this->createMessage($conversation, $validated['message'], 'customer', $validated['prestashop_customer_id']);
-
-        $previousVendorUnreadCount = (int) $conversation->vendor_unread_count;
-
-        $conversation->update([
-            'vendor_unread_count' => $previousVendorUnreadCount + 1,
-            'admin_unread_count' => $conversation->admin_unread_count + 1,
-            'last_message_at' => now(),
-        ]);
-
-        // Notifichiamo sempre il vendor quando il cliente invia un messaggio
-        if ($conversation->vendorAccount && $conversation->vendorAccount->user) {
-            try {
-                \Illuminate\Support\Facades\Mail::to($conversation->vendorAccount->user->email)
-                    ->send(new \App\Mail\NewCustomerConversationMessageVendorMail($conversation));
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Errore invio email chat (storeMessage): ' . $e->getMessage());
-            }
+        if ($conversation->customer_deleted_at !== null) {
+            return response()->json(['success' => false, 'message' => 'Conversation not found'], 404);
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => [
-                'id' => $msg->id,
-                'sender_type' => $msg->sender_type,
-                'body' => $msg->body_filtered ?? $msg->body_original,
-                'created_at' => $msg->created_at->toIso8601String(),
-            ]
-        ]);
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($conversation, $validated) {
+            $lockedConversation = \App\Models\ConversationThread::query()
+                ->whereKey($conversation->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedConversation->status !== 'open') {
+                return response()->json(['success' => false, 'message' => 'Conversation is not open'], 409);
+            }
+
+            if ($lockedConversation->customer_deleted_at !== null) {
+                return response()->json(['success' => false, 'message' => 'Conversation not found'], 404);
+            }
+
+            $msg = $this->createMessage($lockedConversation, $validated['message'], 'customer', $validated['prestashop_customer_id']);
+
+            $lockedConversation->update([
+                'vendor_unread_count' => $lockedConversation->vendor_unread_count + 1,
+                'admin_unread_count' => $lockedConversation->admin_unread_count + 1,
+                'last_message_at' => now(),
+                'vendor_deleted_at' => null,
+                'admin_deleted_at' => null,
+            ]);
+
+            \App\Jobs\SendVendorChatMessageEmail::dispatch($msg->id)->afterCommit();
+
+            return response()->json([
+                'success' => true,
+                'message' => [
+                    'id' => $msg->id,
+                    'sender_type' => $msg->sender_type,
+                    'body' => $msg->body_filtered ?? $msg->body_original,
+                    'created_at' => $msg->created_at->toIso8601String(),
+                ]
+            ]);
+        });
     }
 
     public function markAsRead(Request $request, \App\Models\ConversationThread $conversation)
@@ -173,6 +227,10 @@ class ConversationController extends Controller
 
         if (!$customerId || (int)$customerId !== (int)$conversation->prestashop_customer_id) {
             return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
+        }
+
+        if ($conversation->customer_deleted_at !== null) {
+            return response()->json(['success' => false, 'message' => 'Conversation not found'], 404);
         }
 
         $type = $request->input('user_type', 'customer');

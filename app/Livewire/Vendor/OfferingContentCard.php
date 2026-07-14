@@ -161,6 +161,7 @@ class OfferingContentCard extends Component
             'service_radius_km' => $this->service_radius_km,
             'max_guests' => $this->max_guests,
             'is_approved' => false,
+            'is_published' => false,
         ]);
 
         // Cover
@@ -224,9 +225,9 @@ class OfferingContentCard extends Component
                 \Illuminate\Support\Facades\Log::error('Impossibile inviare notifica Admin per modifica Servizio: ' . $e->getMessage());
             }
 
-            if ($this->profile->vendorAccount && $this->profile->vendorAccount->user) {
+            if ($this->profile->vendorAccount && $this->profile->vendorAccount->notificationEmail()) {
                 try {
-                    \Illuminate\Support\Facades\Mail::to($this->profile->vendorAccount->user->email)
+                    \Illuminate\Support\Facades\Mail::to($this->profile->vendorAccount->notificationEmail())
                         ->send(new \App\Mail\VendorServiceUpdatedMail($fresh));
                 } catch (\Exception $e) {
                     \Illuminate\Support\Facades\Log::error('Impossibile inviare notifica Vendor per modifica Servizio: ' . $e->getMessage());
@@ -306,9 +307,9 @@ class OfferingContentCard extends Component
                 \Illuminate\Support\Facades\Log::error('Impossibile inviare notifica Admin per eliminazione foto: ' . $e->getMessage());
             }
 
-            if ($this->profile->vendorAccount && $this->profile->vendorAccount->user) {
+            if ($this->profile->vendorAccount && $this->profile->vendorAccount->notificationEmail()) {
                 try {
-                    \Illuminate\Support\Facades\Mail::to($this->profile->vendorAccount->user->email)
+                    \Illuminate\Support\Facades\Mail::to($this->profile->vendorAccount->notificationEmail())
                         ->send(new \App\Mail\VendorServiceUpdatedMail($fresh));
                 } catch (\Exception $e) {}
             }

@@ -9,11 +9,15 @@ use Illuminate\Support\Str;
 
 class PrestashopWebhookService
 {
-    public function pushVendor(VendorAccount $vendor): bool
+    public const RESULT_SUCCESS = 'success';
+    public const RESULT_SKIPPED = 'skipped';
+    public const RESULT_ERROR = 'error';
+
+    public function pushVendor(VendorAccount $vendor): string
     {
         // 1. Non possiamo sincronizzare se non abbiamo il legame con PrestaShop
         if (!$vendor->prestashop_product_id) {
-            return false;
+            return self::RESULT_SKIPPED;
         }
 
         // 2. Se non è attivo o è eliminato, il webhook svuoterà/aggiornerà i dati base
@@ -47,7 +51,7 @@ class PrestashopWebhookService
 
         if (empty($apiKey) || empty($webhookUrl)) {
             Log::warning('PrestaShop Webhook config missing (URL or Key).');
-            return false;
+            return self::RESULT_ERROR;
         }
 
         try {
@@ -58,10 +62,11 @@ class PrestashopWebhookService
             ])->timeout(10)->post($webhookUrl, $payload);
 
             if ($response->failed()) {
-                throw new \Exception("URL chiamato ($webhookUrl) ha risposto con Errore {$response->status()}: " . strip_tags($response->body()));
+                $bodyPreview = Str::limit(strip_tags($response->body()), 255);
+                throw new \Exception("URL chiamato ($webhookUrl) ha risposto con Errore {$response->status()}: " . $bodyPreview);
             }
 
-            return true;
+            return self::RESULT_SUCCESS;
         } catch (\Exception $e) {
             Log::error('PrestaShop Webhook Exception: ' . $e->getMessage());
             // Rilanciamo l'eccezione così l'Artisan Command "sincrono" la stamperà in console per fare debug
@@ -107,7 +112,7 @@ class PrestashopWebhookService
                     'title' => trim((string) ($profile->title ?? 'Servizio')),
                     'short_description' => (string) ($profile->short_description ?: ''),
                     'description' => (string) ($profile->description ?: ''),
-                    'cover_image_url' => $this->resolveOfferingCoverUrl($profile) ?: route('media.public', ['path' => 'placeholder']), // Fallback url se route esiste
+                    'cover_image_url' => $this->resolveOfferingCoverUrl($profile), // fallback null
                     'service_mode' => (string) $profile->service_mode,
                     'service_radius_km' => $profile->service_radius_km !== null ? (float) $profile->service_radius_km : null,
                     'max_guests' => $profile->max_guests !== null ? (int) $profile->max_guests : null,

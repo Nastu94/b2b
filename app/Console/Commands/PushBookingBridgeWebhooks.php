@@ -54,10 +54,10 @@ class PushBookingBridgeWebhooks extends Command
 
         if ($errors > 0) {
             $this->warn("Completato con {$errors} errori. Controlla i file di log di Laravel (storage/logs/laravel.log) per i dettagli su URL o chiave API errati.");
+            return self::FAILURE;
         } else {
             $this->info('✅ Sincronizzazione sincrona completata con successo! Tutti i vendor sono stati spinti al webhook PrestaShop.');
+            return self::SUCCESS;
         }
-
-        return self::SUCCESS;
     }
 }
