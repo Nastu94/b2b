@@ -25,38 +25,26 @@ return new class extends Migration
             'servizi-professionali' => 12,
         ];
 
-        DB::transaction(function () use ($commissions) {
+        $defaultCommissionRate = 20;
+
+        DB::transaction(function () use ($commissions, $defaultCommissionRate) {
             $categories = DB::table('categories')->get();
-            $unmapped = [];
-            foreach ($categories as $cat) {
-                if (!array_key_exists($cat->slug, $commissions)) {
-                    $unmapped[] = $cat->slug;
+
+            foreach ($categories as $category) {
+                if (!array_key_exists($category->slug, $commissions)) {
+                    \Illuminate\Support\Facades\Log::info("Categoria usa commissione default", [
+                        'category' => $category->slug,
+                        'rate' => $defaultCommissionRate
+                    ]);
                 }
-            }
 
-            if (!empty($unmapped)) {
-                // Check if any COMMISSION vendor uses these unmapped categories
-                $affectedVendors = DB::table('vendor_accounts')
-                    ->where('payment_model', 'COMMISSION')
-                    ->whereNull('custom_commission_rate')
-                    ->whereIn('category_id', function ($query) use ($unmapped) {
-                        $query->select('id')->from('categories')->whereIn('slug', $unmapped);
-                    })
-                    ->count();
+                $rate = $commissions[$category->slug] ?? $defaultCommissionRate;
 
-                if ($affectedVendors > 0) {
-                    throw new \RuntimeException("Esistono categorie non mappate (" . implode(', ', $unmapped) . ") usate da vendor in regime COMMISSION senza override. Impossibile procedere.");
-                }
-            }
-
-            foreach ($commissions as $slug => $rate) {
                 DB::table('categories')
-                    ->where('slug', $slug)
-                    ->where(function($query) {
-                        $query->whereNull('commission_rate')
-                              ->orWhere('commission_rate', 0.00);
-                    })
-                    ->update(['commission_rate' => $rate]);
+                    ->where('id', $category->id)
+                    ->update([
+                        'commission_rate' => $rate
+                    ]);
             }
         });
     }
