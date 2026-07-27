@@ -12,7 +12,7 @@ class CommissionResolver
 {
     public function resolve(VendorAccount $vendor): array
     {
-        $maxRate = config('bookingbridge.commission.maximum_rate');
+        $maxRate = config('booking_bridge.commission.maximum_rate');
         
         if ($maxRate === null || !is_numeric($maxRate) || $maxRate <= 0) {
             throw new ConfigurationErrorException('Configurazione limite commerciale commissioni mancante o errata.');

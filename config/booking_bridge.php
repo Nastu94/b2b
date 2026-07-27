@@ -12,4 +12,7 @@ return [
     'api_contract_version' => env('BOOKING_BRIDGE_API_CONTRACT_VERSION', 1),
     'chat_page_size' => env('BOOKING_BRIDGE_CHAT_PAGE_SIZE', 50),
     'chat_max_page_size' => env('BOOKING_BRIDGE_CHAT_MAX_PAGE_SIZE', 100),
+    'commission' => [
+        'maximum_rate' => env('BOOKING_BRIDGE_COMMISSION_MAX_RATE', 20),
+    ],
 ];

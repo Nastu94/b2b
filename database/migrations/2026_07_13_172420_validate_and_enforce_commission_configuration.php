@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $maxRate = config('bookingbridge.commission.maximum_rate');
+        $maxRate = config('booking_bridge.commission.maximum_rate');
         if ($maxRate === null || !is_numeric($maxRate) || $maxRate <= 0) {
             throw new \RuntimeException("Configurazione limite commerciale commissioni mancante o errata.");
         }
