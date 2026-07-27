@@ -64,6 +64,19 @@ class BookingBridgeHmacAuthenticationTest extends TestCase
         $this->assertNotEquals(401, $response->status());
     }
 
+    public function test_legacy_mode_accepts_valid_bearer_token()
+    {
+        config(['booking_bridge.hmac_mode' => 'off']);
+        
+        $response = $this->getJson('/api/vendors/search', [
+            'Authorization' => 'Bearer ' . $this->bridgeKey,
+            'Accept' => 'application/json',
+        ]);
+        
+        // 422 because of missing parameters, but not 401
+        $this->assertNotEquals(401, $response->status());
+    }
+
     public function test_legacy_mode_rejects_invalid_legacy_key()
     {
         config(['booking_bridge.hmac_mode' => 'off']);

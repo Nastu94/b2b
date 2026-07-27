@@ -10,13 +10,21 @@ class BookingBridgeAuth
 {
     public function handle(Request $request, Closure $next)
     {
-        $hmacMode = config('booking_bridge.hmac_mode', 'off'); // off, optional, required
+        $rawHmacMode = config('booking_bridge.hmac_mode', 'off');
+        $hmacMode = $rawHmacMode === 'legacy' ? 'off' : $rawHmacMode; // legacy -> off, off, optional, required
         
         $signature = $request->header('X-Booking-Bridge-Signature');
         
-        $expectedLegacy = config('booking_bridge.inbound_key', config('booking_bridge.key'));
-        $providedLegacy = $request->header('X-Booking-Bridge-Key');
-        $isLegacyValid = $expectedLegacy && $providedLegacy && hash_equals($expectedLegacy, $providedLegacy);
+        $expectedLegacy = config('booking_bridge.inbound_key') ?: config('booking_bridge.key');
+        
+        $providedKey = $request->header('X-Booking-Bridge-Key')
+            ?: $request->bearerToken()
+            ?: '';
+            
+        $isLegacyValid = is_string($expectedLegacy) 
+            && is_string($providedKey) 
+            && $providedKey !== ''
+            && hash_equals($expectedLegacy, $providedKey);
 
         if ($hmacMode === 'off') {
             if (!$isLegacyValid) {

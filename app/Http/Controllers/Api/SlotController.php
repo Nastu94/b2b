@@ -637,14 +637,19 @@ class SlotController extends Controller
 
     private function buildHoldResponseData(SlotLock $lock, CarbonImmutable $now): array
     {
-        $breakdown = $lock->pricing_context ?? [];
+        $expiresAt = $lock->expires_at ? CarbonImmutable::parse($lock->expires_at) : null;
+        // In some parts of the code pricing_breakdown is used, in others pricing_context
+        $breakdown = $lock->pricing_breakdown ?? $lock->pricing_context ?? [];
 
         return [
             'status' => 'HOLD',
             'hold_token' => $lock->hold_token,
-            'expires_at' => $now->addMinutes(self::HOLD_TTL_MINUTES)->toIso8601String(),
+            'expires_at' => $expiresAt ? $expiresAt->toIso8601String() : $now->addMinutes(self::HOLD_TTL_MINUTES)->toIso8601String(),
+            'lock_id' => $lock->id,
+            'ttl_seconds' => $expiresAt ? max(0, $now->diffInSeconds($expiresAt, false)) : (self::HOLD_TTL_MINUTES * 60),
             'pricing' => [
-                'total_amount' => $lock->pricing_amount,
+                'final_price' => $lock->quoted_amount ?? $lock->pricing_amount,
+                'total_amount' => $lock->pricing_amount ?? $lock->quoted_amount,
                 'currency' => $lock->currency,
                 'breakdown' => $breakdown['breakdown'] ?? [],
             ],
@@ -657,6 +662,7 @@ class SlotController extends Controller
                 'slot_label' => $lock->vendorSlot->label ?? null,
                 'slot_start_time' => $lock->vendorSlot->start_time ?? null,
                 'slot_end_time' => $lock->vendorSlot->end_time ?? null,
+                'city' => $lock->event_city,
                 'event_city' => $lock->event_city,
                 'distance_km' => $lock->distance_km,
             ],
@@ -759,25 +765,7 @@ class SlotController extends Controller
         return (int) $left === (int) $right;
     }
 
-    private function buildHoldResponseData(SlotLock $lock, CarbonImmutable $now): array
-    {
-        $expiresAt = $lock->expires_at ? CarbonImmutable::parse($lock->expires_at) : null;
-        $breakdown = $lock->pricing_breakdown ?? [];
 
-        return [
-            'hold_token' => $lock->hold_token,
-            'expires_at' => $expiresAt?->toIso8601String(),
-            'lock_id' => $lock->id,
-            'ttl_seconds' => $expiresAt ? max(0, $now->diffInSeconds($expiresAt, false)) : 0,
-            'pricing' => [
-                'offering_id' => $lock->offering_id,
-                'base_price' => $breakdown['base_price'] ?? null,
-                'final_price' => $lock->quoted_amount,
-                'currency' => $lock->currency,
-                'breakdown' => $breakdown['breakdown'] ?? [],
-            ],
-        ];
-    }
 
     private function normalizePricingBreakdown(array $pricing): array
     {
