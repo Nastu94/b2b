@@ -460,7 +460,6 @@ class SlotController extends Controller
             if (!preg_match('/^[a-f0-9]{32}$/', $idempotencyKey)) {
                 throw new \App\Exceptions\BookingBridge\InvalidIdempotencyKeyException();
             }
-            $this->verifyIdempotencyHmac($request, $idempotencyKey);
         }
 
         try {
@@ -579,31 +578,7 @@ class SlotController extends Controller
         }
     }
 
-    private function verifyIdempotencyHmac(Request $request, string $idempotencyKey): void
-    {
-        $hmacMode = config('booking_bridge.hmac_mode', 'legacy');
-        if ($hmacMode === 'legacy') {
-            return;
-        }
 
-        $secret = config('booking_bridge.hmac_secret', '');
-        $expectedHmac = hash_hmac('sha256', $idempotencyKey, $secret);
-        $clientHmac = $request->header('Idempotency-Hmac');
-
-        $isValid = hash_equals($expectedHmac, (string) $clientHmac);
-
-        if (!$isValid) {
-            if ($hmacMode === 'shadow') {
-                \Illuminate\Support\Facades\Log::warning('Idempotency HMAC mismatch in shadow mode', [
-                    'idempotency_hash' => hash('sha256', $idempotencyKey),
-                    'client_hmac' => $clientHmac,
-                    'expected_hmac' => $expectedHmac,
-                ]);
-            } elseif ($hmacMode === 'enforce') {
-                throw new \App\Exceptions\BookingBridge\InvalidIdempotencyKeyException('Firma HMAC non valida');
-            }
-        }
-    }
 
     private function resolveVendorSlot(int $vendorAccountId, int $vendorSlotId): VendorSlot
     {
