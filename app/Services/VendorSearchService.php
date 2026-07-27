@@ -31,6 +31,7 @@ class VendorSearchService
         }
 
         $cityCoordinates = $this->geocodingService->geocodeCity($params['city']);
+        $fallbackMode = config('booking_bridge.geocoding_fallback_mode', 'legacy');
 
         $query = $this->buildBaseQuery($params);
 
@@ -59,19 +60,29 @@ class VendorSearchService
                   ->orderBy('vendor_accounts.id');
         } else {
             // Fallback nel caso in cui il geocoding non restituisca coordinate valide
-            $query->selectRaw("vendor_accounts.*, 1 as is_city_match, 0 as distance_km")
-                  ->where(function (Builder $q) use ($city) {
-                      $q->whereRaw('LOWER(legal_city) = ?', [$city])
-                        ->orWhereRaw('LOWER(operational_city) = ?', [$city])
-                        ->orWhereHas('vendorOfferingProfiles', function ($profQ) {
-                            $profQ->bookable()
-                                  ->where('service_mode', 'FIXED_LOCATION');
-                        });
-                  })
-                  ->orderBy('vendor_accounts.id');
+            if ($fallbackMode === 'legacy') {
+                $query->selectRaw("vendor_accounts.*, 1 as is_city_match, 0 as distance_km")
+                      ->where(function (Builder $q) use ($city) {
+                          $q->whereRaw('LOWER(legal_city) = ?', [$city])
+                            ->orWhereRaw('LOWER(operational_city) = ?', [$city])
+                            ->orWhereHas('vendorOfferingProfiles', function ($profQ) {
+                                $profQ->bookable()
+                                      ->where('service_mode', 'FIXED_LOCATION');
+                            });
+                      })
+                      ->orderBy('vendor_accounts.id');
+            } else {
+                $query->selectRaw("vendor_accounts.*, 1 as is_city_match, NULL as distance_km")
+                      ->where(function (Builder $q) use ($city) {
+                          $q->whereRaw('LOWER(legal_city) = ?', [$city])
+                            ->orWhereRaw('LOWER(operational_city) = ?', [$city]);
+                      })
+                      ->orderBy('vendor_accounts.id');
+            }
         }
 
         $matchedVendors = collect();
+        $strictExcludedVendorIds = [];
 
         // Utilizza lazy() per caricare i modelli a blocchi (chunk), ottimizzando l'uso della memoria.
         foreach ($query->lazy(50) as $vendor) {
@@ -96,6 +107,12 @@ class VendorSearchService
                 continue;
             }
 
+            if (!$cityCoordinates && $fallbackMode === 'legacy') {
+                if (!$this->vendorMatchesCity($vendor, $city)) {
+                    $strictExcludedVendorIds[] = $vendor->id;
+                }
+            }
+
             $matchedVendors->push($vendor);
 
             // Interrompe l'iterazione non appena viene raggiunto il numero di risultati richiesto ($limit)
@@ -105,14 +122,29 @@ class VendorSearchService
         }
 
         if ($matchedVendors->isEmpty()) {
-            return $this->emptyResult($params['city'] ?? null, $date);
+            $empty = $this->emptyResult($params['city'] ?? null, $date);
+            if (!$cityCoordinates) {
+                $empty['geocoding_unavailable'] = true;
+                if ($fallbackMode === 'legacy') {
+                    $empty['strict_excluded_count'] = 0;
+                }
+            }
+            return $empty;
         }
 
         $hasOutsideCityResults = $matchedVendors->contains(function (VendorAccount $vendor) {
             return $vendor->is_city_match === false;
         });
 
-        return [
+        if (!$cityCoordinates && $fallbackMode === 'legacy' && !empty($strictExcludedVendorIds)) {
+            \Illuminate\Support\Facades\Log::warning('Geocoding fallback legacy mode included vendors that strict would exclude', [
+                'city' => $city,
+                'strict_excluded_count' => count($strictExcludedVendorIds),
+                'strict_excluded_vendor_ids' => $strictExcludedVendorIds,
+            ]);
+        }
+
+        $response = [
             'fallback_used' => $hasOutsideCityResults,
             'search_mode' => $hasOutsideCityResults ? 'mixed' : 'city',
             'city' => $params['city'] ?? null,
@@ -120,6 +152,15 @@ class VendorSearchService
             'total' => $matchedVendors->count(),
             'data' => $this->groupVendorsByCategory($matchedVendors),
         ];
+
+        if (!$cityCoordinates) {
+            $response['geocoding_unavailable'] = true;
+            if ($fallbackMode === 'legacy') {
+                $response['strict_excluded_count'] = count($strictExcludedVendorIds);
+            }
+        }
+
+        return $response;
     }
 
     // ... Precedente funzione prepareVendorForSearch eliminata ...

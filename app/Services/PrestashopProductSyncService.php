@@ -11,32 +11,30 @@ use RuntimeException;
 
 class PrestashopProductSyncService
 {
-    public function sync(VendorAccount $vendor): void
+    public function sync(VendorAccount $vendor, array $payload): void
     {
         $vendor = $this->hydrateVendor($vendor);
 
         if (!$this->isCatalogReady($vendor)) {
-            $this->disableForVendor($vendor);
+            $this->disableForVendor($vendor, $payload);
             return;
         }
 
         if ($vendor->prestashop_product_id) {
-            $this->updateForVendor($vendor);
+            $this->updateForVendor($vendor, $payload);
             return;
         }
 
-        $this->createForVendor($vendor);
+        $this->createForVendor($vendor, $payload);
     }
 
-    public function createForVendor(VendorAccount $vendor): void
+    public function createForVendor(VendorAccount $vendor, array $payload): void
     {
         $vendor = $this->hydrateVendor($vendor);
 
         if (!$this->isCatalogReady($vendor)) {
             return;
         }
-
-        $payload = $this->buildPayload($vendor);
 
         $response = $this->sendRequest('vendor-product-create', $payload);
 
@@ -51,27 +49,26 @@ class PrestashopProductSyncService
         ]);
     }
 
-    public function updateForVendor(VendorAccount $vendor): void
+    public function updateForVendor(VendorAccount $vendor, array $payload): void
     {
         $vendor = $this->hydrateVendor($vendor);
 
         if (!$this->isCatalogReady($vendor)) {
-            $this->disableForVendor($vendor);
+            $this->disableForVendor($vendor, $payload);
             return;
         }
 
         if (!$vendor->prestashop_product_id) {
-            $this->createForVendor($vendor);
+            $this->createForVendor($vendor, $payload);
             return;
         }
 
-        $payload = $this->buildPayload($vendor);
         $payload['product_id'] = (int) $vendor->prestashop_product_id;
 
         $this->sendRequest('vendor-product-update', $payload);
     }
 
-    public function disableForVendor(VendorAccount $vendor): void
+    public function disableForVendor(VendorAccount $vendor, array $payload = []): void
     {
         $vendor = $this->hydrateVendor($vendor);
 
@@ -339,15 +336,25 @@ class PrestashopProductSyncService
     protected function sendRequest(string $action, array $payload): Response
     {
         $endpoint = $this->resolveEndpoint();
-        $apiKey = $this->resolveApiKey();
+        $apiKey = config('services.prestashop.outbound_key', $this->resolveApiKey());
 
-        $response = Http::timeout(15)->withHeaders([
+        $url = rtrim($endpoint, '/') . '?action=' . $action;
+        $urlParsed = parse_url($url);
+        $path = $urlParsed['path'] ?? '/';
+        if (isset($urlParsed['query'])) {
+            $path .= '?' . $urlParsed['query'];
+        }
+
+        $bodyStr = json_encode($payload);
+        $signatureService = app(\App\Services\BookingBridgeSignatureService::class);
+        $hmacHeaders = $signatureService->signOutbound('POST', $path, $bodyStr);
+
+        $headers = array_merge([
             'Authorization' => 'Bearer ' . $apiKey,
             'Accept' => 'application/json',
-        ])->post(
-            rtrim($endpoint, '/') . '?action=' . $action,
-            $payload
-        );
+        ], $hmacHeaders);
+
+        $response = Http::timeout(15)->withHeaders($headers)->post($url, $payload);
 
         if ($response->failed()) {
             throw new RuntimeException($this->buildRequestErrorMessage($action, $response));

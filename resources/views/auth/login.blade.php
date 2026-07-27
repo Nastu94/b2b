@@ -2,9 +2,10 @@
     <x-authentication-card>
         <x-slot name="logo">
             <x-authentication-card-logo />
-            <x-slot name="title">
-                {{ __('Benvenuto! Effettua il login al tuo account.') }}
-            </x-slot>
+        </x-slot>
+
+        <x-slot name="title">
+            {{ __('Benvenuto! Effettua il login al tuo account.') }}
         </x-slot>
 
         <x-validation-errors class="mb-4" />

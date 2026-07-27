@@ -13,7 +13,7 @@ class PrestashopWebhookService
     public const RESULT_SKIPPED = 'skipped';
     public const RESULT_ERROR = 'error';
 
-    public function pushVendor(VendorAccount $vendor): string
+    public function pushVendor(VendorAccount $vendor, array $payload): string
     {
         // 1. Non possiamo sincronizzare se non abbiamo il legame con PrestaShop
         if (!$vendor->prestashop_product_id) {
@@ -31,8 +31,6 @@ class PrestashopWebhookService
                       ->orderBy('id');
             },
         ]);
-
-        $payload = $this->buildPayload($vendor);
 
         // 3. Determina l'URL del webhook
         // Di default prendiamo services.prestashop.webhook_url, o costruiamo da config app
@@ -55,11 +53,25 @@ class PrestashopWebhookService
         }
 
         try {
-            $response = Http::withHeaders([
+            $urlParsed = parse_url($webhookUrl);
+            $path = $urlParsed['path'] ?? '/';
+            if (isset($urlParsed['query'])) {
+                $path .= '?' . $urlParsed['query'];
+            }
+            
+            $bodyStr = json_encode($payload);
+            $signatureService = app(\App\Services\BookingBridgeSignatureService::class);
+            $hmacHeaders = $signatureService->signOutbound('POST', $path, $bodyStr);
+
+            $headers = array_merge([
                 'X-Booking-Bridge-Key' => $apiKey,
                 'Accept' => 'application/json',
                 'Content-Type' => 'application/json',
-            ])->timeout(10)->post($webhookUrl, $payload);
+            ], $hmacHeaders);
+
+            $response = Http::withHeaders($headers)
+                ->timeout(10)
+                ->post($webhookUrl, $payload);
 
             if ($response->failed()) {
                 $bodyPreview = Str::limit(strip_tags($response->body()), 255);

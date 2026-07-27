@@ -11,7 +11,7 @@ class SyncPrestashopVendors extends Command
     protected $signature = 'vendors:sync-prestashop {--vendor_id=} {--only-missing}';
     protected $description = 'Sincronizza i vendor esistenti verso PrestaShop';
 
-    public function handle(PrestashopProductSyncService $syncService): int
+    public function handle(): int
     {
         $query = VendorAccount::query();
 
@@ -40,9 +40,9 @@ class SyncPrestashopVendors extends Command
             $processed++;
 
             try {
-                $syncService->sync($vendor);
-
-                $this->info("Vendor {$vendor->id} sincronizzato.");
+                \App\Jobs\PushVendorToPrestashopJob::dispatchSync($vendor);
+                $vendor->refresh();
+                $this->info("Vendor {$vendor->id} sincronizzato (v{$vendor->prestashop_sync_version}, hash: " . substr((string)$vendor->prestashop_payload_hash, 0, 8) . ").");
                 $success++;
             } catch (\Throwable $e) {
                 $this->error("Vendor {$vendor->id} errore: {$e->getMessage()}");

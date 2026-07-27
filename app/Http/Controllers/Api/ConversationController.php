@@ -140,9 +140,11 @@ class ConversationController extends Controller
             return response()->json(['success' => false, 'message' => 'Conversation not found'], 404);
         }
 
-        $messages = $conversation->messages()->orderBy('created_at', 'asc')->get();
+        $messagesQuery = $conversation->messages()->orderBy('created_at', 'asc');
+        
+        $paginator = $messagesQuery->cursorPaginate(50);
 
-        $mapped = $messages->map(function ($msg) {
+        $mapped = $paginator->getCollection()->map(function ($msg) {
             return [
                 'id' => $msg->id,
                 'sender_type' => $msg->sender_type,
@@ -153,7 +155,10 @@ class ConversationController extends Controller
 
         return response()->json([
             'success' => true,
-            'messages' => $mapped
+            'data' => $mapped,
+            'messages' => $mapped, // legacy compatibility
+            'next_cursor' => $paginator->nextCursor() ? $paginator->nextCursor()->encode() : null,
+            'prev_cursor' => $paginator->previousCursor() ? $paginator->previousCursor()->encode() : null,
         ]);
     }
 
@@ -263,7 +268,10 @@ class ConversationController extends Controller
             return response()->json(['success' => false, 'message' => 'Missing customer ID'], 400);
         }
 
-        $threads = \App\Models\ConversationThread::with(['vendorAccount' => function($q) {
+        $perPage = (int) $request->input('per_page', config('booking_bridge.chat_page_size', 50));
+        $perPage = min(max($perPage, 1), config('booking_bridge.chat_max_page_size', 100));
+
+        $paginator = \App\Models\ConversationThread::with(['vendorAccount' => function($q) {
                 $q->select('id', 'company_name', 'profile_image_path');
             }, 'offering' => function($q) {
                 $q->select('id', 'name');
@@ -271,9 +279,9 @@ class ConversationController extends Controller
             ->where('prestashop_customer_id', $customerId)
             ->whereNull('customer_deleted_at')
             ->orderBy('last_message_at', 'desc')
-            ->get();
+            ->paginate($perPage);
 
-        $mapped = $threads->map(function ($thread) {
+        $mapped = $paginator->getCollection()->map(function ($thread) {
             $lastMsg = $thread->messages()->latest()->first();
             return [
                 'conversation_id' => $thread->id,
@@ -291,7 +299,14 @@ class ConversationController extends Controller
 
         return response()->json([
             'success' => true,
-            'conversations' => $mapped
+            'data' => $mapped,
+            'conversations' => $mapped, // legacy compatibility
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ]
         ]);
     }
 

@@ -24,6 +24,7 @@ abstract class BookingBridgeApiException extends Exception
             'success' => false,
             'code' => $this->errorCode,
             'message' => $this->publicMessage,
+            'error' => $this->publicMessage,
         ], $this->statusCode);
     }
 }

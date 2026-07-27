@@ -102,7 +102,8 @@ class SlotController extends Controller
             return response()->json([
                 'success' => false,
                 'code' => 'SLOT_UNAVAILABLE',
-                'error' => 'Slot non disponibile'
+                'message' => 'Slot non disponibile per hold scaduto',
+                'error' => 'Slot non disponibile per hold scaduto'
             ], 409);
         } catch (RuntimeException $e) {
             return $this->unprocessable($e->getMessage());
@@ -182,6 +183,8 @@ class SlotController extends Controller
                 } catch (RuntimeException $e) {
                     return response()->json([
                         'success' => false,
+                        'code' => 'UNPROCESSABLE_ENTITY',
+                        'message' => $e->getMessage(),
                         'error' => $e->getMessage(),
                     ], 422);
                 }
@@ -339,7 +342,7 @@ class SlotController extends Controller
                         (string) $booking->prestashop_order_id !== (string) $orderId ||
                         (string) $booking->prestashop_order_line_id !== (string) $lineId
                     ) {
-                        return $this->conflict('IDEMPOTENCY_MISMATCH', 'Hold già confermato per un altro ordine');
+                        return response()->json(['success' => false, 'code' => 'ORDER_REFERENCE_MISMATCH', 'message' => 'Ordine differente', 'error' => 'Ordine differente'], 409);
                     }
 
                     return $this->confirmSuccess($lock, $booking);
@@ -431,7 +434,15 @@ class SlotController extends Controller
         } catch (\App\Exceptions\BookingBridge\BookingBridgeApiException $e) {
             throw $e;
         } catch (Throwable $e) {
-            \Illuminate\Support\Facades\Log::error("Errore nascosto in Confirm: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            \Illuminate\Support\Facades\Log::error("Errore nascosto in Confirm", [
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+                'endpoint' => 'POST /api/slots/confirm',
+                'idempotency_hash' => $idempotencyKey ? hash('sha256', $idempotencyKey) : null,
+                'hold_token' => $validated['hold_token'] ?? null,
+                'prestashop_order_id' => $validated['prestashop_order_id'] ?? null,
+                'correlation_id' => $request->header('X-Correlation-ID', (string) \Illuminate\Support\Str::uuid()),
+            ]);
             return $this->serverError('Impossibile confermare la prenotazione.');
         }
     }
@@ -449,6 +460,7 @@ class SlotController extends Controller
             if (!preg_match('/^[a-f0-9]{32}$/', $idempotencyKey)) {
                 throw new \App\Exceptions\BookingBridge\InvalidIdempotencyKeyException();
             }
+            $this->verifyIdempotencyHmac($request, $idempotencyKey);
         }
 
         try {
@@ -494,19 +506,101 @@ class SlotController extends Controller
         } catch (\App\Exceptions\BookingBridge\BookingBridgeApiException $e) {
             throw $e;
         } catch (Throwable $e) {
-            \Illuminate\Support\Facades\Log::error("Errore nascosto in transazione Release: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            \Illuminate\Support\Facades\Log::error("Errore nascosto in transazione Release", [
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+                'endpoint' => 'POST /api/slots/release',
+                'idempotency_hash' => $idempotencyKey ? hash('sha256', $idempotencyKey) : null,
+                'hold_token' => $validated['hold_token'] ?? null,
+                'correlation_id' => $request->header('X-Correlation-ID', (string) \Illuminate\Support\Str::uuid()),
+            ]);
             return $this->serverError('Errore release');
         }
+    }
+
+    public function status(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'hold_token' => 'required|uuid',
+            'prestashop_order_id' => 'nullable|string|max:191',
+            'prestashop_order_line_id' => 'nullable|string|max:191',
+        ]);
+
+        $lock = SlotLock::where('hold_token', $validated['hold_token'])->first();
+        if (!$lock) {
+            return response()->json(['success' => false, 'code' => 'NOT_FOUND', 'message' => 'Not found', 'error' => 'Not found'], 404);
+        }
+
+        if ($lock->isBooked()) {
+            $booking = Booking::where('slot_lock_id', $lock->id)->first();
+            if ($booking) {
+                if (!empty($validated['prestashop_order_id']) && (string) $booking->prestashop_order_id !== (string) $validated['prestashop_order_id']) {
+                    return response()->json(['success' => false, 'code' => 'ORDER_REFERENCE_MISMATCH', 'message' => 'Ordine differente', 'error' => 'Ordine differente'], 409);
+                }
+                if (!empty($validated['prestashop_order_line_id']) && (string) $booking->prestashop_order_line_id !== (string) $validated['prestashop_order_line_id']) {
+                    return response()->json(['success' => false, 'code' => 'ORDER_REFERENCE_MISMATCH', 'message' => 'Riga ordine differente', 'error' => 'Riga ordine differente'], 409);
+                }
+                
+                return response()->json([
+                    'success' => true,
+                    'status' => 'BOOKED',
+                    'booking_id' => $booking->id,
+                    'prestashop_order_id' => $booking->prestashop_order_id,
+                    'prestashop_order_line_id' => $booking->prestashop_order_line_id,
+                ]);
+            }
+        }
+
+        if ($lock->isCancelled()) {
+            return response()->json(['success' => true, 'status' => 'CANCELLED']);
+        }
+        
+        $now = CarbonImmutable::now();
+        if ($lock->isExpiredHold($now) || $lock->status === SlotLock::STATUS_EXPIRED) {
+            return response()->json(['success' => true, 'status' => 'EXPIRED']);
+        }
+
+        return response()->json([
+            'success' => true, 
+            'status' => 'HOLD', 
+            'expires_at' => $lock->expires_at ? CarbonImmutable::parse($lock->expires_at)->toIso8601String() : null
+        ]);
     }
 
     private function checkIdempotencyKey(SlotLock $lock, ?string $requestKey): void
     {
         if ($lock->idempotency_key !== null) {
-            if (empty($requestKey)) {
-                throw new \App\Exceptions\BookingBridge\MissingIdempotencyKeyException('Idempotency-Key header mancante ma richiesto');
+            if ($requestKey === null) {
+                throw new \App\Exceptions\BookingBridge\InvalidIdempotencyKeyException();
             }
-            if ($lock->idempotency_key !== $requestKey) {
-                throw new \App\Exceptions\BookingBridge\IdempotencyMismatchException('Chiave idempotente non corrispondente');
+            if (!hash_equals($lock->idempotency_key, $requestKey)) {
+                throw new \App\Exceptions\BookingBridge\InvalidIdempotencyKeyException();
+            }
+        }
+    }
+
+    private function verifyIdempotencyHmac(Request $request, string $idempotencyKey): void
+    {
+        $hmacMode = config('booking_bridge.hmac_mode', 'legacy');
+        if ($hmacMode === 'legacy') {
+            return;
+        }
+
+        $secret = config('booking_bridge.hmac_secret', '');
+        $expectedHmac = hash_hmac('sha256', $idempotencyKey, $secret);
+        $clientHmac = $request->header('Idempotency-Hmac');
+
+        $isValid = hash_equals($expectedHmac, (string) $clientHmac);
+
+        if (!$isValid) {
+            if ($hmacMode === 'shadow') {
+                \Illuminate\Support\Facades\Log::warning('Idempotency HMAC mismatch in shadow mode', [
+                    'idempotency_hash' => hash('sha256', $idempotencyKey),
+                    'client_hmac' => $clientHmac,
+                    'expected_hmac' => $expectedHmac,
+                ]);
+            } elseif ($hmacMode === 'enforce') {
+                throw new \App\Exceptions\BookingBridge\InvalidIdempotencyKeyException('Firma HMAC non valida');
             }
         }
     }
@@ -514,17 +608,59 @@ class SlotController extends Controller
     private function resolveVendorSlot(int $vendorAccountId, int $vendorSlotId): VendorSlot
     {
         $slot = VendorSlot::query()
-            ->where('id', $vendorSlotId)
             ->where('vendor_account_id', $vendorAccountId)
+            ->where('id', $vendorSlotId)
             ->first();
 
-        if (! $slot || (isset($slot->is_active) && ! $slot->is_active)) {
-            throw ValidationException::withMessages([
-                'vendor_slot_id' => ['Slot non valido'],
-            ]);
+        if (!$slot) {
+            throw new \App\Exceptions\BookingBridge\InvalidSlotSelectionException();
         }
 
         return $slot;
+    }
+
+    private function resolveOffering(int $vendorAccountId, int $offeringId): Offering
+    {
+        $offering = Offering::query()
+            ->whereHas('vendorOfferings', function ($query) use ($vendorAccountId) {
+                $query->where('vendor_account_id', $vendorAccountId);
+            })
+            ->where('id', $offeringId)
+            ->first();
+
+        if (!$offering) {
+            throw new \App\Exceptions\BookingBridge\InvalidOfferingException();
+        }
+
+        return $offering;
+    }
+
+    private function buildHoldResponseData(SlotLock $lock, CarbonImmutable $now): array
+    {
+        $breakdown = $lock->pricing_context ?? [];
+
+        return [
+            'status' => 'HOLD',
+            'hold_token' => $lock->hold_token,
+            'expires_at' => $now->addMinutes(self::HOLD_TTL_MINUTES)->toIso8601String(),
+            'pricing' => [
+                'total_amount' => $lock->pricing_amount,
+                'currency' => $lock->currency,
+                'breakdown' => $breakdown['breakdown'] ?? [],
+            ],
+            'selection' => [
+                'vendor_account_id' => $lock->vendor_account_id,
+                'vendor_company_name' => $lock->vendorAccount->company_name ?? null,
+                'offering_id' => $lock->offering_id,
+                'offering_title' => $lock->offering->name ?? null,
+                'vendor_slot_id' => $lock->vendor_slot_id,
+                'slot_label' => $lock->vendorSlot->label ?? null,
+                'slot_start_time' => $lock->vendorSlot->start_time ?? null,
+                'slot_end_time' => $lock->vendorSlot->end_time ?? null,
+                'event_city' => $lock->event_city,
+                'distance_km' => $lock->distance_km,
+            ],
+        ];
     }
 
     private function resolveOfferingProfile(int $vendorAccountId, int $offeringId): VendorOfferingProfile
@@ -688,6 +824,7 @@ class SlotController extends Controller
         return response()->json([
             'success' => false,
             'code' => $code,
+            'message' => $message,
             'error' => $message,
         ], 409);
     }
@@ -696,6 +833,8 @@ class SlotController extends Controller
     {
         return response()->json([
             'success' => false,
+            'code' => 'UNPROCESSABLE_ENTITY',
+            'message' => $message,
             'error' => $message,
         ], 422);
     }
@@ -704,6 +843,8 @@ class SlotController extends Controller
     {
         return response()->json([
             'success' => false,
+            'code' => 'SERVER_ERROR',
+            'message' => $message,
             'error' => $message,
         ], 500);
     }

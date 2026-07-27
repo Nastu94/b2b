@@ -35,13 +35,12 @@ return [
         ],
     ],
 
-    'booking_bridge' => [
-        'key' => env('BOOKING_BRIDGE_KEY'),
-    ],
+
 
     'prestashop' => [
         'endpoint' => env('PRESTASHOP_API_URL'),
         'key' => env('PRESTASHOP_API_KEY'),
+        'outbound_key' => env('PRESTASHOP_OUTBOUND_KEY', env('PRESTASHOP_API_KEY')),
         'webhook_url' => env('PRESTASHOP_WEBHOOK_URL'),
     ],
 

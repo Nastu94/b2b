@@ -3,13 +3,13 @@
 namespace App\Console\Commands;
 
 use App\Models\VendorAccount;
-use App\Jobs\PushVendorToPrestashopJob;
+use App\Services\PrestashopWebhookService;
 use Illuminate\Console\Command;
 
 class PushBookingBridgeWebhooks extends Command
 {
     protected $signature = 'vendors:push-webhooks {--vendor=}';
-    protected $description = 'Forza l\'invio massivo dei dati JSON dei vendor verso il Webhook di PrestaShop';
+    protected $description = 'Esegue il push dei dati Vendor collegati al modulo Booking Bridge su PrestaShop';
 
     public function handle(): int
     {
@@ -24,27 +24,35 @@ class PushBookingBridgeWebhooks extends Command
         $vendors = $query->get();
 
         if ($vendors->isEmpty()) {
-            $this->warn('Nessun vendor trovato da sincronizzare (assicurati che siano attivi e abbiano prestashop_product_id).');
+            $this->info('Nessun vendor collegato a PrestaShop trovato.');
             return self::SUCCESS;
         }
 
-        $this->info("Trovati {$vendors->count()} vendor collegati a PrestaShop. Metto in coda gli aggiornamenti Webhook...");
+        $this->info("Trovati {$vendors->count()} vendor collegati a PrestaShop. Avvio l'invio sincrono dei Webhook...");
 
         $bar = $this->output->createProgressBar(count($vendors));
         $bar->start();
 
-        $webhookService = app(\App\Services\PrestashopWebhookService::class);
+        $webhookService = app(PrestashopWebhookService::class);
+        $successes = 0;
+        $skipped = 0;
         $errors = 0;
 
         foreach ($vendors as $vendor) {
             try {
-                $success = $webhookService->pushVendor($vendor);
-                if (!$success) {
+                \App\Jobs\PushVendorToPrestashopJob::dispatchSync($vendor);
+                $vendor->refresh();
+                if ($vendor->prestashop_sync_error_code) {
                     $errors++;
+                    $this->error("\nErrore sincronizzando Vendor #{$vendor->id}: " . $vendor->prestashop_sync_error_code);
+                } else {
+                    $successes++;
                 }
-            } catch (\Exception $e) {
-                $this->error("\nErrore fatale sincronizzando Vendor #{$vendor->id}: " . $e->getMessage());
+
+                // removed old result logic
+            } catch (\Throwable $e) {
                 $errors++;
+                $this->error("\nErrore sincronizzando Vendor #{$vendor->id}: " . $e->getMessage());
             }
             $bar->advance();
         }
@@ -53,10 +61,10 @@ class PushBookingBridgeWebhooks extends Command
         $this->newLine(2);
 
         if ($errors > 0) {
-            $this->warn("Completato con {$errors} errori. Controlla i file di log di Laravel (storage/logs/laravel.log) per i dettagli su URL o chiave API errati.");
+            $this->warn("Completato con {$successes} successi, {$skipped} ignorati e {$errors} errori. Controlla i file di log di Laravel (storage/logs/laravel.log) per i dettagli su URL o chiave API errati.");
             return self::FAILURE;
         } else {
-            $this->info('✅ Sincronizzazione sincrona completata con successo! Tutti i vendor sono stati spinti al webhook PrestaShop.');
+            $this->info("✅ Sincronizzazione sincrona completata con successo! ({$successes} successi, {$skipped} ignorati)");
             return self::SUCCESS;
         }
     }

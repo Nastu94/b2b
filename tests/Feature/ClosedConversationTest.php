@@ -22,6 +22,8 @@ class ClosedConversationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        
+        $this->withoutMiddleware(\App\Http\Middleware\BookingBridgeAuth::class);
 
         $this->vendorUser = User::factory()->create();
         // Assuming role creation is needed

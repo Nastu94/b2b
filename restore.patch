@@ -1,0 +1,148 @@
+diff --git a/app/Http/Controllers/Api/SlotController.php b/app/Http/Controllers/Api/SlotController.php
+--- a/app/Http/Controllers/Api/SlotController.php
++++ b/app/Http/Controllers/Api/SlotController.php
+@@ -431,7 +431,15 @@
+         } catch (\App\Exceptions\BookingBridge\BookingBridgeApiException $e) {
+             throw $e;
+         } catch (Throwable $e) {
+-            \Illuminate\Support\Facades\Log::error("Errore nascosto in Confirm: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
++            \Illuminate\Support\Facades\Log::error("Errore nascosto in Confirm", [
++                'exception' => get_class($e),
++                'message' => $e->getMessage(),
++                'endpoint' => 'POST /api/slots/confirm',
++                'idempotency_hash' => $idempotencyKey ? hash('sha256', $idempotencyKey) : null,
++                'hold_token' => $validated['hold_token'] ?? null,
++                'prestashop_order_id' => $validated['prestashop_order_id'] ?? null,
++                'correlation_id' => $request->header('X-Correlation-ID', (string) \Illuminate\Support\Str::uuid()),
++            ]);
+             return $this->serverError('Impossibile confermare la prenotazione.');
+         }
+     }
+@@ -449,6 +457,7 @@
+             if (!preg_match('/^[a-f0-9]{32}$/', $idempotencyKey)) {
+                 throw new \App\Exceptions\BookingBridge\InvalidIdempotencyKeyException();
+             }
++            $this->verifyIdempotencyHmac($request, $idempotencyKey);
+         }
+ 
+         try {
+@@ -494,11 +503,67 @@
+         } catch (\App\Exceptions\BookingBridge\BookingBridgeApiException $e) {
+             throw $e;
+         } catch (Throwable $e) {
+-            \Illuminate\Support\Facades\Log::error("Errore nascosto in transazione Release: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
++            \Illuminate\Support\Facades\Log::error("Errore nascosto in transazione Release", [
++                'exception' => get_class($e),
++                'message' => $e->getMessage(),
++                'endpoint' => 'POST /api/slots/release',
++                'idempotency_hash' => $idempotencyKey ? hash('sha256', $idempotencyKey) : null,
++                'hold_token' => $validated['hold_token'] ?? null,
++                'correlation_id' => $request->header('X-Correlation-ID', (string) \Illuminate\Support\Str::uuid()),
++            ]);
+             return $this->serverError('Errore release');
+         }
+     }
+ 
++    public function status(Request $request): JsonResponse
++    {
++        $validated = $request->validate([
++            'hold_token' => 'required|uuid',
++            'prestashop_order_id' => 'nullable|string|max:191',
++            'prestashop_order_line_id' => 'nullable|string|max:191',
++        ]);
++
++        $lock = SlotLock::where('hold_token', $validated['hold_token'])->first();
++        if (!$lock) {
++            return response()->json(['success' => false, 'code' => 'NOT_FOUND', 'message' => 'Not found', 'error' => 'Not found'], 404);
++        }
++
++        if ($lock->isBooked()) {
++            $booking = Booking::where('slot_lock_id', $lock->id)->first();
++            if ($booking) {
++                if (!empty($validated['prestashop_order_id']) && (string) $booking->prestashop_order_id !== (string) $validated['prestashop_order_id']) {
++                    return response()->json(['success' => false, 'code' => 'ORDER_REFERENCE_MISMATCH', 'message' => 'Ordine differente', 'error' => 'Ordine differente'], 409);
++                }
++                if (!empty($validated['prestashop_order_line_id']) && (string) $booking->prestashop_order_line_id !== (string) $validated['prestashop_order_line_id']) {
++                    return response()->json(['success' => false, 'code' => 'ORDER_REFERENCE_MISMATCH', 'message' => 'Riga ordine differente', 'error' => 'Riga ordine differente'], 409);
++                }
++                
++                return response()->json([
++                    'success' => true,
++                    'status' => 'BOOKED',
++                    'booking_id' => $booking->id,
++                    'prestashop_order_id' => $booking->prestashop_order_id,
++                    'prestashop_order_line_id' => $booking->prestashop_order_line_id,
++                ]);
++            }
++        }
++
++        if ($lock->isCancelled()) {
++            return response()->json(['success' => true, 'status' => 'CANCELLED']);
++        }
++        
++        $now = CarbonImmutable::now();
++        if ($lock->isExpiredHold($now) || $lock->status === SlotLock::STATUS_EXPIRED) {
++            return response()->json(['success' => true, 'status' => 'EXPIRED']);
++        }
++
++        return response()->json([
++            'success' => true, 
++            'status' => 'HOLD', 
++            'expires_at' => $lock->expires_at ? CarbonImmutable::parse($lock->expires_at)->toIso8601String() : null
++        ]);
++    }
++
+     private function checkIdempotencyKey(SlotLock $lock, ?string $requestKey): void
+     {
+         if ($lock->idempotency_key !== null) {
+@@ -511,6 +576,32 @@
+         }
+     }
+ 
++    private function verifyIdempotencyHmac(Request $request, string $idempotencyKey): void
++    {
++        $hmacMode = config('booking_bridge.hmac_mode', 'legacy');
++        if ($hmacMode === 'legacy') {
++            return;
++        }
++
++        $secret = config('booking_bridge.hmac_secret', '');
++        $expectedHmac = hash_hmac('sha256', $idempotencyKey, $secret);
++        $clientHmac = $request->header('Idempotency-Hmac');
++
++        $isValid = hash_equals($expectedHmac, (string) $clientHmac);
++
++        if (!$isValid) {
++            if ($hmacMode === 'shadow') {
++                \Illuminate\Support\Facades\Log::warning('Idempotency HMAC mismatch in shadow mode', [
++                    'idempotency_hash' => hash('sha256', $idempotencyKey),
++                    'client_hmac' => $clientHmac,
++                    'expected_hmac' => $expectedHmac,
++                ]);
++            } elseif ($hmacMode === 'enforce') {
++                throw new \App\Exceptions\BookingBridge\InvalidIdempotencyKeyException('Firma HMAC non valida');
++            }
++        }
++    }
++
+     private function resolveVendorSlot(int $vendorAccountId, int $vendorSlotId): VendorSlot
+     {
+         $slot = VendorSlot::query()
+@@ -640,6 +731,18 @@
+                 'currency' => $lock->currency,
+                 'breakdown' => $breakdown['breakdown'] ?? [],
+             ],
++            'selection' => [
++                'vendor_account_id' => $lock->vendor_account_id,
++                'vendor_company_name' => $lock->vendorAccount->company_name ?? null,
++                'offering_id' => $lock->offering_id,
++                'offering_title' => $lock->offering->name ?? null,
++                'vendor_slot_id' => $lock->vendor_slot_id,
++                'slot_label' => $lock->vendorSlot->label ?? null,
++                'slot_start_time' => $lock->vendorSlot->start_time ?? null,
++                'slot_end_time' => $lock->vendorSlot->end_time ?? null,
++                'event_city' => $lock->event_city,
++                'distance_km' => $lock->distance_km,
++            ],
+         ];
+     }

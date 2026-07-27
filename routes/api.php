@@ -33,6 +33,9 @@ Route::middleware('booking.bridge')->group(function () {
 
         // Recupera la disponibilità degli slot di un vendor
         Route::get('/availability', [AvailabilityController::class, 'index']);
+
+        // Controlla lo stato di un hold o booking
+        Route::get('/slots/status', [SlotController::class, 'status']);
     });
 
     // API in SCRITTURA / MUTAZIONE (Throttle severo anti-bot: 60 rate/min)
@@ -46,13 +49,15 @@ Route::middleware('booking.bridge')->group(function () {
         // Libera lo slot manuale o timeout
         Route::post('/slots/release', [SlotController::class, 'release']);
 
-        // API Conversazioni
-        Route::post('/conversations/start', [\App\Http\Controllers\Api\ConversationController::class, 'start']);
-        Route::get('/conversations/{conversation}/messages', [\App\Http\Controllers\Api\ConversationController::class, 'messages']);
-        Route::post('/conversations/{conversation}/messages', [\App\Http\Controllers\Api\ConversationController::class, 'storeMessage']);
-        Route::post('/conversations/{conversation}/read', [\App\Http\Controllers\Api\ConversationController::class, 'markAsRead']);
-        Route::post('/conversations/{conversation}/delete', [\App\Http\Controllers\Api\ConversationController::class, 'deleteCustomer']);
-        Route::get('/conversations/unread', [\App\Http\Controllers\Api\ConversationController::class, 'unreadCount']);
-        Route::get('/conversations', [\App\Http\Controllers\Api\ConversationController::class, 'indexCustomer']);
+        // API Conversazioni (Rate Limit più stretto per prevenire abusi)
+        Route::middleware('throttle:bookingbridge-chat')->group(function () {
+            Route::post('/conversations/start', [\App\Http\Controllers\Api\ConversationController::class, 'start']);
+            Route::get('/conversations/{conversation}/messages', [\App\Http\Controllers\Api\ConversationController::class, 'messages']);
+            Route::post('/conversations/{conversation}/messages', [\App\Http\Controllers\Api\ConversationController::class, 'storeMessage']);
+            Route::post('/conversations/{conversation}/read', [\App\Http\Controllers\Api\ConversationController::class, 'markAsRead']);
+            Route::post('/conversations/{conversation}/delete', [\App\Http\Controllers\Api\ConversationController::class, 'deleteCustomer']);
+            Route::get('/conversations/unread', [\App\Http\Controllers\Api\ConversationController::class, 'unreadCount']);
+            Route::get('/conversations', [\App\Http\Controllers\Api\ConversationController::class, 'indexCustomer']);
+        });
     });
 });

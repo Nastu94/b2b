@@ -47,5 +47,11 @@ class AppServiceProvider extends ServiceProvider
             $key = $customer ? "api-write-customer-{$customer}-slot-{$slot}" : $request->ip();
             return Limit::perMinute(60)->by($key);
         });
+
+        RateLimiter::for('bookingbridge-chat', function (Request $request) {
+            $customer = $request->input('prestashop_customer_id');
+            $key = $customer ? "chat-customer-{$customer}" : $request->ip();
+            return Limit::perMinute(30)->by($key);
+        });
     }
 }

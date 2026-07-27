@@ -17,12 +17,18 @@ class SlotLock extends Model
     protected $table = 'slot_locks';
 
     protected $fillable = [
+        'hold_token',
         'idempotency_key',
+        'idempotency_hash',
         'vendor_account_id',
         'vendor_slot_id',
         'offering_id',
         'date',
         'distance_km',
+        'client_distance_km',
+        'distance_source',
+        'event_city',
+        'event_region',
         'guests',
         'quoted_amount',
         'currency',

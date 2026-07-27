@@ -77,8 +77,14 @@ class VendorAccount extends Model
         'operational_lat',
         'operational_lng',
 
-        // Integrazione PrestaShop
+        'iban',
+        'is_featured',
         'prestashop_product_id',
+        'prestashop_sync_version',
+        'prestashop_payload_hash',
+        'prestashop_synced_at',
+        'prestashop_sync_error_code',
+        'prestashop_sync_error_at',
 
         // Immagine profilo / logo
         'profile_image_path',

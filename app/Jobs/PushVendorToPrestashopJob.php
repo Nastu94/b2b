@@ -24,17 +24,62 @@ class PushVendorToPrestashopJob implements ShouldQueue
     public $tries = 3;
     public $backoff = [10, 30, 60];
 
-    public function handle(PrestashopWebhookService $service, \App\Services\PrestashopProductSyncService $productSync)
-    {
-        // 1. Sync full PrestaShop native product (per scaricare/aggiornare l'immagine fisicamente in PS)
-        $productSync->sync($this->vendor);
+    public function handle(
+        PrestashopWebhookService $webhookService, 
+        \App\Services\PrestashopProductSyncService $productSync,
+        \App\Services\PrestashopVendorPayloadFactory $payloadFactory
+    ) {
+        $vendor = $this->vendor;
+        $vendor->refresh();
 
-        // 2. Sync JSON data bypassando il prodotto per il frontend React/Smarty veloce
-        $result = $service->pushVendor($this->vendor);
+        $syncVersion = $vendor->prestashop_sync_version + 1;
+        $payload = $payloadFactory->buildPayload($vendor, $syncVersion);
+        
+        $payloadHash = hash('sha256', json_encode($payload));
 
-        if ($result === PrestashopWebhookService::RESULT_ERROR) {
-            throw new \RuntimeException("Errore di configurazione Webhook o errore fatale (verificare i log).");
+        if ($vendor->prestashop_payload_hash === $payloadHash && $vendor->prestashop_sync_error_code === null) {
+            // Already synced, identical payload, no errors previously
+            return;
         }
-        // Se RESULT_SKIPPED, non fa nulla e il job finisce con successo.
+
+        try {
+            // 1. Sync full PrestaShop native product
+            $productSync->sync($vendor, $payload);
+            
+            // Reload to get the product_id if it was just created
+            if (!$vendor->prestashop_product_id) {
+                $vendor->refresh();
+                if ($vendor->prestashop_product_id) {
+                    $payload['id_product'] = (int) $vendor->prestashop_product_id;
+                    $payload['product_id'] = (int) $vendor->prestashop_product_id;
+                    $payloadHash = hash('sha256', json_encode($payload));
+                }
+            }
+
+            // 2. Sync JSON data bypassando il prodotto per il frontend React/Smarty veloce
+            $result = $webhookService->pushVendor($vendor, $payload);
+
+            if ($result === PrestashopWebhookService::RESULT_ERROR) {
+                throw new \RuntimeException("Errore di configurazione Webhook o errore fatale (verificare i log).");
+            }
+            
+            $vendor->update([
+                'prestashop_sync_version' => $syncVersion,
+                'prestashop_payload_hash' => $payloadHash,
+                'prestashop_synced_at' => now(),
+                'prestashop_sync_error_code' => null,
+                'prestashop_sync_error_at' => null,
+            ]);
+
+        } catch (\Exception $e) {
+            $vendor->update([
+                'prestashop_sync_version' => $syncVersion,
+                'prestashop_payload_hash' => $payloadHash,
+                'prestashop_sync_error_code' => \Illuminate\Support\Str::limit($e->getMessage(), 250),
+                'prestashop_sync_error_at' => now(),
+            ]);
+            
+            throw $e;
+        }
     }
 }

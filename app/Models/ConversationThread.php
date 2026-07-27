@@ -38,6 +38,11 @@ class ConversationThread extends Model
         return $this->hasMany(ConversationMessage::class);
     }
 
+    public function latestMessage()
+    {
+        return $this->hasOne(ConversationMessage::class)->latestOfMany('created_at');
+    }
+
     public function scopeVisibleToVendor($query)
     {
         return $query->whereNull('vendor_deleted_at');
