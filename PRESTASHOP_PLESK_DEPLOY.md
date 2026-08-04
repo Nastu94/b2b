@@ -90,7 +90,8 @@ Non inserire chiavi reali in questo documento. Usare segreti casuali di almeno 3
 - Risposta vendor: conferma e rifiuto devono aggiornare lo stato previsto e produrre le notifiche configurate.
 - Cron/outbox: nessun record deve restare bloccato in `PROCESSING`; verificare retry e idempotenza.
 - Catalogo vendor: attivazione, modifica e disattivazione devono aggiornare soltanto il prodotto del vendor proprietario.
-- Chat: apertura conversazione, invio, polling incrementale, conteggi non letti e autorizzazioni cliente/vendor/admin.
+- Homepage: finché il valore reale non supera 60, il badge partner deve mostrare il totale reale più 100 e il badge città il totale reale più 30; oltre 60 deve mostrare il dato reale.
+- Chat: apertura conversazione, invio, polling incrementale, conteggi non letti e autorizzazioni cliente/vendor/admin. Dalla scheda prodotto deve essere inviato il `vendor_account_id` Laravel, mai l'ID prodotto PrestaShop.
 
 ## Avvertenze operative
 
