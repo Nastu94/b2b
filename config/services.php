@@ -44,6 +44,9 @@ return [
         'webhook_key' => env('PRESTASHOP_WEBHOOK_KEY', env('PRESTASHOP_OUTBOUND_KEY', env('PRESTASHOP_API_KEY'))),
         'webhook_url' => env('PRESTASHOP_WEBHOOK_URL'),
         'product_timeout' => (int) env('PRESTASHOP_PRODUCT_SYNC_TIMEOUT', 30),
+        'bookingbridge_cron_url' => env('PRESTASHOP_BOOKINGBRIDGE_CRON_URL'),
+        'bookingbridge_cron_token' => env('PRESTASHOP_BOOKINGBRIDGE_CRON_TOKEN'),
+        'bookingbridge_cron_timeout' => (int) env('PRESTASHOP_BOOKINGBRIDGE_CRON_TIMEOUT', 60),
     ],
 
     'stripe' => [

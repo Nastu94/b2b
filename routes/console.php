@@ -47,3 +47,16 @@ Schedule::command('vendors:push-webhooks')
     ->everyFifteenMinutes()
     ->withoutOverlapping(30)
     ->appendOutputTo(storage_path('logs/vendors-push-webhooks.log'));
+
+/*
+|--------------------------------------------------------------------------
+| BookingBridge Confirmation Outbox
+|--------------------------------------------------------------------------
+|
+| Fa eseguire a PrestaShop i retry delle conferme rimaste in outbox.
+|
+*/
+Schedule::command('prestashop:process-bookingbridge-outbox')
+    ->everyFiveMinutes()
+    ->withoutOverlapping(10)
+    ->appendOutputTo(storage_path('logs/prestashop-bookingbridge-outbox.log'));
