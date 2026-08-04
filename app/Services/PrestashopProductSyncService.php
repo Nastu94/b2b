@@ -11,21 +11,31 @@ use RuntimeException;
 
 class PrestashopProductSyncService
 {
-    public function sync(VendorAccount $vendor, array $payload): void
+    public const RESULT_SYNCED = 'synced';
+    public const RESULT_DISABLED = 'disabled';
+    public const RESULT_CATEGORY_MAPPING_MISSING = 'category_mapping_missing';
+
+    public function sync(VendorAccount $vendor, array $payload): string
     {
         $vendor = $this->hydrateVendor($vendor);
 
+        if ($this->hasMissingRequiredCategoryMapping($vendor)) {
+            return self::RESULT_CATEGORY_MAPPING_MISSING;
+        }
+
         if (!$this->isCatalogReady($vendor)) {
             $this->disableForVendor($vendor, $payload);
-            return;
+            return self::RESULT_DISABLED;
         }
 
         if ($vendor->prestashop_product_id) {
             $this->updateForVendor($vendor, $payload);
-            return;
+            return self::RESULT_SYNCED;
         }
 
         $this->createForVendor($vendor, $payload);
+
+        return self::RESULT_SYNCED;
     }
 
     public function createForVendor(VendorAccount $vendor, array $payload): void
@@ -44,9 +54,9 @@ class PrestashopProductSyncService
             throw new RuntimeException('Risposta PrestaShop senza product_id.');
         }
 
-        $vendor->update([
+        $vendor->forceFill([
             'prestashop_product_id' => (int) $productId,
-        ]);
+        ])->saveQuietly();
     }
 
     public function updateForVendor(VendorAccount $vendor, array $payload): void
@@ -78,6 +88,10 @@ class PrestashopProductSyncService
 
         $this->sendRequest('vendor-product-disable', [
             'product_id' => (int) $vendor->prestashop_product_id,
+            'vendor_id' => (int) $vendor->id,
+            'sync_version' => isset($payload['sync_version'])
+                ? (int) $payload['sync_version']
+                : ((int) $vendor->prestashop_sync_version) + 1,
         ]);
     }
 
@@ -98,7 +112,7 @@ class PrestashopProductSyncService
 
     protected function isCatalogReady(VendorAccount $vendor): bool
     {
-        if (($vendor->status ?? null) !== 'ACTIVE') {
+        if ($vendor->trashed() || ($vendor->status ?? null) !== 'ACTIVE') {
             return false;
         }
 
@@ -107,6 +121,14 @@ class PrestashopProductSyncService
         }
 
         return $this->publishedProfiles($vendor)->isNotEmpty();
+    }
+
+    protected function hasMissingRequiredCategoryMapping(VendorAccount $vendor): bool
+    {
+        return !$vendor->trashed()
+            && ($vendor->status ?? null) === 'ACTIVE'
+            && $this->publishedProfiles($vendor)->isNotEmpty()
+            && (!$vendor->category || !$vendor->category->prestashop_category_id);
     }
 
     protected function buildPayload(VendorAccount $vendor): array
@@ -354,10 +376,17 @@ class PrestashopProductSyncService
             'Accept' => 'application/json',
         ], $hmacHeaders);
 
-        $response = Http::timeout(15)->withHeaders($headers)->post($url, $payload);
+        $timeout = max(5, (int) config('services.prestashop.product_timeout', 30));
+        $response = Http::timeout($timeout)->withHeaders($headers)->post($url, $payload);
 
         if ($response->failed()) {
             throw new RuntimeException($this->buildRequestErrorMessage($action, $response));
+        }
+
+        if ((bool) $response->json('category_fallback_used', false)) {
+            throw new RuntimeException(
+                'PrestaShop ha rifiutato la categoria richiesta e ha usato una categoria di fallback.'
+            );
         }
 
         return $response;

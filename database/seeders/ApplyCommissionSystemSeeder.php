@@ -33,8 +33,10 @@ class ApplyCommissionSystemSeeder extends Seeder
         foreach ($commissions as $slug => $rate) {
             $category = Category::where('slug', $slug)->first();
             if ($category) {
-                $category->update(['commission_rate' => $rate]);
-                $updatedCats++;
+                if ($category->commission_rate === null || (float) $category->commission_rate <= 0) {
+                    $category->update(['commission_rate' => $rate]);
+                    $updatedCats++;
+                }
             }
         }
 

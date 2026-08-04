@@ -10,11 +10,23 @@ class AdminSeeder extends Seeder
 {
     public function run(): void
     {
-        $email = env('SEED_ADMIN_EMAIL', 'admin@admin.it');
-        $name  = env('SEED_ADMIN_NAME', 'Admin');
-        $pass  = env('SEED_ADMIN_PASSWORD', 'Admin123');
+        $email = trim((string) env('SEED_ADMIN_EMAIL'));
+        $name = trim((string) env('SEED_ADMIN_NAME'));
+        $pass = (string) env('SEED_ADMIN_PASSWORD');
 
-        // crea o recupera
+        if ($email === '' || $name === '' || $pass === '') {
+            $this->command?->warn('Credenziali admin non configurate: creazione admin saltata.');
+            return;
+        }
+
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new \RuntimeException('SEED_ADMIN_EMAIL non è un indirizzo email valido.');
+        }
+
+        if (strlen($pass) < 12 || preg_match('/^(admin|password|changeme)/i', $pass)) {
+            throw new \RuntimeException('SEED_ADMIN_PASSWORD deve avere almeno 12 caratteri e non può essere una password comune.');
+        }
+
         $admin = User::firstOrCreate(
             ['email' => $email],
             ['name' => $name, 'password' => Hash::make($pass)]
@@ -25,9 +37,6 @@ class AdminSeeder extends Seeder
             $admin->assignRole('admin');
         }
 
-        // output utile quando si esegue db:seed
-        if ($this->command) {
-            $this->command->info("Admin seed pronto!");
-        }
+        $this->command?->info('Utente admin verificato.');
     }
 }

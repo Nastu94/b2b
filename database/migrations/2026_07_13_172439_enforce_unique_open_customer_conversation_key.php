@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -11,10 +12,24 @@ return new class extends Migration
      */
     public function up(): void
     {
-        try {
-            \Illuminate\Support\Facades\DB::statement('ALTER TABLE conversation_threads DROP INDEX conv_threads_unique_open');
-        } catch (\Exception $e) {
-            //
+        $duplicate = DB::table('conversation_threads')
+            ->selectRaw('prestashop_customer_id, vendor_account_id, offering_id, COUNT(*) AS aggregate')
+            ->where('status', 'open')
+            ->whereNull('customer_deleted_at')
+            ->groupBy('prestashop_customer_id', 'vendor_account_id', 'offering_id')
+            ->havingRaw('COUNT(*) > 1')
+            ->first();
+
+        if ($duplicate) {
+            throw new \RuntimeException(
+                'Impossibile applicare il vincolo conversazioni: esistono thread aperti duplicati. Bonificare i dati prima del deploy.'
+            );
+        }
+
+        if ($this->indexExists('conversation_threads', 'conv_threads_unique_open')) {
+            Schema::table('conversation_threads', function (Blueprint $table) {
+                $table->dropUnique('conv_threads_unique_open');
+            });
         }
 
         if (Schema::hasColumn('conversation_threads', 'unique_open_key')) {
@@ -34,10 +49,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        try {
-            \Illuminate\Support\Facades\DB::statement('ALTER TABLE conversation_threads DROP INDEX conv_threads_unique_open');
-        } catch (\Exception $e) {
-            //
+        if ($this->indexExists('conversation_threads', 'conv_threads_unique_open')) {
+            Schema::table('conversation_threads', function (Blueprint $table) {
+                $table->dropUnique('conv_threads_unique_open');
+            });
         }
 
         if (Schema::hasColumn('conversation_threads', 'unique_open_key')) {
@@ -45,5 +60,11 @@ return new class extends Migration
                 $table->dropColumn('unique_open_key');
             });
         }
+    }
+
+    private function indexExists(string $table, string $indexName): bool
+    {
+        return collect(Schema::getIndexes($table))
+            ->contains(fn (array $index) => ($index['name'] ?? null) === $indexName);
     }
 };

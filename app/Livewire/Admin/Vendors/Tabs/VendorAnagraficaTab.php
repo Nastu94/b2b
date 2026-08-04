@@ -118,7 +118,7 @@ class VendorAnagraficaTab extends Component
     protected function rules(): array
     {
         $rules = [
-            'profile_image' => ['nullable', 'image', 'max:5120'],
+            'profile_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'form.status' => ['required', 'in:PENDING,ACTIVE,INACTIVE'],
             'form.booking_capacity_mode' => ['required', 'in:single_resource,multiple_by_offering'],
             'form.account_type' => ['required', 'in:COMPANY,PRIVATE'],
@@ -202,11 +202,12 @@ class VendorAnagraficaTab extends Component
             'operational_address_line1' => $this->form['operational_address_line1'],
         ]);
 
+        $oldProfileImagePath = $this->vendorAccount->profile_image_path;
+        $newProfileImagePath = null;
+
         if ($this->profile_image) {
-            if ($this->vendorAccount->profile_image_path) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($this->vendorAccount->profile_image_path);
-            }
-            $this->vendorAccount->profile_image_path = $this->profile_image->store('vendor-profiles', 'public');
+            $newProfileImagePath = $this->profile_image->store('vendor-profiles', 'public');
+            $this->vendorAccount->profile_image_path = $newProfileImagePath;
         }
 
         // Se la sede operativa coincide con quella legale, copiamo i valori.
@@ -218,11 +219,27 @@ class VendorAnagraficaTab extends Component
             $this->vendorAccount->operational_address_line1 = $this->vendorAccount->legal_address_line1;
         }
 
-        $this->vendorAccount->save();
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function (): void {
+                $this->vendorAccount->save();
 
-        if (isset($this->form['event_type_ids'])) {
-            $this->vendorAccount->eventTypes()->sync($this->form['event_type_ids']);
+                if (isset($this->form['event_type_ids'])) {
+                    $this->vendorAccount->eventTypes()->sync($this->form['event_type_ids']);
+                }
+            });
+        } catch (\Throwable $exception) {
+            if ($newProfileImagePath) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($newProfileImagePath);
+                $this->vendorAccount->profile_image_path = $oldProfileImagePath;
+            }
+
+            throw $exception;
         }
+
+        if ($newProfileImagePath && $oldProfileImagePath && $oldProfileImagePath !== $newProfileImagePath) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($oldProfileImagePath);
+        }
+        $this->profile_image = null;
 
         session()->flash('status', 'Anagrafica salvata con successo.');
 
@@ -285,6 +302,18 @@ class VendorAnagraficaTab extends Component
         }
 
         // Il container controlla già lo stato di editing.
+    }
+
+    #[On('vendor-anagrafica-refresh-status')]
+    public function onRefreshStatus(int $vendorAccountId): void
+    {
+        if ($vendorAccountId !== $this->vendorAccount->id) {
+            return;
+        }
+
+        $this->vendorAccount->refresh();
+        $this->form['status'] = $this->vendorAccount->status;
+        $this->originalForm['status'] = $this->vendorAccount->status;
     }
 
     public function createEventType(): void

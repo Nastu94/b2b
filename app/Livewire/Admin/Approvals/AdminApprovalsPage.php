@@ -36,6 +36,7 @@ class AdminApprovalsPage extends Component
 
     public function mount()
     {
+        $this->authorize('viewAny', VendorAccount::class);
         $this->filterType = 'all';
         $this->filterStatus = 'pending';
     }
@@ -289,6 +290,7 @@ class AdminApprovalsPage extends Component
         try {
             app(\App\Services\OfferingApprovalService::class)->approveOfferingProfile($vendor, $offeringId);
             session()->flash('status', 'Servizio approvato con successo.');
+            $this->dispatch('approvals-updated');
         } catch (\Illuminate\Validation\ValidationException $e) {
             $this->addError('general', collect($e->errors())->flatten()->first());
         }
@@ -300,11 +302,13 @@ class AdminApprovalsPage extends Component
         $this->authorize('update', $vendor);
         app(\App\Services\OfferingApprovalService::class)->rejectOfferingProfile($vendor, $offeringId);
         session()->flash('status', 'Servizio rifiutato.');
+        $this->dispatch('approvals-updated');
     }
 
     public function approveDocument(int $documentId): void
     {
         $document = VendorDocument::findOrFail($documentId);
+        $this->authorize('review', $document);
 
         $document->update([
             'status' => VendorDocument::STATUS_APPROVED,
@@ -314,10 +318,12 @@ class AdminApprovalsPage extends Component
         ]);
 
         session()->flash('status', 'Documento approvato con successo.');
+        $this->dispatch('approvals-updated');
     }
 
     public function startRejectDocument(int $documentId): void
     {
+        $this->authorize('review', VendorDocument::findOrFail($documentId));
         $this->rejectingDocumentId = $documentId;
         $this->documentReviewNote = '';
     }
@@ -325,10 +331,12 @@ class AdminApprovalsPage extends Component
     public function rejectDocument(): void
     {
         $this->validate([
+            'rejectingDocumentId' => ['required', 'integer'],
             'documentReviewNote' => ['required', 'string', 'max:1000'],
         ]);
 
         $document = VendorDocument::findOrFail($this->rejectingDocumentId);
+        $this->authorize('review', $document);
 
         $document->update([
             'status' => VendorDocument::STATUS_REJECTED,
@@ -341,10 +349,12 @@ class AdminApprovalsPage extends Component
         $this->documentReviewNote = '';
 
         session()->flash('status', 'Documento rifiutato.');
+        $this->dispatch('approvals-updated');
     }
 
     public function render()
     {
+        $this->authorize('viewAny', VendorAccount::class);
         $items = $this->pendingItems;
         
         $page = $this->getPage();

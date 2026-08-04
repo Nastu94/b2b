@@ -75,6 +75,7 @@ class PreProductionValidationTest extends TestCase
 
     public function test_lock_expired_retry_returns_lock_terminated()
     {
+        $eventDate = now()->addDays(2)->format('Y-m-d');
         $user = User::factory()->create();
         $category = Category::create(['name' => 'Test', 'slug' => 'test-lock', 'is_active' => true, 'commission_rate' => 15]);
         $vendor = VendorAccount::create([
@@ -115,7 +116,7 @@ class PreProductionValidationTest extends TestCase
             'vendor_account_id' => $vendor->id,
             'vendor_slot_id' => $slot->id,
             'offering_id' => $offering->id,
-            'date' => '2026-08-01',
+            'date' => $eventDate,
             'distance_km' => 10,
             'guests' => 50,
             'status' => 'EXPIRED',
@@ -128,7 +129,7 @@ class PreProductionValidationTest extends TestCase
         $response = $this->postJson('/api/slots/hold', [
             'vendor_account_id' => $lock->vendor_account_id,
             'vendor_slot_id' => $lock->vendor_slot_id,
-            'date' => '2026-08-01',
+            'date' => $eventDate,
             'offering_id' => $lock->offering_id,
             'distance_km' => $lock->distance_km,
             'guests' => $lock->guests,
@@ -140,7 +141,7 @@ class PreProductionValidationTest extends TestCase
                  ->assertJsonPath('code', 'LOCK_TERMINATED');
     }
 
-    public function test_commission_migration_fails_on_unmapped_category()
+    public function test_commission_migration_applies_default_to_unmapped_category()
     {
         $category = Category::create([
             'name' => 'Unmapped Cat',
@@ -158,9 +159,8 @@ class PreProductionValidationTest extends TestCase
 
         $migration = require base_path('database/migrations/2026_07_13_152816_apply_commission_system_to_categories.php');
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Esistono categorie non mappate');
-        
         $migration->up();
+
+        $this->assertSame(20.0, (float) $category->fresh()->commission_rate);
     }
 }

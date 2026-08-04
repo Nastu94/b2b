@@ -68,7 +68,7 @@ return [
 
     'laravel' => [
         // Whether to automatically create a docs route for you to view your generated docs. You can still set up routing manually.
-        'add_routes' => true,
+        'add_routes' => env('SCRIBE_ADD_ROUTES', false),
 
         // URL path to use for the docs endpoint (if `add_routes` is true).
         // By default, `/docs` opens the HTML page, `/docs.postman` opens the Postman collection, and `/docs.openapi` the OpenAPI spec.
@@ -90,7 +90,7 @@ return [
     'try_it_out' => [
         // Add a Try It Out button to your endpoints so consumers can test endpoints right from their browser.
         // Don't forget to enable CORS headers for your endpoints.
-        'enabled' => true,
+        'enabled' => env('SCRIBE_TRY_IT_OUT', false),
 
         // The base URL to use in the API tester. Leave as null to be the same as the displayed URL (`scribe.base_url`).
         'base_url' => null,

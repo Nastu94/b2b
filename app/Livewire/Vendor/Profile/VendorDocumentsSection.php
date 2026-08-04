@@ -33,7 +33,7 @@ class VendorDocumentsSection extends Component
     public function uploadDocument(VendorDocumentService $service)
     {
         $this->validate([
-            'document_file' => ['required', 'file', 'mimetypes:application/pdf', 'max:10240'],
+            'document_file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:10240'],
             'type' => ['required', 'string', \Illuminate\Validation\Rule::in(array_keys(\App\Models\VendorDocument::TYPES))],
             'title' => ['nullable', 'string', 'max:255'],
             'expires_at' => ['nullable', 'date'],

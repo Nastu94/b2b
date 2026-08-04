@@ -126,6 +126,7 @@ class VendorServiziTab extends Component
             app(\App\Services\OfferingApprovalService::class)->approveOfferingProfile($this->vendorAccount, $offeringId);
 
             session()->flash('status', 'Servizio approvato con successo. Email inviata e sincronizzazione avviata.');
+            $this->dispatch('approvals-updated');
             $this->loadCardsData();
             
             // Se eravamo in modale, aggiorniamo il record caricato
@@ -157,6 +158,7 @@ class VendorServiziTab extends Component
         app(\App\Services\OfferingApprovalService::class)->rejectOfferingProfile($this->vendorAccount, $offeringId);
 
         session()->flash('status', 'Servizio rifiutato.');
+        $this->dispatch('approvals-updated');
         $this->loadCardsData();
         
         if ($this->viewingProfile && $this->viewingProfile->offering_id === $offeringId) {
@@ -278,6 +280,8 @@ class VendorServiziTab extends Component
                 ]);
             }
         });
+
+        \App\Jobs\PushVendorToPrestashopJob::dispatch((int) $this->vendorAccount->id)->afterCommit();
 
         $this->closeOfferingDetails();
         $this->loadCardsData();

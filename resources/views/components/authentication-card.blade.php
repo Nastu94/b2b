@@ -1,3 +1,5 @@
+@props(['title' => null])
+
 <div class="min-h-screen bg-gray-50 flex items-center justify-center px-6">
 
     <div class="w-full max-w-6xl ">
@@ -6,9 +8,11 @@
         <div class="text-center mb-8">
             {{ $logo }}
 
-            <div class="mt-2 text-sm text-gray-600">
-                {{ $title }}
-            </div>
+            @if (filled($title))
+                <div class="mt-2 text-sm text-gray-600">
+                    {{ $title }}
+                </div>
+            @endif
         </div>
 
         {{-- Card --}}

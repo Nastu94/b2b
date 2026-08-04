@@ -26,10 +26,8 @@ class CommissionTest extends TestCase
             'commission_rate' => 20.00
         ]);
 
-        $user = \App\Models\User::factory()->create();
-
         $vendor1 = VendorAccount::create([
-            'user_id' => $user->id,
+            'user_id' => \App\Models\User::factory()->create()->id,
             'company_name' => 'Vendor 1',
             'status' => 'active',
             'payment_model' => 'COMMISSION',
@@ -38,7 +36,7 @@ class CommissionTest extends TestCase
         ]);
 
         $vendor2 = VendorAccount::create([
-            'user_id' => $user->id,
+            'user_id' => \App\Models\User::factory()->create()->id,
             'company_name' => 'Vendor 2',
             'status' => 'active',
             'payment_model' => 'COMMISSION',
@@ -47,7 +45,7 @@ class CommissionTest extends TestCase
         ]);
 
         $vendor3 = VendorAccount::create([
-            'user_id' => $user->id,
+            'user_id' => \App\Models\User::factory()->create()->id,
             'company_name' => 'Vendor 3',
             'status' => 'active',
             'payment_model' => 'COMMISSION',

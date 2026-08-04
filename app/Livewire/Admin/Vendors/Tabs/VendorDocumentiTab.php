@@ -7,10 +7,11 @@ use App\Models\VendorDocument;
 use App\Services\VendorDocumentService;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class VendorDocumentiTab extends Component
 {
-    use WithFileUploads;
+    use AuthorizesRequests, WithFileUploads;
 
     public int $vendorAccountId;
     public VendorAccount $vendorAccount;
@@ -31,6 +32,7 @@ class VendorDocumentiTab extends Component
     {
         $this->vendorAccountId = $vendorAccountId;
         $this->vendorAccount = VendorAccount::findOrFail($vendorAccountId);
+        $this->authorize('view', $this->vendorAccount);
     }
 
     private function findDocumentForCurrentVendor(int $documentId): VendorDocument
@@ -42,6 +44,7 @@ class VendorDocumentiTab extends Component
     public function approveDocument(int $documentId)
     {
         $document = $this->findDocumentForCurrentVendor($documentId);
+        $this->authorize('review', $document);
         $document->update([
             'status' => VendorDocument::STATUS_APPROVED,
             'reviewed_by' => auth()->id(),
@@ -49,10 +52,12 @@ class VendorDocumentiTab extends Component
             'review_note' => null,
         ]);
         session()->flash('message', 'Documento approvato.');
+        $this->dispatch('approvals-updated');
     }
 
     public function startRejectDocument(int $documentId)
     {
+        $this->authorize('review', $this->findDocumentForCurrentVendor($documentId));
         $this->rejectingDocumentId = $documentId;
         $this->review_note = '';
     }
@@ -60,10 +65,12 @@ class VendorDocumentiTab extends Component
     public function rejectDocument()
     {
         $this->validate([
+            'rejectingDocumentId' => ['required', 'integer'],
             'review_note' => 'required|string|max:1000'
         ]);
 
         $document = $this->findDocumentForCurrentVendor($this->rejectingDocumentId);
+        $this->authorize('review', $document);
         $document->update([
             'status' => VendorDocument::STATUS_REJECTED,
             'reviewed_by' => auth()->id(),
@@ -74,11 +81,13 @@ class VendorDocumentiTab extends Component
         $this->rejectingDocumentId = null;
         $this->review_note = '';
         session()->flash('message', 'Documento rifiutato.');
+        $this->dispatch('approvals-updated');
     }
 
     public function deleteDocument(int $documentId, VendorDocumentService $service)
     {
         $document = $this->findDocumentForCurrentVendor($documentId);
+        $this->authorize('delete', $document);
         $service->delete($document);
         session()->flash('message', 'Documento eliminato.');
     }
@@ -86,6 +95,7 @@ class VendorDocumentiTab extends Component
     public function startEditDocument(int $documentId)
     {
         $document = $this->findDocumentForCurrentVendor($documentId);
+        $this->authorize('review', $document);
         $this->editingDocumentId = $document->id;
         $this->edit_type = $document->type;
         $this->edit_title = $document->title;
@@ -95,12 +105,14 @@ class VendorDocumentiTab extends Component
     public function updateDocument()
     {
         $this->validate([
+            'editingDocumentId' => ['required', 'integer'],
             'edit_type' => ['required', 'string', 'max:80'],
             'edit_title' => ['nullable', 'string', 'max:255'],
             'edit_expires_at' => ['nullable', 'date'],
         ]);
 
         $document = $this->findDocumentForCurrentVendor($this->editingDocumentId);
+        $this->authorize('review', $document);
         $document->update([
             'type' => $this->edit_type,
             'title' => $this->edit_title,
@@ -113,6 +125,8 @@ class VendorDocumentiTab extends Component
 
     public function render()
     {
+        $this->authorize('view', $this->vendorAccount);
+
         return view('livewire.admin.vendors.tabs.vendor-documenti-tab', [
             'documents' => $this->vendorAccount->documents()->latest()->get()
         ]);

@@ -129,7 +129,7 @@ class VendorProfilePage extends Component
     protected function rules(): array
     {
         $rules = [
-            'profile_image' => ['nullable', 'image', 'max:5120'],
+            'profile_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'form.account_type' => ['required', 'in:COMPANY,PRIVATE'],
             'form.booking_capacity_mode' => ['required', 'in:single_resource,multiple_by_offering'],
             'form.category_id' => ['nullable', 'integer', 'exists:categories,id'],
@@ -206,14 +206,15 @@ class VendorProfilePage extends Component
             'operational_address_line1' => $this->form['operational_address_line1'],
         ]);
 
-        // Prima salviamo il vendor se c'è immagine o altro (per poi fare il sync pulito)
+        $oldProfileImagePath = $this->vendorAccount->profile_image_path;
+        $newProfileImagePath = null;
+
         if ($this->profile_image) {
-            if ($this->vendorAccount->profile_image_path) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($this->vendorAccount->profile_image_path);
-            }
-            $this->vendorAccount->profile_image_path = $this->profile_image->store('vendor-profiles', 'public');
+            $newProfileImagePath = $this->profile_image->store('vendor-profiles', 'public');
+            $this->vendorAccount->profile_image_path = $newProfileImagePath;
         }
 
+        try {
         // Se operativo = legale, copia i campi testuali.
         if ($this->vendorAccount->operational_same_as_legal) {
             $this->vendorAccount->operational_country = $this->vendorAccount->legal_country;
@@ -274,11 +275,26 @@ class VendorProfilePage extends Component
             }
         }
 
-        $this->vendorAccount->save();
+        \Illuminate\Support\Facades\DB::transaction(function (): void {
+            $this->vendorAccount->save();
 
-        if (isset($this->form['event_type_ids'])) {
-            $this->vendorAccount->eventTypes()->sync($this->form['event_type_ids']);
+            if (isset($this->form['event_type_ids'])) {
+                $this->vendorAccount->eventTypes()->sync($this->form['event_type_ids']);
+            }
+        });
+        } catch (\Throwable $exception) {
+            if ($newProfileImagePath) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($newProfileImagePath);
+                $this->vendorAccount->profile_image_path = $oldProfileImagePath;
+            }
+
+            throw $exception;
         }
+
+        if ($newProfileImagePath && $oldProfileImagePath && $oldProfileImagePath !== $newProfileImagePath) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($oldProfileImagePath);
+        }
+        $this->profile_image = null;
 
         session()->flash('status', $statusMessage);
 

@@ -5,7 +5,6 @@ namespace App\Livewire\Vendor;
 use App\Models\Offering;
 use App\Models\VendorOfferingImage;
 use App\Models\VendorOfferingProfile;
-use App\Services\PrestashopProductSyncService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -124,9 +123,9 @@ class OfferingContentCard extends Component
             'service_mode' => 'required|in:FIXED_LOCATION,MOBILE',
             'service_radius_km' => 'nullable|integer|min:1|max:500',
             'max_guests' => 'nullable|integer|min:1|max:9999',
-            'cover' => 'nullable|image|max:4096',
+            'cover' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
             'gallery' => 'array|max:5',
-            'gallery.*' => 'image|max:2048',
+            'gallery.*' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
         if ($this->service_mode === 'MOBILE' && $this->service_radius_km === null) {
@@ -152,69 +151,88 @@ class OfferingContentCard extends Component
 
         $wasPublished = (bool) $this->profile->is_published;
         $wasApproved = (bool) $this->profile->is_approved;
-
-        $this->profile->update([
-            'title' => $this->title,
-            'short_description' => $this->short_description,
-            'description' => $this->description,
-            'service_mode' => $this->service_mode,
-            'service_radius_km' => $this->service_radius_km,
-            'max_guests' => $this->max_guests,
-            'is_approved' => false,
-            'is_published' => false,
-        ]);
-
-        // Cover
-        if ($this->cover) {
-            if ($this->profile->cover_image_path && Storage::disk('public')->exists($this->profile->cover_image_path)) {
-                Storage::disk('public')->delete($this->profile->cover_image_path);
-            }
-
-            $path = $this->cover->store(
-                "vendors/{$this->profile->vendor_account_id}/offerings/{$this->offeringId}/cover",
-                'public'
-            );
-
-            $this->profile->update(['cover_image_path' => $path]);
-            $this->cover = null;
-        }
-
-        // Gallery
-        foreach ($this->gallery as $img) {
-            $path = $img->store(
-                "vendors/{$this->profile->vendor_account_id}/offerings/{$this->offeringId}/gallery",
-                'public'
-            );
-
-            VendorOfferingImage::create([
-                'vendor_offering_profile_id' => $this->profile->id,
-                'path' => $path,
-                'sort_order' => 0,
-            ]);
-        }
-        $this->gallery = [];
-
-        $fresh = $this->profile->fresh();
-
-        $shouldPublish = $this->isProfilePublishable($fresh);
-
+        $oldCoverPath = $this->profile->cover_image_path;
+        $newCoverPath = null;
+        $newGalleryPaths = [];
+        $fresh = null;
         $needsNotification = false;
 
-        if ($shouldPublish) {
-            if (!$wasPublished) {
-                // Nuova pubblicazione
-                $fresh->update(['is_published' => true]);
-                $needsNotification = true;
-            } elseif ($wasApproved) {
-                // Era stato pubblicato E approvato, ora modificato e torna in moderazione
-                $needsNotification = true;
+        try {
+            if ($this->cover) {
+                $newCoverPath = $this->cover->store(
+                    "vendors/{$this->profile->vendor_account_id}/offerings/{$this->offeringId}/cover",
+                    'public'
+                );
             }
-        } else {
-            if ($wasPublished) {
-                // Diventa incompleto, quindi retrocede da pubblicato
-                $fresh->update(['is_published' => false]);
+
+            foreach ($this->gallery as $img) {
+                $newGalleryPaths[] = $img->store(
+                    "vendors/{$this->profile->vendor_account_id}/offerings/{$this->offeringId}/gallery",
+                    'public'
+                );
             }
+
+            \Illuminate\Support\Facades\DB::transaction(function () use (
+                $wasPublished,
+                $wasApproved,
+                $newCoverPath,
+                $newGalleryPaths,
+                &$fresh,
+                &$needsNotification
+            ): void {
+                $profileData = [
+                    'title' => $this->title,
+                    'short_description' => $this->short_description,
+                    'description' => $this->description,
+                    'service_mode' => $this->service_mode,
+                    'service_radius_km' => $this->service_radius_km,
+                    'max_guests' => $this->max_guests,
+                    'is_approved' => false,
+                    'is_published' => false,
+                ];
+
+                if ($newCoverPath) {
+                    $profileData['cover_image_path'] = $newCoverPath;
+                }
+
+                $this->profile->update($profileData);
+
+                foreach ($newGalleryPaths as $path) {
+                    VendorOfferingImage::create([
+                        'vendor_offering_profile_id' => $this->profile->id,
+                        'path' => $path,
+                        'sort_order' => 0,
+                    ]);
+                }
+
+                $fresh = $this->profile->fresh();
+                $shouldPublish = $this->isProfilePublishable($fresh);
+
+                if ($shouldPublish) {
+                    if (!$wasPublished) {
+                        $fresh->update(['is_published' => true]);
+                        $needsNotification = true;
+                    } elseif ($wasApproved) {
+                        $needsNotification = true;
+                    }
+                } elseif ($wasPublished) {
+                    $fresh->update(['is_published' => false]);
+                }
+            });
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete(array_values(array_filter([
+                $newCoverPath,
+                ...$newGalleryPaths,
+            ])));
+
+            throw $exception;
         }
+
+        if ($newCoverPath && $oldCoverPath && $oldCoverPath !== $newCoverPath) {
+            Storage::disk('public')->delete($oldCoverPath);
+        }
+        $this->cover = null;
+        $this->gallery = [];
 
         if ($needsNotification) {
             // Notifica all'amministratore (Admin)
@@ -239,11 +257,7 @@ class OfferingContentCard extends Component
         $vendorAccount = $this->profile->vendorAccount()->with('category')->first();
 
         if ($vendorAccount) {
-            try {
-                app(PrestashopProductSyncService::class)->sync($vendorAccount);
-            } catch (\Throwable $e) {
-                report($e);
-            }
+            \App\Jobs\PushVendorToPrestashopJob::dispatch((int) $vendorAccount->id)->afterCommit();
         }
 
         $msg = $needsNotification ? 'Il servizio è stato salvato ed è in fase di approvazione' : 'Salvato';
@@ -255,9 +269,7 @@ class OfferingContentCard extends Component
         $this->authorize('update', $this->profile);
         $this->profile->refresh();
 
-        if ($this->profile->cover_image_path && Storage::disk('public')->exists($this->profile->cover_image_path)) {
-            Storage::disk('public')->delete($this->profile->cover_image_path);
-        }
+        $coverPath = $this->profile->cover_image_path;
 
         $this->profile->update([
             'cover_image_path' => null,
@@ -265,16 +277,16 @@ class OfferingContentCard extends Component
             'is_approved' => false,
         ]);
 
+        if ($coverPath) {
+            Storage::disk('public')->delete($coverPath);
+        }
+
         $this->profile->refresh()->load('images');
 
         $vendorAccount = $this->profile->vendorAccount()->with('category')->first();
 
         if ($vendorAccount) {
-            try {
-                app(PrestashopProductSyncService::class)->sync($vendorAccount);
-            } catch (\Throwable $e) {
-                report($e);
-            }
+            \App\Jobs\PushVendorToPrestashopJob::dispatch((int) $vendorAccount->id)->afterCommit();
         }
 
         $this->dispatch('notify', message: 'Cover rimossa');
@@ -289,14 +301,15 @@ class OfferingContentCard extends Component
 
         $this->authorize('delete', $img);
 
-        if ($img->path && Storage::disk('public')->exists($img->path)) {
-            Storage::disk('public')->delete($img->path);
-        }
-
+        $imagePath = $img->path;
         $img->delete();
 
         $wasApproved = $this->profile->is_approved;
         $this->profile->update(['is_approved' => false]);
+
+        if ($imagePath) {
+            Storage::disk('public')->delete($imagePath);
+        }
 
         $fresh = $this->profile->fresh();
         if ($wasApproved && $this->isProfilePublishable($fresh)) {

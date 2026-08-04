@@ -39,12 +39,11 @@ class PrestashopVendorPayloadFactory
         $payload = [
             'vendor_id' => (int) $vendor->id,
             'sync_version' => $syncVersion,
-            'generated_at' => now()->toIso8601String(),
             'name' => $name,
             'slug' => $slug,
             'description_short' => $shortDescription,
             'description' => $description,
-            'active' => (($vendor->status ?? null) === 'ACTIVE' && $publishedProfiles->isNotEmpty()) ? 1 : 0,
+            'active' => (! $vendor->trashed() && ($vendor->status ?? null) === 'ACTIVE' && $publishedProfiles->isNotEmpty()) ? 1 : 0,
             
             // Per il webhook (mantiene dati strutturati)
             'category' => $vendor->category ? [
@@ -88,6 +87,41 @@ class PrestashopVendorPayloadFactory
         }
 
         return $payload;
+    }
+
+    /**
+     * Crea un'impronta stabile dei soli dati funzionali sincronizzati.
+     */
+    public function contentHash(array $payload): string
+    {
+        unset(
+            $payload['sync_version'],
+            $payload['generated_at'],
+            $payload['id_product'],
+            $payload['product_id']
+        );
+
+        $payload = $this->sortAssociativeArraysRecursively($payload);
+
+        return hash('sha256', json_encode(
+            $payload,
+            JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        ));
+    }
+
+    private function sortAssociativeArraysRecursively(array $value): array
+    {
+        if (! array_is_list($value)) {
+            ksort($value);
+        }
+
+        foreach ($value as $key => $item) {
+            if (is_array($item)) {
+                $value[$key] = $this->sortAssociativeArraysRecursively($item);
+            }
+        }
+
+        return $value;
     }
 
     protected function resolveVendorCoverUrl(VendorAccount $vendor, $representativeProfile = null): ?string

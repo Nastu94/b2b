@@ -10,19 +10,26 @@ class BookingBridgeAuth
 {
     public function handle(Request $request, Closure $next)
     {
-        $rawHmacMode = config('booking_bridge.hmac_mode', 'off');
-        $hmacMode = $rawHmacMode === 'legacy' ? 'off' : $rawHmacMode; // legacy -> off, off, optional, required
-        
+        $rawHmacMode = strtolower(trim((string) config('booking_bridge.hmac_mode', 'off')));
+        $hmacMode = $rawHmacMode === 'legacy' ? 'off' : $rawHmacMode;
+
+        if (! in_array($hmacMode, ['off', 'optional', 'required'], true)) {
+            return response()->json(['success' => false, 'code' => 'SERVER_CONFIGURATION_ERROR', 'message' => 'Authentication mode non valido', 'error' => 'Authentication mode non valido'], 500);
+        }
+
         $signature = $request->header('X-Booking-Bridge-Signature');
-        
+        $timestamp = $request->header('X-Booking-Bridge-Timestamp');
+        $nonce = $request->header('X-Booking-Bridge-Nonce');
+        $version = $request->header('X-Booking-Bridge-Version');
+
         $expectedLegacy = config('booking_bridge.inbound_key') ?: config('booking_bridge.key');
-        
+
         $providedKey = $request->header('X-Booking-Bridge-Key')
             ?: $request->bearerToken()
             ?: '';
-            
-        $isLegacyValid = is_string($expectedLegacy) 
-            && is_string($providedKey) 
+
+        $isLegacyValid = is_string($expectedLegacy)
+            && is_string($providedKey)
             && $providedKey !== ''
             && hash_equals($expectedLegacy, $providedKey);
 
@@ -33,10 +40,16 @@ class BookingBridgeAuth
             return $next($request);
         }
 
-        $timestamp = $request->header('X-Booking-Bridge-Timestamp');
-        $nonce = $request->header('X-Booking-Bridge-Nonce');
+        $hasAnyHmacHeader = $signature !== null
+            || $timestamp !== null
+            || $nonce !== null
+            || $version !== null;
 
-        if ($signature && $timestamp && $nonce) {
+        if ($hasAnyHmacHeader) {
+            if (! $signature || ! $timestamp || ! $nonce || (string) $version !== '2') {
+                return response()->json(['success' => false, 'code' => 'INVALID_SIGNATURE', 'message' => 'Invalid signature headers', 'error' => 'Invalid signature headers'], 401);
+            }
+
             $signatureService = app(BookingBridgeSignatureService::class);
             $isValid = $signatureService->verifyInbound(
                 $request->method(),
@@ -51,7 +64,6 @@ class BookingBridgeAuth
                 return $next($request);
             }
             
-            // If signature is provided but invalid, we reject even in optional mode to prevent tampering attempts
             return response()->json(['success' => false, 'code' => 'INVALID_SIGNATURE', 'message' => 'Invalid signature', 'error' => 'Invalid signature'], 401);
         }
 

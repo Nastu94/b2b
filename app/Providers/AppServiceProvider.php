@@ -12,6 +12,11 @@ use App\Listeners\StripeEventListener;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Cache\RateLimiting\Limit;
+use App\Http\Middleware\EnsureActiveVendorAccount;
+use Livewire\Livewire;
+use Spatie\Permission\Middleware\PermissionMiddleware;
+use Spatie\Permission\Middleware\RoleMiddleware;
+use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -28,6 +33,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Livewire::addPersistentMiddleware([
+            RoleMiddleware::class,
+            PermissionMiddleware::class,
+            RoleOrPermissionMiddleware::class,
+            EnsureActiveVendorAccount::class,
+        ]);
+
         Cashier::useCustomerModel(\App\Models\VendorAccount::class);
 
         Event::listen(

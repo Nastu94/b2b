@@ -37,7 +37,6 @@ class SlotLock extends Model
         'currency',
         'pricing_breakdown',
         'status',
-        'hold_token',
         'expires_at',
         'is_active',
         'active_slot_key',
@@ -51,6 +50,7 @@ class SlotLock extends Model
     protected $casts = [
         'date' => 'date:Y-m-d',
         'distance_km' => 'decimal:2',
+        'client_distance_km' => 'decimal:2',
         'guests' => 'integer',
         'quoted_amount' => 'decimal:2',
         'pricing_breakdown' => 'array',
@@ -70,11 +70,16 @@ class SlotLock extends Model
 
             if ($lock->is_active && $lock->isBooked()) {
                 if (empty($lock->active_slot_key)) {
+                    $mode = VendorAccount::withTrashed()
+                        ->find($lock->vendor_account_id)
+                        ?->bookingCapacityMode() ?? VendorAccount::BOOKING_SINGLE_RESOURCE;
+
                     $lock->active_slot_key = self::makeActiveSlotKey(
                         (int) $lock->vendor_account_id,
                         (int) $lock->vendor_slot_id,
                         (string) $lock->date->format('Y-m-d'),
-                        VendorAccount::BOOKING_SINGLE_RESOURCE
+                        $mode,
+                        $lock->offering_id !== null ? (int) $lock->offering_id : null
                     );
                 }
             }
@@ -183,7 +188,18 @@ class SlotLock extends Model
         string $mode,
         ?int $offeringId = null
     ): string {
-        if ($mode === VendorAccount::BOOKING_MULTIPLE_BY_OFFERING && $offeringId !== null) {
+        if (! in_array($mode, [
+            VendorAccount::BOOKING_SINGLE_RESOURCE,
+            VendorAccount::BOOKING_MULTIPLE_BY_OFFERING,
+        ], true)) {
+            throw new \InvalidArgumentException('Modalità capacità booking non valida.');
+        }
+
+        if ($mode === VendorAccount::BOOKING_MULTIPLE_BY_OFFERING) {
+            if ($offeringId === null) {
+                throw new \InvalidArgumentException('offering_id obbligatorio in modalità multiple_by_offering.');
+            }
+
             return "{$vendorAccountId}:{$vendorSlotId}:{$date}:{$offeringId}";
         }
 

@@ -30,7 +30,6 @@ class PurgeFakeVendorsAndEnsureAdminSeeder extends Seeder
             'david.guetta@partylegacy.it',
             'ristorante.baia@partylegacy.it',
             'all.you.can.eat@partylegacy.it',
-            'admin@admin.it',
             'test-vendor-pending@example.com',
             'demo.dj@partylegacy.it',
             'demo.burlesque@partylegacy.it',

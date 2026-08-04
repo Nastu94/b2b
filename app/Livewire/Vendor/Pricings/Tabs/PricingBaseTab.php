@@ -4,9 +4,12 @@ namespace App\Livewire\Vendor\Pricings\Tabs;
 
 use App\Domain\Pricing\Support\PricingOptions;
 use App\Domain\Pricing\Support\PricingValidation;
+use App\Models\VendorAccount;
+use App\Models\VendorOfferingProfile;
 use App\Models\VendorOfferingPricing;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
@@ -24,16 +27,19 @@ class PricingBaseTab extends Component
     /**
      * ID del vendor proprietario del listino.
      */
+    #[Locked]
     public int $vendorAccountId;
 
     /**
      * ID del servizio selezionato.
      */
+    #[Locked]
     public int $offeringId;
 
     /**
      * ID del listino base, se già esistente.
      */
+    #[Locked]
     public ?int $pricingId = null;
 
     /**
@@ -52,6 +58,7 @@ class PricingBaseTab extends Component
         $this->offeringId = $offeringId;
         $this->pricingId = $pricingId;
 
+        $this->assertPricingContextAccess();
         $this->loadPricing();
     }
 
@@ -60,6 +67,8 @@ class PricingBaseTab extends Component
      */
     public function loadPricing(): void
     {
+        $this->assertPricingContextAccess();
+
         if ($this->pricingId === null) {
             $this->authorize('create', VendorOfferingPricing::class);
 
@@ -112,6 +121,8 @@ class PricingBaseTab extends Component
      */
     public function save(): void
     {
+        $this->assertPricingContextAccess();
+
         $rules = PricingValidation::pricingRules();
 
         /**
@@ -145,7 +156,17 @@ class PricingBaseTab extends Component
         if ($this->pricingId === null) {
             $this->authorize('create', VendorOfferingPricing::class);
 
-            $vendorOfferingPricing = VendorOfferingPricing::query()->create($payload);
+            $vendorOfferingPricing = VendorOfferingPricing::query()
+                ->where('vendor_account_id', $this->vendorAccountId)
+                ->where('offering_id', $this->offeringId)
+                ->first();
+
+            if ($vendorOfferingPricing) {
+                $this->authorize('update', $vendorOfferingPricing);
+                $vendorOfferingPricing->update($payload);
+            } else {
+                $vendorOfferingPricing = VendorOfferingPricing::query()->create($payload);
+            }
 
             $this->pricingId = (int) $vendorOfferingPricing->id;
 
@@ -180,6 +201,28 @@ class PricingBaseTab extends Component
             'priceTypes' => PricingOptions::priceTypeOptions(),
             'distanceModes' => PricingOptions::distanceModeOptions(),
         ];
+    }
+
+    private function assertPricingContextAccess(): void
+    {
+        $user = auth()->user();
+
+        abort_unless($user, 403);
+
+        $vendorQuery = VendorAccount::query()->whereKey($this->vendorAccountId);
+
+        if (! $user->hasRole('admin') && ! $user->hasRole('super_admin')) {
+            $vendorQuery->where('user_id', $user->id);
+        }
+
+        abort_unless($vendorQuery->exists(), 404);
+
+        $profileExists = VendorOfferingProfile::query()
+            ->where('vendor_account_id', $this->vendorAccountId)
+            ->where('offering_id', $this->offeringId)
+            ->exists();
+
+        abort_unless($profileExists, 404);
     }
 
     /**

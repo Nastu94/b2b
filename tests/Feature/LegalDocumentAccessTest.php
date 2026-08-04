@@ -11,13 +11,6 @@ class LegalDocumentAccessTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
-        // Create a dummy authorized file
-        $path = storage_path('app/legal/vendor');
-        if (!is_dir($path)) {
-            mkdir($path, 0777, true);
-        }
-        file_put_contents($path . '/codice-etico-partylegacy.pdf', 'dummy pdf content');
     }
 
     protected function tearDown(): void
@@ -31,6 +24,12 @@ class LegalDocumentAccessTest extends TestCase
 
     public function test_authorized_and_existing_pdf_returns_200()
     {
+        $path = storage_path('app/legal/vendor');
+        if (!is_dir($path)) {
+            mkdir($path, 0777, true);
+        }
+        file_put_contents($path . '/codice-etico-partylegacy.pdf', 'dummy pdf content');
+
         $response = $this->get('/legal/vendor/file/codice-etico-partylegacy.pdf');
         
         $response->assertStatus(200);
@@ -54,7 +53,7 @@ class LegalDocumentAccessTest extends TestCase
 
     public function test_authorized_but_missing_file_returns_404()
     {
-        $response = $this->get('/legal/vendor/file/policy-catering-partylegacy.pdf');
+        $response = $this->get('/legal/vendor/file/codice-etico-partylegacy.pdf');
         
         $response->assertStatus(404);
     }

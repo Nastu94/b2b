@@ -95,6 +95,8 @@ class VendorProfileTabs extends Component
 
         session()->flash('status', 'Fornitore approvato con successo. Email inviata. La sincronizzazione su catalogo è in coda.');
         $this->vendorAccount->refresh();
+        $this->dispatch('vendor-anagrafica-refresh-status', vendorAccountId: $this->vendorAccount->id);
+        $this->dispatch('approvals-updated');
     }
 
     public function confirmDelete(): void

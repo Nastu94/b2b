@@ -28,7 +28,12 @@ return new class extends Migration
         $defaultCommissionRate = 20;
 
         DB::transaction(function () use ($commissions, $defaultCommissionRate) {
-            $categories = DB::table('categories')->get();
+            $categories = DB::table('categories')
+                ->where(function ($query) {
+                    $query->whereNull('commission_rate')
+                        ->orWhere('commission_rate', '<=', 0);
+                })
+                ->get();
 
             foreach ($categories as $category) {
                 if (!array_key_exists($category->slug, $commissions)) {
@@ -42,6 +47,10 @@ return new class extends Migration
 
                 DB::table('categories')
                     ->where('id', $category->id)
+                    ->where(function ($query) {
+                        $query->whereNull('commission_rate')
+                            ->orWhere('commission_rate', '<=', 0);
+                    })
                     ->update([
                         'commission_rate' => $rate
                     ]);

@@ -22,6 +22,9 @@
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
+        <env name="BOOKING_BRIDGE_HMAC_MODE" value="off" force="true"/>
+        <env name="BOOKING_BRIDGE_DISTANCE_MODE" value="legacy" force="true"/>
+        <env name="BOOKING_BRIDGE_GEOCODING_FALLBACK_MODE" value="legacy" force="true"/>
         <env name="CACHE_STORE" value="array"/>
         <env name="DB_CONNECTION" value="mysql"/>
         <env name="DB_DATABASE" value="test"/>

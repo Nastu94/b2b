@@ -42,6 +42,8 @@ class CreateNewUser implements CreatesNewUsers
             'vat_number' => ['nullable', 'string', 'max:50'],
             'legal_entity_type' => ['nullable', 'string', 'max:50'],
             'tax_code' => ['nullable', 'string', 'max:50'],
+            'first_name' => ['nullable', 'string', 'max:255'],
+            'last_name' => ['nullable', 'string', 'max:255'],
 
             // Sede legale minima
             'legal_city' => ['required', 'string', 'max:255'],
@@ -57,11 +59,11 @@ class CreateNewUser implements CreatesNewUsers
             'phone' => ['nullable', 'string', 'max:50'],
 
             // Immagine profilo
-            'profile_image' => ['nullable', 'image', 'max:8192'], // MAX 8MB
+            'profile_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'], // MAX 8MB
             
             // Documenti (opzionali)
             'vendor_documents' => ['nullable', 'array', 'max:10'],
-            'vendor_documents.*' => ['file', 'mimetypes:application/pdf', 'max:10240'],
+            'vendor_documents.*' => ['file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:10240'],
         ])->after(function ($validator) use ($input) {
             $type = $input['account_type'] ?? null;
 
@@ -106,7 +108,15 @@ class CreateNewUser implements CreatesNewUsers
             $profileImagePath = null;
             if (isset($input['profile_image']) && $input['profile_image'] instanceof \Illuminate\Http\UploadedFile) {
                 $file = $input['profile_image'];
-                $filename = \Illuminate\Support\Str::random(40) . '.' . $file->getClientOriginalExtension();
+                $extension = match (strtolower((string) $file->getMimeType())) {
+                    'image/jpeg' => 'jpg',
+                    'image/png' => 'png',
+                    'image/webp' => 'webp',
+                    default => throw \Illuminate\Validation\ValidationException::withMessages([
+                        'profile_image' => 'Il formato dell\'immagine profilo non è supportato.',
+                    ]),
+                };
+                $filename = \Illuminate\Support\Str::random(40) . '.' . $extension;
                 $profileImagePath = $file->storeAs('vendors/profiles', $filename, 'public');
             }
 

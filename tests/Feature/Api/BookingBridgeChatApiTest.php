@@ -18,7 +18,10 @@ class BookingBridgeChatApiTest extends TestCase
     {
         parent::setUp();
         
-        Config::set('booking_bridge.hmac_mode', 'off'); // test everything without HMAC enforcement for simplicity
+        Config::set('booking_bridge.hmac_mode', 'off');
+        Config::set('booking_bridge.key', 'test-key');
+        Config::set('booking_bridge.inbound_key', 'test-key');
+        $this->withHeader('X-Booking-Bridge-Key', 'test-key');
         
         // Reset rate limiter
         RateLimiter::clear('bookingbridge-chat');
@@ -39,11 +42,15 @@ class BookingBridgeChatApiTest extends TestCase
 
     public function test_conversations_index_returns_paginated_and_legacy_data()
     {
-        $vendor = VendorAccount::create(['user_id' => \App\Models\User::factory()->create()->id, 'company_name' => 'Test Vendor', 'status' => 'active']);
         $customerId = 999;
         
         // Create 25 conversations
         for ($i = 0; $i < 25; $i++) {
+            $vendor = VendorAccount::create([
+                'user_id' => \App\Models\User::factory()->create()->id,
+                'company_name' => "Test Vendor {$i}",
+                'status' => 'ACTIVE',
+            ]);
             $this->createConversation($customerId, $vendor->id);
         }
 
@@ -71,19 +78,20 @@ class BookingBridgeChatApiTest extends TestCase
 
     public function test_conversation_messages_returns_cursor_paginated_and_legacy_data()
     {
-        $vendor = VendorAccount::create(['user_id' => \App\Models\User::factory()->create()->id, 'company_name' => 'Test Vendor', 'status' => 'active']);
+        $vendor = VendorAccount::create(['user_id' => \App\Models\User::factory()->create()->id, 'company_name' => 'Test Vendor', 'status' => 'ACTIVE']);
         $customerId = 888;
         $conversation = $this->createConversation($customerId, $vendor->id);
 
         // Add 60 messages
+        $messageIds = [];
         for ($i = 0; $i < 60; $i++) {
-            $conversation->messages()->create([
+            $messageIds[] = $conversation->messages()->create([
                 'sender_type' => 'vendor',
                 'body_original' => "Message {$i}",
                 'body_filtered' => "Message {$i}",
                 'moderation_status' => 'clean',
                 'created_at' => Carbon::now()->addSeconds($i), // Ensure order
-            ]);
+            ])->id;
         }
 
         $response = $this->getJson("/api/conversations/{$conversation->id}/messages?prestashop_customer_id={$customerId}");
@@ -101,11 +109,22 @@ class BookingBridgeChatApiTest extends TestCase
         $this->assertCount(50, $response->json('data'));
         $this->assertCount(50, $response->json('messages'));
         $this->assertNotNull($response->json('next_cursor'));
+        $this->assertSame('Message 10', $response->json('data.0.body'));
+        $this->assertSame('Message 59', $response->json('data.49.body'));
+
+        $incremental = $this->getJson(
+            "/api/conversations/{$conversation->id}/messages?prestashop_customer_id={$customerId}&after_id={$messageIds[54]}"
+        );
+
+        $incremental->assertOk();
+        $this->assertCount(5, $incremental->json('data'));
+        $this->assertSame('Message 55', $incremental->json('data.0.body'));
+        $this->assertSame('Message 59', $incremental->json('data.4.body'));
     }
 
     public function test_conversation_ownership_prevents_unauthorized_access()
     {
-        $vendor = VendorAccount::create(['user_id' => \App\Models\User::factory()->create()->id, 'company_name' => 'Test Vendor', 'status' => 'active']);
+        $vendor = VendorAccount::create(['user_id' => \App\Models\User::factory()->create()->id, 'company_name' => 'Test Vendor', 'status' => 'ACTIVE']);
         $ownerId = 123;
         $strangerId = 456;
         $conversation = $this->createConversation($ownerId, $vendor->id);
@@ -124,8 +143,8 @@ class BookingBridgeChatApiTest extends TestCase
 
     public function test_bookingbridge_chat_rate_limiting_applies()
     {
-        $vendor = VendorAccount::create(['user_id' => \App\Models\User::factory()->create()->id, 'company_name' => 'Test Vendor', 'status' => 'active']);
         $customerId = 777;
+        RateLimiter::clear("chat-customer-{$customerId}");
 
         // Limiter is 30 per minute
         for ($i = 0; $i < 30; $i++) {

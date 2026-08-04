@@ -7,6 +7,7 @@ use App\Models\VendorDocument;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class VendorDocumentService
@@ -29,35 +30,50 @@ class VendorDocumentService
         $path = null;
         
         try {
+            $extension = match (strtolower((string) $file->getMimeType())) {
+                'application/pdf' => 'pdf',
+                'image/jpeg' => 'jpg',
+                'image/png' => 'png',
+                'image/webp' => 'webp',
+                default => throw new \InvalidArgumentException('Formato documento non supportato.'),
+            };
+
             // Save file in private disk: vendor-documents/{vendor_account_id}/uuid.ext
-            $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
+            $filename = Str::uuid() . '.' . $extension;
             $path = $file->storeAs(
                 'vendor-documents/' . $vendorAccount->id,
                 $filename,
                 'local'
             );
 
-            // Soft delete vecchi documenti della stessa categoria
-            $type = $data['type'] ?? 'OTHER';
-            $oldDocuments = VendorDocument::where('vendor_account_id', $vendorAccount->id)
-                ->where('type', $type)
-                ->get();
-            foreach ($oldDocuments as $oldDoc) {
-                $oldDoc->delete();
-            }
+            return DB::transaction(function () use ($vendorAccount, $file, $data, $uploadedBy, $path) {
+                // Soft delete vecchi documenti della stessa categoria.
+                $type = $data['type'] ?? 'OTHER';
+                VendorDocument::where('vendor_account_id', $vendorAccount->id)
+                    ->where('type', $type)
+                    ->get()
+                    ->each
+                    ->delete();
 
-            return VendorDocument::create([
-                'vendor_account_id' => $vendorAccount->id,
-                'type' => $data['type'] ?? 'OTHER',
-                'title' => $data['title'] ?? null,
-                'original_filename' => $file->getClientOriginalName(),
-                'path' => $path,
-                'mime_type' => $file->getMimeType(),
-                'size_bytes' => $file->getSize(),
-                'status' => $data['status'] ?? VendorDocument::STATUS_PENDING,
-                'expires_at' => $data['expires_at'] ?? null,
-                'uploaded_by' => $uploadedBy?->id,
-            ]);
+                $originalFilename = basename(str_replace('\\', '/', $file->getClientOriginalName()));
+                $originalFilename = Str::limit($originalFilename, 255, '');
+                $title = isset($data['title'])
+                    ? Str::limit(trim(strip_tags((string) $data['title'])), 255, '')
+                    : null;
+
+                return VendorDocument::create([
+                    'vendor_account_id' => $vendorAccount->id,
+                    'type' => $type,
+                    'title' => $title,
+                    'original_filename' => $originalFilename,
+                    'path' => $path,
+                    'mime_type' => $file->getMimeType(),
+                    'size_bytes' => $file->getSize(),
+                    'status' => $data['status'] ?? VendorDocument::STATUS_PENDING,
+                    'expires_at' => $data['expires_at'] ?? null,
+                    'uploaded_by' => $uploadedBy?->id,
+                ]);
+            });
         } catch (\Throwable $e) {
             // Rollback physical file if DB insert fails
             if ($path) {

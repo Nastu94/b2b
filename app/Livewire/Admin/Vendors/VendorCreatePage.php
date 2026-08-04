@@ -10,6 +10,8 @@ use App\Services\CreateVendorService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Livewire\WithFileUploads;
 
 #[Layout('layouts.admin')]
@@ -104,7 +106,7 @@ class VendorCreatePage extends Component
     public function rules(): array
     {
         $rules = [
-            'profile_image' => ['nullable', 'image', 'max:5120'],
+            'profile_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'document_files' => ['nullable', 'array', 'max:10'],
             'document_files.*' => ['file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:10240'],
 
@@ -198,27 +200,48 @@ class VendorCreatePage extends Component
             $this->form['operational_address_line1'] = $this->form['legal_address_line1'];
         }
 
-        $vendorAccount = $createVendorService->create($this->form);
+        $vendorAccount = null;
+        $createdVendorId = null;
+        $profileImagePath = null;
 
-        if ($this->profile_image) {
-            $vendorAccount->profile_image_path = $this->profile_image->store('vendor-profiles', 'public');
-            $vendorAccount->save();
-        }
+        try {
+            $vendorAccount = DB::transaction(function () use ($createVendorService, &$createdVendorId, &$profileImagePath) {
+                $vendor = $createVendorService->create($this->form);
+                $createdVendorId = (int) $vendor->id;
 
-        if (!empty($this->document_files)) {
-            $documentService = app(\App\Services\VendorDocumentService::class);
-            foreach ($this->document_files as $file) {
-                $documentService->store(
-                    $vendorAccount,
-                    $file,
-                    [
-                        'type' => 'OTHER',
-                        'title' => $file->getClientOriginalName(),
-                        'status' => \App\Models\VendorDocument::STATUS_PENDING,
-                    ],
-                    auth()->user()
-                );
+                if ($this->profile_image) {
+                    $profileImagePath = $this->profile_image->store('vendor-profiles', 'public');
+                    $vendor->profile_image_path = $profileImagePath;
+                    $vendor->save();
+                }
+
+                if (!empty($this->document_files)) {
+                    $documentService = app(\App\Services\VendorDocumentService::class);
+                    foreach ($this->document_files as $file) {
+                        $documentService->store(
+                            $vendor,
+                            $file,
+                            [
+                                'type' => 'OTHER',
+                                'title' => $file->getClientOriginalName(),
+                                'status' => \App\Models\VendorDocument::STATUS_PENDING,
+                            ],
+                            auth()->user()
+                        );
+                    }
+                }
+
+                return $vendor;
+            });
+        } catch (\Throwable $exception) {
+            if ($profileImagePath) {
+                Storage::disk('public')->delete($profileImagePath);
             }
+            if ($createdVendorId) {
+                Storage::disk('local')->deleteDirectory('vendor-documents/' . $createdVendorId);
+            }
+
+            throw $exception;
         }
 
         session()->flash('status', 'Vendor creato con successo.');

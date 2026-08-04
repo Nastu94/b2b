@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\VendorAccount;
 use App\Models\VendorOfferingProfile;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -25,12 +26,19 @@ class VendorSearchService
             ? (int) $params['guests']
             : null;
         $limit = max(1, (int) ($params['limit'] ?? 50));
+        $serviceMode = isset($params['service_mode'])
+            ? strtoupper((string) $params['service_mode'])
+            : null;
+        $offeringId = isset($params['offering_id']) ? (int) $params['offering_id'] : null;
 
         if ($city === null || $date === null) {
-            return $this->emptyResult($params['city'] ?? null, $date);
+            return $this->emptyResult($params, $date);
         }
 
-        $cityCoordinates = $this->geocodingService->geocodeCity($params['city']);
+        $cityCoordinates = $this->geocodingService->geocodeCity(
+            (string) $params['city'],
+            $params['region'] ?? null
+        );
         $fallbackMode = config('booking_bridge.geocoding_fallback_mode', 'legacy');
 
         $query = $this->buildBaseQuery($params);
@@ -42,11 +50,11 @@ class VendorSearchService
             $distSql = "(ST_Distance_Sphere(point(COALESCE(vendor_accounts.operational_lng, vendor_accounts.legal_lng), COALESCE(vendor_accounts.operational_lat, vendor_accounts.legal_lat)), point($lng, $lat)) / 1000)";
 
             $query->selectRaw("vendor_accounts.*, $distSql as distance_km, (LOWER(legal_city) = ? OR LOWER(operational_city) = ?) as is_city_match", [$city, $city])
-                  ->where(function (Builder $q) use ($city, $distSql) {
+                  ->where(function (Builder $q) use ($city, $distSql, $params) {
                       $q->whereRaw('LOWER(legal_city) = ?', [$city])
                         ->orWhereRaw('LOWER(operational_city) = ?', [$city])
-                        ->orWhereHas('vendorOfferingProfiles', function ($profQ) use ($distSql) {
-                            $profQ->bookable()
+                        ->orWhereHas('vendorOfferingProfiles', function ($profQ) use ($distSql, $params) {
+                            $this->applyRequestedProfileFilters($profQ, $params)
                                   ->where(function ($modeQ) use ($distSql) {
                                       $modeQ->where(function ($radiusQ) use ($distSql) {
                                           $radiusQ->whereNotNull('service_radius_km')
@@ -62,11 +70,11 @@ class VendorSearchService
             // Fallback nel caso in cui il geocoding non restituisca coordinate valide
             if ($fallbackMode === 'legacy') {
                 $query->selectRaw("vendor_accounts.*, 1 as is_city_match, 0 as distance_km")
-                      ->where(function (Builder $q) use ($city) {
+                      ->where(function (Builder $q) use ($city, $params) {
                           $q->whereRaw('LOWER(legal_city) = ?', [$city])
                             ->orWhereRaw('LOWER(operational_city) = ?', [$city])
-                            ->orWhereHas('vendorOfferingProfiles', function ($profQ) {
-                                $profQ->bookable()
+                            ->orWhereHas('vendorOfferingProfiles', function ($profQ) use ($params) {
+                                $this->applyRequestedProfileFilters($profQ, $params)
                                       ->where('service_mode', 'FIXED_LOCATION');
                             });
                       })
@@ -91,8 +99,14 @@ class VendorSearchService
             $vendor->distance_km = $vendor->distance_km !== null ? round((float) $vendor->distance_km, 1) : null;
 
             // Filtra i profili del vendor mantenendo solo quelli validi per la ricerca
-            $validProfiles = $vendor->vendorOfferingProfiles->filter(function ($profile) use ($vendor, $guests) {
-                return $this->profileIsValidForSearch($profile, $vendor, $guests);
+            $validProfiles = $vendor->vendorOfferingProfiles->filter(function ($profile) use ($vendor, $guests, $serviceMode, $offeringId) {
+                return $this->profileIsValidForSearch(
+                    $profile,
+                    $vendor,
+                    $guests,
+                    $serviceMode,
+                    $offeringId
+                );
             })->values();
 
             if ($validProfiles->isEmpty()) {
@@ -122,7 +136,7 @@ class VendorSearchService
         }
 
         if ($matchedVendors->isEmpty()) {
-            $empty = $this->emptyResult($params['city'] ?? null, $date);
+            $empty = $this->emptyResult($params, $date);
             if (!$cityCoordinates) {
                 $empty['geocoding_unavailable'] = true;
                 if ($fallbackMode === 'legacy') {
@@ -148,7 +162,9 @@ class VendorSearchService
             'fallback_used' => $hasOutsideCityResults,
             'search_mode' => $hasOutsideCityResults ? 'mixed' : 'city',
             'city' => $params['city'] ?? null,
+            'region' => $params['region'] ?? null,
             'date' => $date,
+            'filters' => $this->filterEcho($params),
             'total' => $matchedVendors->count(),
             'data' => $this->groupVendorsByCategory($matchedVendors),
         ];
@@ -165,39 +181,54 @@ class VendorSearchService
 
     // ... Precedente funzione prepareVendorForSearch eliminata ...
 
-   private function buildBaseQuery(array $params)
-{
-    $query = VendorAccount::query()
-        ->where('status', 'ACTIVE')
-        ->whereHas('vendorOfferingProfiles', function ($query) {
-            $query->bookable();
-        })
-        ->with([
-            'category:id,name,slug,prestashop_category_id',
-            'vendorOfferingProfiles' => function ($query) {
-                $query->bookable()
-                    ->with(['offering:id,name,slug', 'images']);
-            },
-        ]);
+    private function buildBaseQuery(array $params): Builder
+    {
+        $query = VendorAccount::query()
+            ->where('status', 'ACTIVE')
+            ->whereHas('vendorOfferingProfiles', function ($query) use ($params) {
+                $this->applyRequestedProfileFilters($query, $params);
+            })
+            ->with([
+                'category:id,name,slug,prestashop_category_id',
+                'vendorOfferingProfiles' => function ($query) use ($params) {
+                    $this->applyRequestedProfileFilters($query, $params)
+                        ->with(['offering:id,name,slug', 'images']);
+                },
+            ]);
 
-    if (isset($params['prestashop_category_id'])) {
-        $query->whereHas('category', function ($query) use ($params) {
-            $query->where('prestashop_category_id', $params['prestashop_category_id']);
-        });
+        if (isset($params['prestashop_category_id'])) {
+            $query->whereHas('category', function ($query) use ($params) {
+                $query->where('prestashop_category_id', $params['prestashop_category_id']);
+            });
+        }
+
+        if (isset($params['category_id'])) {
+            $query->where('category_id', $params['category_id']);
+        }
+
+        if (isset($params['event_type_id'])) {
+            $query->whereHas('eventTypes', function ($query) use ($params) {
+                $query->where('event_types.id', $params['event_type_id']);
+            });
+        }
+
+        return $query;
     }
 
-    if (isset($params['category_id'])) {
-        $query->where('category_id', $params['category_id']);
-    }
+    private function applyRequestedProfileFilters(Builder|Relation $query, array $params): Builder|Relation
+    {
+        $query->bookable();
 
-    if (isset($params['event_type_id'])) {
-        $query->whereHas('eventTypes', function ($query) use ($params) {
-            $query->where('event_types.id', $params['event_type_id']);
-        });
-    }
+        if (isset($params['service_mode'])) {
+            $query->where('service_mode', strtoupper((string) $params['service_mode']));
+        }
 
-    return $query;
-}
+        if (isset($params['offering_id'])) {
+            $query->where('offering_id', (int) $params['offering_id']);
+        }
+
+        return $query;
+    }
 
     // Il vendor entra nei risultati solo se almeno un profilo valido ha uno slot disponibile.
     private function vendorHasAnyAvailableSlot(VendorAccount $vendor, string $date, ?int $guests = null): bool
@@ -250,9 +281,19 @@ class VendorSearchService
     private function profileIsValidForSearch(
         VendorOfferingProfile $profile,
         VendorAccount $vendor,
-        ?int $guests = null
+        ?int $guests = null,
+        ?string $serviceMode = null,
+        ?int $offeringId = null
     ): bool {
         if (! $this->profileIsSearchable($profile)) {
+            return false;
+        }
+
+        if ($serviceMode !== null && $profile->service_mode !== $serviceMode) {
+            return false;
+        }
+
+        if ($offeringId !== null && (int) $profile->offering_id !== $offeringId) {
             return false;
         }
 
@@ -409,15 +450,29 @@ class VendorSearchService
             ->all();
     }
 
-    private function emptyResult(?string $city, ?string $date): array
+    private function emptyResult(array $params, ?string $date): array
     {
         return [
             'fallback_used' => false,
             'search_mode' => 'city',
-            'city' => $city,
+            'city' => $params['city'] ?? null,
+            'region' => $params['region'] ?? null,
             'date' => $date,
+            'filters' => $this->filterEcho($params),
             'total' => 0,
             'data' => [],
+        ];
+    }
+
+    private function filterEcho(array $params): array
+    {
+        return [
+            'guests' => isset($params['guests']) ? (int) $params['guests'] : null,
+            'prestashop_category_id' => isset($params['prestashop_category_id']) ? (int) $params['prestashop_category_id'] : null,
+            'category_id' => isset($params['category_id']) ? (int) $params['category_id'] : null,
+            'event_type_id' => isset($params['event_type_id']) ? (int) $params['event_type_id'] : null,
+            'offering_id' => isset($params['offering_id']) ? (int) $params['offering_id'] : null,
+            'service_mode' => isset($params['service_mode']) ? strtoupper((string) $params['service_mode']) : null,
         ];
     }
 }

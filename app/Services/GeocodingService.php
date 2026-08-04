@@ -14,6 +14,7 @@ class GeocodingService
 
     private const CACHE_TTL_DAYS = 30;
     private const NOT_FOUND_CACHE_HOURS = 12;
+    private const CACHE_NOT_FOUND = '__BOOKING_BRIDGE_GEOCODE_NOT_FOUND__';
 
     private const REQUEST_TIMEOUT_SECONDS = 10;
     private const REQUEST_RETRIES = 2;
@@ -189,7 +190,9 @@ class GeocodingService
     private function rememberGeocodeResult(string $cacheKey, callable $resolver): ?array
     {
         if (Cache::has($cacheKey)) {
-            return Cache::get($cacheKey);
+            $cached = Cache::get($cacheKey);
+
+            return $cached === self::CACHE_NOT_FOUND ? null : $cached;
         }
 
         $resolved = $resolver();
@@ -207,7 +210,11 @@ class GeocodingService
             ? now()->addDays(self::CACHE_TTL_DAYS)
             : now()->addHours(self::NOT_FOUND_CACHE_HOURS);
 
-        Cache::put($cacheKey, $value, $ttl);
+        Cache::put(
+            $cacheKey,
+            $value ?? self::CACHE_NOT_FOUND,
+            $ttl
+        );
 
         return $value;
     }
@@ -412,10 +419,22 @@ class GeocodingService
 
     private function buildHeaders(): array
     {
-        return [
-            'User-Agent' => config('app.name', 'BookingBridge') . '/1.0 (geocoding)',
+        $configuredUserAgent = trim((string) config('booking_bridge.geocoding_user_agent'));
+        $userAgent = $configuredUserAgent !== ''
+            ? $configuredUserAgent
+            : config('app.name', 'BookingBridge') . '/1.0 (' . config('app.url') . ')';
+
+        $headers = [
+            'User-Agent' => $userAgent,
             'Accept-Language' => 'it-IT,it;q=0.9,en;q=0.8',
         ];
+
+        $contactEmail = trim((string) config('booking_bridge.geocoding_contact_email'));
+        if ($contactEmail !== '') {
+            $headers['From'] = $contactEmail;
+        }
+
+        return $headers;
     }
 
     private function buildStreet(?string $address1, ?string $address2): ?string

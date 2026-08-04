@@ -72,11 +72,11 @@ class BookingBridgeCurrentContractTest extends TestCase
 
         $this->vendor->weeklySchedules()->create([
             'vendor_slot_id' => $this->slot->id,
-            'day_of_week' => CarbonImmutable::now()->addDays(2)->dayOfWeekIso,
+            'day_of_week' => CarbonImmutable::now()->addDays(2)->dayOfWeek,
             'is_open' => true,
         ]);
         $this->vendor->leadTimes()->create([
-            'day_of_week' => CarbonImmutable::now()->addDays(2)->dayOfWeekIso,
+            'day_of_week' => CarbonImmutable::now()->addDays(2)->dayOfWeek,
             'min_notice_hours' => 0,
         ]);
 

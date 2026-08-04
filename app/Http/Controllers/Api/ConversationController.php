@@ -130,7 +130,12 @@ class ConversationController extends Controller
 
     public function messages(Request $request, \App\Models\ConversationThread $conversation)
     {
-        $customerId = $request->input('prestashop_customer_id');
+        $validated = $request->validate([
+            'prestashop_customer_id' => ['required', 'integer'],
+            'after_id' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $customerId = (int) $validated['prestashop_customer_id'];
 
         if (!$customerId || (int)$customerId !== (int)$conversation->prestashop_customer_id) {
             return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
@@ -140,11 +145,30 @@ class ConversationController extends Controller
             return response()->json(['success' => false, 'message' => 'Conversation not found'], 404);
         }
 
-        $messagesQuery = $conversation->messages()->orderBy('created_at', 'asc');
-        
-        $paginator = $messagesQuery->cursorPaginate(50);
+        $messagesQuery = $conversation->messages()
+            ->where('is_visible_to_customer', true);
+        $afterId = (int) ($validated['after_id'] ?? 0);
+        $nextCursor = null;
+        $prevCursor = null;
 
-        $mapped = $paginator->getCollection()->map(function ($msg) {
+        if ($afterId > 0) {
+            $messages = $messagesQuery
+                ->where('id', '>', $afterId)
+                ->orderBy('id')
+                ->limit(50)
+                ->get();
+        } else {
+            // Il primo caricamento deve mostrare i 50 messaggi più recenti,
+            // non i primi 50 della conversazione.
+            $paginator = $messagesQuery
+                ->orderByDesc('id')
+                ->cursorPaginate(50);
+            $messages = $paginator->getCollection()->sortBy('id')->values();
+            $nextCursor = $paginator->nextCursor()?->encode();
+            $prevCursor = $paginator->previousCursor()?->encode();
+        }
+
+        $mapped = $messages->map(function ($msg) {
             return [
                 'id' => $msg->id,
                 'sender_type' => $msg->sender_type,
@@ -157,8 +181,8 @@ class ConversationController extends Controller
             'success' => true,
             'data' => $mapped,
             'messages' => $mapped, // legacy compatibility
-            'next_cursor' => $paginator->nextCursor() ? $paginator->nextCursor()->encode() : null,
-            'prev_cursor' => $paginator->previousCursor() ? $paginator->previousCursor()->encode() : null,
+            'next_cursor' => $nextCursor,
+            'prev_cursor' => $prevCursor,
         ]);
     }
 
@@ -181,7 +205,7 @@ class ConversationController extends Controller
         }
 
         if ($conversation->status !== 'open') {
-            return response()->json(['success' => false, 'message' => 'Conversation is not open'], 403);
+            return response()->json(['success' => false, 'message' => 'Conversation is not open'], 409);
         }
 
         if ($conversation->customer_deleted_at !== null) {
@@ -282,12 +306,17 @@ class ConversationController extends Controller
             ->paginate($perPage);
 
         $mapped = $paginator->getCollection()->map(function ($thread) {
-            $lastMsg = $thread->messages()->latest()->first();
+            $lastMsg = $thread->messages()
+                ->where('is_visible_to_customer', true)
+                ->latest()
+                ->first();
             return [
                 'conversation_id' => $thread->id,
                 'vendor_id' => $thread->vendor_account_id,
                 'vendor_name' => $thread->vendorAccount ? $thread->vendorAccount->company_name : 'Partner',
-                'vendor_logo' => $thread->vendorAccount && $thread->vendorAccount->profile_image_path ? url('storage/' . $thread->vendorAccount->profile_image_path) : null,
+                'vendor_logo' => $thread->vendorAccount && $thread->vendorAccount->profile_image_path
+                    ? route('media.public', ['path' => ltrim($thread->vendorAccount->profile_image_path, '/')])
+                    : null,
                 'offering_id' => $thread->offering_id,
                 'offering_title' => $thread->offering ? $thread->offering->name : null,
                 'last_message' => $lastMsg ? \Illuminate\Support\Str::limit($lastMsg->body_filtered ?? $lastMsg->body_original, 50) : null,

@@ -19,7 +19,7 @@ class VendorOfferingProfile extends Model
             if ($profile->vendor_account_id && $profile->is_approved) {
                 $vendor = \App\Models\VendorAccount::find($profile->vendor_account_id);
                 if ($vendor && $vendor->status === 'ACTIVE') {
-                    \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor)->afterCommit();
+                    \App\Jobs\PushVendorToPrestashopJob::dispatch((int) $vendor->id)->afterCommit();
                 }
             }
         });
@@ -29,7 +29,7 @@ class VendorOfferingProfile extends Model
             if ($profile->vendor_account_id) {
                 $vendor = \App\Models\VendorAccount::find($profile->vendor_account_id);
                 if ($vendor && $vendor->status === 'ACTIVE') {
-                    \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor)->afterCommit();
+                    \App\Jobs\PushVendorToPrestashopJob::dispatch((int) $vendor->id)->afterCommit();
                 }
             }
         });

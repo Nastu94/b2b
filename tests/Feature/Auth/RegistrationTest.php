@@ -18,6 +18,8 @@ class RegistrationTest extends TestCase
 
     public function test_new_users_can_register(): void
     {
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+
         $category = \App\Models\Category::create(['name' => 'Test', 'slug' => 'test', 'is_active' => true]);
         $eventType = \App\Models\EventType::create(['name' => 'Test', 'slug' => 'test', 'is_active' => true]);
 

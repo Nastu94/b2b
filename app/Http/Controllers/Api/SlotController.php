@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\Offering;
 use App\Models\SlotLock;
+use App\Models\VendorAccount;
 use App\Models\VendorOfferingProfile;
 use App\Models\VendorSlot;
 use App\Services\AvailabilityService;
+use App\Services\BookingDistanceResolver;
 use App\Services\BookingPricingService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
@@ -27,7 +30,8 @@ class SlotController extends Controller
     public function hold(
         Request $request,
         BookingPricingService $bookingPricingService,
-        AvailabilityService $availabilityService
+        AvailabilityService $availabilityService,
+        BookingDistanceResolver $bookingDistanceResolver
     ): JsonResponse {
         $validated = $request->validate([
             'vendor_account_id'      => 'required|integer|exists:vendor_accounts,id',
@@ -35,6 +39,10 @@ class SlotController extends Controller
             'offering_id'            => 'required|integer|exists:offerings,id',
             'date'                   => 'required|date_format:Y-m-d|after_or_equal:today',
             'distance_km'            => 'nullable|numeric|min:0',
+            'event_city'             => 'nullable|string|max:255',
+            'event_region'           => 'nullable|string|max:255',
+            'city'                   => 'nullable|string|max:255',
+            'region'                 => 'nullable|string|max:255',
             'guests'                 => 'nullable|integer|min:1',
             'prestashop_shop_id'     => 'nullable|integer',
             'prestashop_cart_id'     => 'nullable|integer',
@@ -54,7 +62,11 @@ class SlotController extends Controller
         $vendorSlotId = (int) $validated['vendor_slot_id'];
         $offeringId = (int) $validated['offering_id'];
         $date = $validated['date'];
-        $distanceKm = array_key_exists('distance_km', $validated) && $validated['distance_km'] !== null ? round((float) $validated['distance_km'], 2) : null;
+        $clientDistanceKm = array_key_exists('distance_km', $validated) && $validated['distance_km'] !== null
+            ? round((float) $validated['distance_km'], 2)
+            : null;
+        $eventCity = $validated['event_city'] ?? $validated['city'] ?? null;
+        $eventRegion = $validated['event_region'] ?? $validated['region'] ?? null;
         $guests = array_key_exists('guests', $validated) && $validated['guests'] !== null ? (int) $validated['guests'] : null;
         
         $shopId = isset($validated['prestashop_shop_id']) ? (int) $validated['prestashop_shop_id'] : null;
@@ -62,10 +74,10 @@ class SlotController extends Controller
         $customerId = isset($validated['prestashop_customer_id']) ? (int) $validated['prestashop_customer_id'] : null;
 
         try {
-            $vendorAccount = \App\Models\VendorAccount::findOrFail($vendorAccountId);
+            $vendorAccount = VendorAccount::findOrFail($vendorAccountId);
             $bookingCapacityMode = $vendorAccount->bookingCapacityMode();
 
-            if ($bookingCapacityMode === \App\Models\VendorAccount::BOOKING_MULTIPLE_BY_OFFERING && empty($offeringId)) {
+            if ($bookingCapacityMode === VendorAccount::BOOKING_MULTIPLE_BY_OFFERING && empty($offeringId)) {
                 return $this->unprocessable('L\'offering_id è obbligatorio per questa modalità di prenotazione');
             }
 
@@ -75,6 +87,17 @@ class SlotController extends Controller
             if ($guests !== null && $profile->exceedsCapacity($guests)) {
                 return $this->unprocessable('Numero ospiti non supportato');
             }
+
+            $distanceDecision = $bookingDistanceResolver->resolveForHold(
+                vendor: $vendorAccount,
+                profile: $profile,
+                eventCity: $eventCity,
+                eventRegion: $eventRegion,
+                clientDistanceKm: $clientDistanceKm
+            );
+            $distanceKm = $distanceDecision['distance_km'];
+            $eventCity = $distanceDecision['event_city'];
+            $eventRegion = $distanceDecision['event_region'];
 
             $now = CarbonImmutable::now();
             
@@ -121,6 +144,10 @@ class SlotController extends Controller
                 $offeringId,
                 $date,
                 $distanceKm,
+                $clientDistanceKm,
+                $eventCity,
+                $eventRegion,
+                $distanceDecision,
                 $guests,
                 $shopId,
                 $cartId,
@@ -145,7 +172,9 @@ class SlotController extends Controller
                             $vendorSlotId,
                             $date,
                             $offeringId,
-                            $distanceKm,
+                            $clientDistanceKm,
+                            $eventCity,
+                            $eventRegion,
                             $guests,
                             $shopId,
                             $cartId,
@@ -197,13 +226,17 @@ class SlotController extends Controller
                         'offering_id'       => $offeringId,
                         'date'              => $date,
                         'distance_km'       => $distanceKm,
+                        'client_distance_km'=> $clientDistanceKm,
+                        'distance_source'   => $distanceDecision['distance_source'],
+                        'event_city'        => $eventCity,
+                        'event_region'      => $eventRegion,
                         'guests'            => $guests,
                         'prestashop_shop_id'=> $shopId,
                         'prestashop_cart_id'=> $cartId,
                         'prestashop_customer_id'=> $customerId,
                         'quoted_amount'     => $pricing['final_price'],
                         'currency'          => $pricing['currency'],
-                        'pricing_breakdown' => $this->normalizePricingBreakdown($pricing),
+                        'pricing_breakdown' => $this->normalizePricingBreakdown($pricing, $distanceDecision),
                         'status'            => SlotLock::STATUS_HOLD,
                         'hold_token'        => (string) Str::uuid(),
                         'expires_at'        => $expiresAt,
@@ -225,7 +258,9 @@ class SlotController extends Controller
                                     $vendorSlotId,
                                     $date,
                                     $offeringId,
-                                    $distanceKm,
+                                    $clientDistanceKm,
+                                    $eventCity,
+                                    $eventRegion,
                                     $guests,
                                     $shopId,
                                     $cartId,
@@ -263,7 +298,11 @@ class SlotController extends Controller
     }
 
     // Conferma un hold dopo il pagamento.
-    public function confirm(Request $request, \App\Services\CommissionResolver $commissionResolver): JsonResponse
+    public function confirm(
+        Request $request,
+        \App\Services\CommissionResolver $commissionResolver,
+        AvailabilityService $availabilityService
+    ): JsonResponse
     {
         $validated = $request->validate([
             'hold_token'               => 'required|uuid',
@@ -271,6 +310,8 @@ class SlotController extends Controller
             'prestashop_order_line_id' => 'required|string|max:191',
             'customer_data'            => 'nullable|array',
         ]);
+
+        $this->auditUnknownCustomerFields($validated['customer_data'] ?? null);
 
         $idempotencyKey = $request->header('Idempotency-Key');
         if (!empty($idempotencyKey)) {
@@ -281,7 +322,12 @@ class SlotController extends Controller
         }
 
         try {
-            return DB::transaction(function () use ($validated, $idempotencyKey, $commissionResolver): JsonResponse {
+            return DB::transaction(function () use (
+                $validated,
+                $idempotencyKey,
+                $commissionResolver,
+                $availabilityService
+            ): JsonResponse {
                 $holdToken = $validated['hold_token'];
                 $orderId = $validated['prestashop_order_id'];
                 $lineId = $validated['prestashop_order_line_id'];
@@ -349,13 +395,55 @@ class SlotController extends Controller
                 }
 
                 if (! $lock->canBeConfirmed($now)) {
-                    if ($lock->isExpiredHold($now)) {
-                        $lock->markExpired();
+                    $isExpiredSelection = $lock->isExpired() || $lock->isExpiredHold($now);
 
-                        throw new \App\Exceptions\BookingBridge\LockTerminatedException('Hold scaduto');
+                    if ($isExpiredSelection && config('booking_bridge.allow_expired_hold_reacquire', false)) {
+                        if ($lock->isExpiredHold($now)) {
+                            $lock->markExpired();
+                        }
+
+                        try {
+                            $availabilityService->assertSlotBookable(
+                                (int) $lock->vendor_account_id,
+                                (int) $lock->vendor_slot_id,
+                                $lock->date->format('Y-m-d'),
+                                $lock->offering_id !== null ? (int) $lock->offering_id : null,
+                                $lock->guests !== null ? (int) $lock->guests : null
+                            );
+
+                            $vendor = VendorAccount::withTrashed()->find($lock->vendor_account_id);
+                            $mode = $vendor?->bookingCapacityMode() ?? VendorAccount::BOOKING_SINGLE_RESOURCE;
+
+                            $lock->status = SlotLock::STATUS_HOLD;
+                            $lock->is_active = true;
+                            $lock->expires_at = $now->addMinutes(self::HOLD_TTL_MINUTES);
+                            $lock->expired_at = null;
+                            $lock->active_slot_key = SlotLock::makeActiveSlotKey(
+                                (int) $lock->vendor_account_id,
+                                (int) $lock->vendor_slot_id,
+                                $lock->date->format('Y-m-d'),
+                                $mode,
+                                $lock->offering_id !== null ? (int) $lock->offering_id : null
+                            );
+                            $lock->save();
+                        } catch (\App\Exceptions\SlotUnavailableException $e) {
+                            throw new \App\Exceptions\BookingBridge\PaidOrderSlotUnavailableException($e->getMessage(), $e);
+                        } catch (QueryException $e) {
+                            if ($this->isUniqueConstraintViolation($e)) {
+                                throw new \App\Exceptions\BookingBridge\PaidOrderSlotUnavailableException('Conflitto durante la riacquisizione dello slot', $e);
+                            }
+
+                            throw $e;
+                        }
+                    } else {
+                        if ($lock->isExpiredHold($now)) {
+                            $lock->markExpired();
+                        }
+
+                        throw new \App\Exceptions\BookingBridge\LockTerminatedException(
+                            $isExpiredSelection ? 'Hold scaduto' : 'Lock non confermabile'
+                        );
                     }
-
-                    throw new \App\Exceptions\BookingBridge\LockTerminatedException('Lock non confermabile');
                 }
 
                 if ($lock->quoted_amount === null || $lock->currency === null) {
@@ -385,7 +473,10 @@ class SlotController extends Controller
                             'offering_id'              => $lock->offering_id,
                             'vendor_slot_id'           => $lock->vendor_slot_id,
                             'event_date'               => $lock->date,
+                            'event_city'               => $lock->event_city,
+                            'event_region'             => $lock->event_region,
                             'distance_km'              => $lock->distance_km,
+                            'distance_source'          => $lock->distance_source,
                             'guests'                   => $lock->guests,
                             'prestashop_order_id'      => $orderId,
                             'prestashop_order_line_id' => $lineId,
@@ -639,7 +730,10 @@ class SlotController extends Controller
                 'slot_end_time' => $lock->vendorSlot->end_time ?? null,
                 'city' => $lock->event_city,
                 'event_city' => $lock->event_city,
+                'event_region' => $lock->event_region,
                 'distance_km' => $lock->distance_km,
+                'client_distance_km' => $lock->client_distance_km,
+                'distance_source' => $lock->distance_source,
             ],
         ];
     }
@@ -667,14 +761,29 @@ class SlotController extends Controller
         int $vendorSlotId,
         string $date,
         int $offeringId,
-        ?float $distanceKm,
+        ?float $clientDistanceKm,
+        ?string $eventCity,
+        ?string $eventRegion,
         ?int $guests,
         ?int $shopId,
         ?int $cartId,
         ?int $customerId,
         CarbonImmutable $now
     ): JsonResponse {
-        if (! $this->isSameData($lock, $vendorAccountId, $vendorSlotId, $date, $offeringId, $distanceKm, $guests, $shopId, $cartId, $customerId)) {
+        if (! $this->isSameData(
+            $lock,
+            $vendorAccountId,
+            $vendorSlotId,
+            $date,
+            $offeringId,
+            $clientDistanceKm,
+            $eventCity,
+            $eventRegion,
+            $guests,
+            $shopId,
+            $cartId,
+            $customerId
+        )) {
             throw new \App\Exceptions\BookingBridge\IdempotencyMismatchException('Chiave idempotente utilizzata con dati differenti');
         }
 
@@ -694,17 +803,29 @@ class SlotController extends Controller
         int $vendorSlotId,
         string $date,
         int $offeringId,
-        ?float $distanceKm,
+        ?float $clientDistanceKm,
+        ?string $eventCity,
+        ?string $eventRegion,
         ?int $guests,
         ?int $shopId,
         ?int $cartId,
         ?int $customerId
     ): bool {
+        $storedClientDistance = $lock->client_distance_km;
+
+        // Compatibilità con gli hold creati nei minuti precedenti al deploy,
+        // quando distance_km conteneva direttamente il valore del browser.
+        if ($storedClientDistance === null && $lock->distance_source === null) {
+            $storedClientDistance = $lock->distance_km;
+        }
+
         return (int) $lock->vendor_account_id === $vendorAccountId
             && (int) $lock->vendor_slot_id === $vendorSlotId
             && $lock->date->format('Y-m-d') === $date
             && (int) $lock->offering_id === $offeringId
-            && $this->sameNullableFloat($lock->distance_km, $distanceKm)
+            && $this->sameNullableFloat($storedClientDistance, $clientDistanceKm)
+            && $this->sameNullableText($lock->event_city, $eventCity)
+            && $this->sameNullableText($lock->event_region, $eventRegion)
             && $this->sameNullableInt($lock->guests, $guests)
             && $this->sameNullableInt($lock->prestashop_shop_id, $shopId)
             && $this->sameNullableInt($lock->prestashop_cart_id, $cartId)
@@ -740,9 +861,71 @@ class SlotController extends Controller
         return (int) $left === (int) $right;
     }
 
+    private function sameNullableText(mixed $left, mixed $right): bool
+    {
+        $normalize = static function (mixed $value): ?string {
+            if ($value === null) {
+                return null;
+            }
+
+            $value = trim((string) preg_replace('/\s+/', ' ', (string) $value));
+
+            return $value === '' ? null : mb_strtolower($value);
+        };
+
+        return $normalize($left) === $normalize($right);
+    }
+
+    private function auditUnknownCustomerFields(?array $customerData): void
+    {
+        if ($customerData === null) {
+            return;
+        }
+
+        $allowedCustomerKeys = [
+            'id_customer',
+            'firstname',
+            'lastname',
+            'email',
+            'prestashop_order_reference',
+            'delivery_address',
+        ];
+        $unknownCustomerKeys = array_values(array_diff(array_keys($customerData), $allowedCustomerKeys));
+
+        if ($unknownCustomerKeys !== []) {
+            \Illuminate\Support\Facades\Log::warning('Unknown booking customer fields', [
+                'keys' => $unknownCustomerKeys,
+            ]);
+        }
+
+        $deliveryAddress = $customerData['delivery_address'] ?? null;
+        if (! is_array($deliveryAddress)) {
+            return;
+        }
+
+        $allowedAddressKeys = [
+            'company',
+            'address_line1',
+            'address_line2',
+            'postcode',
+            'city',
+            'state',
+            'country',
+            'phone',
+            'phone_mobile',
+        ];
+        $unknownAddressKeys = array_values(array_diff(array_keys($deliveryAddress), $allowedAddressKeys));
+
+        if ($unknownAddressKeys !== []) {
+            \Illuminate\Support\Facades\Log::warning('Unknown booking delivery address fields', [
+                'keys' => $unknownAddressKeys,
+            ]);
+        }
+    }
 
 
-    private function normalizePricingBreakdown(array $pricing): array
+
+    private function normalizePricingBreakdown(array $pricing, array $distanceDecision): array
     {
         return [
             'pricing_id' => $pricing['pricing_id'] ?? null,
@@ -753,6 +936,15 @@ class SlotController extends Controller
             'notes' => $pricing['notes'] ?? [],
             'ignored_rules' => $pricing['ignored_rules'] ?? [],
             'breakdown' => $pricing['breakdown'] ?? [],
+            'distance_audit' => [
+                'mode' => $distanceDecision['mode'],
+                'client_distance_km' => $distanceDecision['client_distance_km'],
+                'server_distance_km' => $distanceDecision['server_distance_km'],
+                'server_distance_source' => $distanceDecision['server_distance_source'],
+                'effective_distance_km' => $distanceDecision['distance_km'],
+                'effective_distance_source' => $distanceDecision['distance_source'],
+                'delta_km' => $distanceDecision['delta_km'],
+            ],
         ];
     }
 

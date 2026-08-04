@@ -64,7 +64,7 @@ class PushBookingBridgeWebhooks extends Command
             $this->warn("Completato con {$successes} successi, {$skipped} ignorati e {$errors} errori. Controlla i file di log di Laravel (storage/logs/laravel.log) per i dettagli su URL o chiave API errati.");
             return self::FAILURE;
         } else {
-            $this->info("✅ Sincronizzazione sincrona completata con successo! ({$successes} successi, {$skipped} ignorati)");
+            $this->info("Sincronizzazione sincrona completata con successo ({$successes} successi, {$skipped} ignorati).");
             return self::SUCCESS;
         }
     }

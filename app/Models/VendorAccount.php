@@ -16,14 +16,40 @@ class VendorAccount extends Model
     public const BOOKING_SINGLE_RESOURCE = 'single_resource';
     public const BOOKING_MULTIPLE_BY_OFFERING = 'multiple_by_offering';
 
-    protected static function booted()
+    /**
+     * Campi tecnici aggiornati dal job di sincronizzazione. Una loro modifica
+     * non deve accodare un nuovo job, altrimenti si crea un ciclo infinito.
+     */
+    private const PRESTASHOP_SYNC_METADATA = [
+        'prestashop_product_id',
+        'prestashop_sync_version',
+        'prestashop_payload_hash',
+        'prestashop_synced_at',
+        'prestashop_sync_error_code',
+        'prestashop_sync_error_at',
+        'updated_at',
+    ];
+
+    protected static function booted(): void
     {
-        static::saved(function ($vendor) {
-            \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor)->afterCommit();
+        static::saved(function (self $vendor): void {
+            // Un account appena creato non ha ancora profili/offerte complete.
+            // Il primo profilo approvato attiverà la sincronizzazione.
+            if ($vendor->wasRecentlyCreated) {
+                return;
+            }
+
+            $changedFields = array_keys($vendor->getChanges());
+
+            if (empty(array_diff($changedFields, self::PRESTASHOP_SYNC_METADATA))) {
+                return;
+            }
+
+            \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor->getKey())->afterCommit();
         });
 
-        static::deleted(function ($vendor) {
-            \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor)->afterCommit();
+        static::deleted(function (self $vendor): void {
+            \App\Jobs\PushVendorToPrestashopJob::dispatch($vendor->getKey())->afterCommit();
         });
     }
 

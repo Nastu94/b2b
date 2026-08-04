@@ -45,7 +45,7 @@ class PrestashopWebhookService
             $webhookUrl = $base . '/module/bookingbridge/webhook';
         }
 
-        $apiKey = config('services.prestashop.webhook_key', config('services.prestashop.key', ''));
+        $apiKey = trim((string) config('services.prestashop.webhook_key'));
 
         if (empty($apiKey) || empty($webhookUrl)) {
             Log::warning('PrestaShop Webhook config missing (URL or Key).');

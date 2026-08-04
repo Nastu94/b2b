@@ -351,7 +351,14 @@ class AvailabilityService
         $day = $date->toDateString();
 
         foreach ($blackouts as $blackout) {
-            if ($blackout->date_from <= $day && $blackout->date_to >= $day) {
+            $dateFrom = $blackout->date_from instanceof \DateTimeInterface
+                ? $blackout->date_from->format('Y-m-d')
+                : substr((string) $blackout->date_from, 0, 10);
+            $dateTo = $blackout->date_to instanceof \DateTimeInterface
+                ? $blackout->date_to->format('Y-m-d')
+                : substr((string) $blackout->date_to, 0, 10);
+
+            if ($dateFrom <= $day && $dateTo >= $day) {
                 if ($blackout->vendor_slot_id === null || (int) $blackout->vendor_slot_id === $vendorSlotId) {
                     return true;
                 }

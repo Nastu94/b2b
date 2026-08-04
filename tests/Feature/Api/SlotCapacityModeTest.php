@@ -7,6 +7,7 @@ use App\Models\Offering;
 use App\Models\SlotLock;
 use App\Models\User;
 use App\Models\VendorAccount;
+use App\Models\VendorBlackout;
 use App\Models\VendorOfferingProfile;
 use App\Models\VendorSlot;
 use App\Models\VendorWeeklySchedule;
@@ -180,6 +181,29 @@ class SlotCapacityModeTest extends TestCase
         $res2->assertStatus(409); // Let's expect 409 because SlotUnavailableException returns 409
     }
 
+    public function test_slot_specific_blackout_blocks_the_matching_date(): void
+    {
+        $date = CarbonImmutable::now()->addDays(10)->format('Y-m-d');
+
+        VendorBlackout::create([
+            'vendor_account_id' => $this->djVendor->id,
+            'vendor_slot_id' => $this->djSlot->id,
+            'date_from' => $date,
+            'date_to' => $date,
+            'reason_internal' => 'Test blackout',
+        ]);
+
+        $availability = app(\App\Services\AvailabilityService::class)->getAvailability(
+            vendorAccountId: $this->djVendor->id,
+            from: $date,
+            to: $date,
+            offeringId: $this->djSetOffering->id
+        );
+
+        $this->assertSame('BLOCKED', $availability[$date][0]['status']);
+        $this->assertSame('BLACKOUT', $availability[$date][0]['reason']);
+    }
+
     public function test_noleggio_multiple_by_offering_capacity_mode()
     {
         $date = CarbonImmutable::now()->addDays(2)->format('Y-m-d');
@@ -203,7 +227,16 @@ class SlotCapacityModeTest extends TestCase
         ], ['Idempotency-Key' => 'dddddddddddddddddddddddddddddddd']);
         $res2->assertStatus(201); // Works because it's a different offering
 
-        // 3. Limousine ore 18 seconda volta (Idempotency Replay)
+        // 3. Stessa offerta e stesso slot con una nuova richiesta: bloccata.
+        $conflictingRequest = $this->actingAs($user)->postJson('/api/slots/hold', [
+            'vendor_account_id' => $this->noleggioVendor->id,
+            'vendor_slot_id' => $this->noleggioSlot->id,
+            'offering_id' => $this->limousineOffering->id,
+            'date' => $date,
+        ], ['Idempotency-Key' => '99999999999999999999999999999999']);
+        $conflictingRequest->assertStatus(409);
+
+        // 4. Limousine ore 18 seconda volta (Idempotency Replay)
         // Riceve 200 con lo stesso hold_token, poiché l'API non distingue cart_id o client_id diversi.
         // E' il comportamento corretto e desiderato per le retry di rete di PrestaShop.
         $res3 = $this->actingAs($user)->postJson('/api/slots/hold', [

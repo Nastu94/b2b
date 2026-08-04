@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use App\Jobs\PushVendorToPrestashopJob;
 
 class OfferingApprovalService
 {
@@ -94,5 +95,7 @@ class OfferingApprovalService
             $vendorAccount->offerings()
                 ->updateExistingPivot($offeringId, ['is_active' => false]);
         });
+
+        PushVendorToPrestashopJob::dispatch((int) $vendorAccount->id)->afterCommit();
     }
 }

@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\VendorAccount;
 use App\Models\VendorOfferingProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class VendorSearchGeocodingFallbackTest extends TestCase
@@ -16,6 +17,7 @@ class VendorSearchGeocodingFallbackTest extends TestCase
 
     public function test_strict_mode_excludes_invalid_vendors()
     {
+        Queue::fake();
         // Create dependencies
         $user = new User();
         $user->name = 'Test User';

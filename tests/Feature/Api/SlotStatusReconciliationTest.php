@@ -231,7 +231,6 @@ class SlotStatusReconciliationTest extends TestCase
             'prestashop_order_line_id' => 'LINE-1',
         ], $this->bridgeHeaders());
 
-        $res->dump();
         $res->assertStatus(200)
             ->assertJsonPath('data.status', 'BOOKED');
     }

@@ -185,4 +185,27 @@ class BookingBridgeHmacAuthenticationTest extends TestCase
         $response2 = $this->getJson('/api/vendors/search', $headers);
         $response2->assertStatus(401);
     }
+
+    public function test_invalid_signature_does_not_consume_the_nonce(): void
+    {
+        config(['booking_bridge.hmac_mode' => 'required']);
+
+        $nonce = (string) Str::uuid();
+        $invalidHeaders = $this->generateHmacHeaders('GET', '/api/vendors/search', [], 0, $nonce, 'wrong-secret');
+        $this->getJson('/api/vendors/search', $invalidHeaders)->assertStatus(401);
+
+        $validHeaders = $this->generateHmacHeaders('GET', '/api/vendors/search', [], 0, $nonce);
+        $this->assertNotEquals(401, $this->getJson('/api/vendors/search', $validHeaders)->status());
+    }
+
+    public function test_partial_hmac_headers_are_rejected_in_optional_mode(): void
+    {
+        config(['booking_bridge.hmac_mode' => 'optional']);
+
+        $this->getJson('/api/vendors/search', [
+            'X-Booking-Bridge-Key' => $this->bridgeKey,
+            'X-Booking-Bridge-Nonce' => (string) Str::uuid(),
+            'Accept' => 'application/json',
+        ])->assertStatus(401);
+    }
 }
