@@ -1,6 +1,6 @@
 # Deploy PrestaShop via Plesk
 
-Versione modulo da ottenere: `bookingbridge 1.5.1`  
+Versione modulo da ottenere: `bookingbridge 1.5.1`
 Versione tema da ottenere: `partylegacy 1.0.2`
 
 Il file `PRESTASHOP_FILES_PLESK.txt` contiene l'elenco operativo, con un percorso per riga. I percorsi sono relativi alla radice di PrestaShop. Il manifest comprende tutte le modifiche accumulate durante l'audit, incluse le ultime correzioni a parametri evento, chat, sicurezza HTML e classificazione delle risposte API.
@@ -21,22 +21,26 @@ Il file `PRESTASHOP_FILES_PLESK.txt` contiene l'elenco operativo, con un percors
 12. `modules/bookingbridge/classes/BookingBridgeRemoteImageDownloader.php`
 13. `modules/bookingbridge/classes/CartSelectionRepository.php`
 14. `modules/bookingbridge/classes/VendorProductManager.php`
-15. `modules/bookingbridge/classes/hooks/BookingBridgeVendorDisplayHooks.php`
-16. `modules/bookingbridge/controllers/front/api.php`
-17. `modules/bookingbridge/controllers/front/availability.php`
-18. `modules/bookingbridge/controllers/front/chat.php`
-19. `modules/bookingbridge/controllers/front/cron.php`
-20. `modules/bookingbridge/controllers/front/search.php`
-21. `modules/bookingbridge/controllers/front/webhook.php`
-22. `modules/bookingbridge/upgrade/upgrade-1.1.2.php`
-23. `modules/bookingbridge/upgrade/upgrade-1.3.0.php`
-24. `modules/bookingbridge/upgrade/upgrade-1.4.0.php`
-25. `modules/bookingbridge/upgrade/upgrade-1.4.1.php`
-26. `modules/bookingbridge/upgrade/upgrade-1.5.0.php`
-27. `modules/bookingbridge/upgrade/upgrade-1.5.1.php`
-28. `modules/bookingbridge/views/js/bookingbridge-messages-page.js`
-29. `modules/bookingbridge/views/templates/front/availability.tpl`
-30. `modules/bookingbridge/views/templates/front/search_results.tpl`
+15. `modules/bookingbridge/classes/hooks/BookingBridgeUIHooks.php`
+16. `modules/bookingbridge/classes/hooks/BookingBridgeVendorDisplayHooks.php`
+17. `modules/bookingbridge/controllers/front/api.php`
+18. `modules/bookingbridge/controllers/front/availability.php`
+19. `modules/bookingbridge/controllers/front/chat.php`
+20. `modules/bookingbridge/controllers/front/cron.php`
+21. `modules/bookingbridge/controllers/front/search.php`
+22. `modules/bookingbridge/controllers/front/vendor.php`
+23. `modules/bookingbridge/controllers/front/webhook.php`
+24. `modules/bookingbridge/upgrade/upgrade-1.1.2.php`
+25. `modules/bookingbridge/upgrade/upgrade-1.3.0.php`
+26. `modules/bookingbridge/upgrade/upgrade-1.4.0.php`
+27. `modules/bookingbridge/upgrade/upgrade-1.4.1.php`
+28. `modules/bookingbridge/upgrade/upgrade-1.5.0.php`
+29. `modules/bookingbridge/upgrade/upgrade-1.5.1.php`
+30. `modules/bookingbridge/views/js/bookingbridge-messages-page.js`
+31. `modules/bookingbridge/views/templates/front/availability.tpl`
+32. `modules/bookingbridge/views/templates/front/search_results.tpl`
+33. `modules/bookingbridge/views/templates/front/vendor.tpl`
+34. `modules/bookingbridge/views/templates/hook/vendor_profile_hook.tpl`
 
 ## File del tema da caricare
 
@@ -51,7 +55,7 @@ Non caricare `modules/bookingbridge_v4.zip`: contiene una vecchia versione e non
 2. Verificare gli ID reali delle categorie PrestaShop di produzione prima di valorizzare `categories.prestashop_category_id` in Laravel. Gli ID locali non vanno copiati alla cieca.
 3. Configurare i segreti descritti sotto. Durante il solo passaggio tra le due applicazioni si può tenere Laravel in `BOOKING_BRIDGE_HMAC_MODE=optional`; dopo il test delle firme impostare `required`.
 4. Pubblicare Laravel, installare le dipendenze di produzione, compilare gli asset, eseguire `php artisan migrate --force`, `php artisan optimize:clear`, `php artisan config:cache` e `php artisan queue:restart`.
-5. Caricare via Plesk tutti i 30 file del modulo, mantenendo esattamente le cartelle indicate nel manifest.
+5. Caricare via Plesk tutti i 34 file del modulo, mantenendo esattamente le cartelle indicate nel manifest.
 6. Nel back office PrestaShop aggiornare Booking Bridge fino alla versione 1.5.1. Non disinstallare il modulo: la disinstallazione eliminerebbe le tabelle del bridge.
 7. Verificare che il modulo sia attivo e in versione 1.5.1. Se l'aggiornamento non compare, svuotare la cache PrestaShop e riaprire Gestione moduli.
 8. Aprire Configura sul modulo, salvare URL e chiavi e lasciare attivo `Usa dati server per selezioni`.
@@ -98,4 +102,3 @@ Non inserire chiavi reali in questo documento. Usare segreti casuali di almeno 3
 ## Rollback
 
 Se aggiornamento modulo, migrazioni o test slot falliscono, mantenere la manutenzione e ripristinare insieme file e database dal backup Plesk creato immediatamente prima del deploy. Il solo ripristino dei file non annulla le modifiche di schema delle versioni 1.5.0 e 1.5.1.
-
