@@ -39,7 +39,7 @@ Siamo spiacenti di informarti che il fornitore non ha potuto confermare la tua p
 
 ## Cosa fare ora
 
-Il tuo pagamento verrà rimborsato secondo le nostre politiche di rimborso. Ti consigliamo di cercare un altro fornitore disponibile per la tua data.
+Il nostro team verificherà lo stato del pagamento e, se l'importo è già stato incassato, procederà con il rimborso secondo le nostre politiche. Ti consigliamo di cercare un altro fornitore disponibile per la tua data.
 
 @component('mail::button', ['url' => config('app.url'), 'color' => 'primary'])
 Cerca altri fornitori

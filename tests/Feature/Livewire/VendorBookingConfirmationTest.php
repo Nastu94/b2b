@@ -48,7 +48,12 @@ class VendorBookingConfirmationTest extends TestCase
             'prestashop_order_id' => '12345',
             'prestashop_order_line_id' => '1',
             'status' => Booking::STATUS_PENDING_VENDOR_CONFIRMATION,
-            'customer_data' => ['email' => 'customer@test.com'],
+            'customer_data' => [
+                'firstname' => 'Mario',
+                'lastname' => 'Rossi',
+                'email' => 'customer@test.com',
+                'phone' => '+39 333 1234567',
+            ],
             'start_time' => now(),
             'end_time' => now()->addHours(2),
             'event_date' => now()->format('Y-m-d'),
@@ -92,23 +97,38 @@ class VendorBookingConfirmationTest extends TestCase
         Mail::assertQueued(\App\Mail\PrenotazioneConfermata::class, 1);
     }
 
-    public function test_vendor_can_decline_booking_and_sends_one_email()
+    public function test_vendor_can_decline_booking_and_notifies_customer_and_admin()
     {
         Mail::fake();
+        config(['mail.admin.address' => 'operations@example.com']);
 
         Livewire::actingAs($this->vendorUser)
             ->test(\App\Livewire\Vendor\Bookings\VendorBookingShowPage::class, ['booking' => $this->booking])
+            ->set('declineReason', 'Data non più disponibile')
+            ->set('vendorNotes', 'Contattato telefonicamente')
             ->call('decline');
 
         $this->booking->refresh();
         $this->assertEquals(Booking::STATUS_DECLINED, $this->booking->status);
 
         Mail::assertQueued(\App\Mail\PrenotazioneRifiutata::class, 1);
+        Mail::assertQueued(\App\Mail\PrenotazioneRifiutataAdmin::class, function ($mail) {
+            $rendered = $mail->render();
+
+            return $mail->hasTo('operations@example.com')
+                && str_contains($rendered, '12345')
+                && str_contains($rendered, 'customer@test.com')
+                && str_contains($rendered, '+39 333 1234567')
+                && str_contains($rendered, 'Data non più disponibile')
+                && str_contains($rendered, 'Contattato telefonicamente')
+                && str_contains($rendered, 'nessun rimborso è stato eseguito automaticamente');
+        });
     }
 
     public function test_double_decline_does_not_send_duplicate_emails()
     {
         Mail::fake();
+        config(['mail.admin.address' => 'operations@example.com']);
 
         $component = Livewire::actingAs($this->vendorUser)
             ->test(\App\Livewire\Vendor\Bookings\VendorBookingShowPage::class, ['booking' => $this->booking]);
@@ -120,11 +140,13 @@ class VendorBookingConfirmationTest extends TestCase
         $this->assertEquals(Booking::STATUS_DECLINED, $this->booking->status);
 
         Mail::assertQueued(\App\Mail\PrenotazioneRifiutata::class, 1);
+        Mail::assertQueued(\App\Mail\PrenotazioneRifiutataAdmin::class, 1);
 
         // Second call
         $component->call('decline');
 
         // Still 1 email
         Mail::assertQueued(\App\Mail\PrenotazioneRifiutata::class, 1);
+        Mail::assertQueued(\App\Mail\PrenotazioneRifiutataAdmin::class, 1);
     }
 }

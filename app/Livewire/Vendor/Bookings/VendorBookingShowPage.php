@@ -5,6 +5,7 @@ namespace App\Livewire\Vendor\Bookings;
 use App\Mail\PrenotazioneConfermata;
 use App\Mail\PrenotazioneConfermataVendor;
 use App\Mail\PrenotazioneRifiutata;
+use App\Mail\PrenotazioneRifiutataAdmin;
 use App\Models\Booking;
 use App\Models\SlotLock;
 use Illuminate\Support\Facades\DB;
@@ -98,6 +99,9 @@ class VendorBookingShowPage extends Component
 
         // Email al cliente: prenotazione rifiutata con eventuale motivo
         $this->sendDeclineEmailToClient();
+
+        // Email all'admin: verifica manuale del pagamento e dell'eventuale rimborso
+        $this->sendDeclineEmailToAdmin();
     }
 
     protected function sendConfirmEmailToClient(): void
@@ -158,6 +162,29 @@ class VendorBookingShowPage extends Component
             Mail::to($clientEmail)->queue((new PrenotazioneRifiutata($this->booking))->afterCommit());
         } catch (\Throwable $e) {
             Log::error('BookingDecline: invio email cliente fallito', [
+                'booking_id' => $this->booking->id,
+                'error'      => $e->getMessage(),
+            ]);
+        }
+    }
+
+    protected function sendDeclineEmailToAdmin(): void
+    {
+        $adminEmail = trim((string) config('mail.admin.address'));
+
+        if (! filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
+            Log::warning('BookingDecline: email admin mancante o non valida', [
+                'booking_id' => $this->booking->id,
+            ]);
+            return;
+        }
+
+        try {
+            $this->booking->loadMissing(['vendorAccount.user', 'offering', 'vendorSlot']);
+
+            Mail::to($adminEmail)->queue((new PrenotazioneRifiutataAdmin($this->booking))->afterCommit());
+        } catch (\Throwable $e) {
+            Log::error('BookingDecline: invio email admin fallito', [
                 'booking_id' => $this->booking->id,
                 'error'      => $e->getMessage(),
             ]);

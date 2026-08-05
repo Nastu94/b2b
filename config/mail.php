@@ -115,4 +115,19 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Administrative notifications
+    |--------------------------------------------------------------------------
+    |
+    | Operational booking alerts are sent here. When no dedicated address is
+    | configured, keep compatibility with the existing administrative emails
+    | by falling back to the global sender address.
+    |
+    */
+
+    'admin' => [
+        'address' => env('MAIL_ADMIN_ADDRESS') ?: env('MAIL_FROM_ADDRESS', 'hello@example.com'),
+    ],
+
 ];
