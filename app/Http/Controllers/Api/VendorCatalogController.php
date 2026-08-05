@@ -48,7 +48,7 @@ class VendorCatalogController extends Controller
                         'service_radius_km',
                         'max_guests',
                         'is_published',
-                    ])
+                    ])->with('images')
                     ->bookable()
                     ->orderBy('id');
                 },
@@ -147,7 +147,7 @@ class VendorCatalogController extends Controller
                         'service_radius_km',
                         'max_guests',
                         'is_published',
-                    ])
+                    ])->with('images')
                     ->bookable()
                     ->orderBy('id');
                 },
@@ -213,7 +213,7 @@ class VendorCatalogController extends Controller
                         'service_radius_km',
                         'max_guests',
                         'is_published',
-                    ])
+                    ])->with('images')
                     ->bookable()
                     ->orderBy('id');
                 },
@@ -299,6 +299,7 @@ class VendorCatalogController extends Controller
                     'short_description' => (string) ($profile->short_description ?: ''),
                     'description' => (string) ($profile->description ?: ''),
                     'cover_image_url' => $this->profileCoverImageUrl($profile),
+                    'images' => $this->profileImageUrls($profile),
                     'service_mode' => (string) $profile->service_mode,
                     'service_radius_km' => $profile->service_radius_km !== null ? (float) $profile->service_radius_km : null,
                     'max_guests' => $profile->max_guests !== null ? (int) $profile->max_guests : null,
@@ -336,6 +337,7 @@ class VendorCatalogController extends Controller
                     'short_description' => (string) ($profile->short_description ?: ''),
                     'description' => (string) ($profile->description ?: ''),
                     'cover_image_url' => $this->profileCoverImageUrl($profile),
+                    'images' => $this->profileImageUrls($profile),
                     'service_mode' => (string) $profile->service_mode,
                     'service_radius_km' => $profile->service_radius_km !== null ? (float) $profile->service_radius_km : null,
                     'max_guests' => $profile->max_guests !== null ? (int) $profile->max_guests : null,
@@ -511,5 +513,35 @@ class VendorCatalogController extends Controller
         }
 
         return null;
+    }
+
+    protected function profileImageUrls($profile): array
+    {
+        if (! $profile) {
+            return [];
+        }
+
+        $urls = collect([$this->profileCoverImageUrl($profile)]);
+
+        if ($profile->relationLoaded('images')) {
+            $urls = $urls->concat(
+                $profile->images->map(function ($image) {
+                    if (empty($image->path)) {
+                        return null;
+                    }
+
+                    return route('media.public', [
+                        'path' => ltrim((string) $image->path, '/'),
+                    ]);
+                })
+            );
+        }
+
+        return $urls
+            ->filter(fn ($url) => is_string($url) && trim($url) !== '')
+            ->map(fn ($url) => trim($url))
+            ->unique()
+            ->values()
+            ->all();
     }
 }

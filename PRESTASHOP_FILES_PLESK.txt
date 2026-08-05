@@ -27,6 +27,7 @@ modules/bookingbridge/upgrade/upgrade-1.4.0.php
 modules/bookingbridge/upgrade/upgrade-1.4.1.php
 modules/bookingbridge/upgrade/upgrade-1.5.0.php
 modules/bookingbridge/upgrade/upgrade-1.5.1.php
+modules/bookingbridge/views/css/partials/vendor.css
 modules/bookingbridge/views/js/bookingbridge-messages-page.js
 modules/bookingbridge/views/templates/front/availability.tpl
 modules/bookingbridge/views/templates/front/search_results.tpl

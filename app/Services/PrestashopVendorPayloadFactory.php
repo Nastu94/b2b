@@ -64,6 +64,7 @@ class PrestashopVendorPayloadFactory
                     'short_description' => (string) ($profile->short_description ?: ''),
                     'description' => (string) ($profile->description ?: ''),
                     'cover_image_url' => $this->resolveOfferingCoverUrl($profile),
+                    'images' => $this->resolveOfferingImageUrls($profile),
                     'service_mode' => (string) $profile->service_mode,
                     'service_radius_km' => $profile->service_radius_km !== null ? (float) $profile->service_radius_km : null,
                     'max_guests' => $profile->max_guests !== null ? (int) $profile->max_guests : null,
@@ -149,6 +150,36 @@ class PrestashopVendorPayloadFactory
             }
         }
         return null;
+    }
+
+    protected function resolveOfferingImageUrls($profile): array
+    {
+        if (! $profile) {
+            return [];
+        }
+
+        $urls = collect([$this->resolveOfferingCoverUrl($profile)]);
+
+        if ($profile->relationLoaded('images')) {
+            $urls = $urls->concat(
+                $profile->images->map(function ($image) {
+                    if (empty($image->path)) {
+                        return null;
+                    }
+
+                    return route('media.public', [
+                        'path' => ltrim((string) $image->path, '/'),
+                    ]);
+                })
+            );
+        }
+
+        return $urls
+            ->filter(fn ($url) => is_string($url) && trim($url) !== '')
+            ->map(fn ($url) => trim($url))
+            ->unique()
+            ->values()
+            ->all();
     }
 
     protected function buildShortDescription(VendorAccount $vendor, Collection $profiles, mixed $representativeProfile): string

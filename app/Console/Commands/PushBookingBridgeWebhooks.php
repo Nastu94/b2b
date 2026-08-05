@@ -13,6 +13,12 @@ class PushBookingBridgeWebhooks extends Command
 
     public function handle(): int
     {
+        if (! config('services.prestashop.vendor_sync_enabled', false)) {
+            $this->warn('Sincronizzazione vendor PrestaShop disabilitata da PRESTASHOP_VENDOR_SYNC_ENABLED.');
+
+            return self::SUCCESS;
+        }
+
         $query = VendorAccount::query()
             ->whereNull('deleted_at')
             ->whereNotNull('prestashop_product_id');

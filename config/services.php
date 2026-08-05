@@ -38,6 +38,12 @@ return [
 
 
     'prestashop' => [
+        // Arresto di emergenza: resta disabilitato finché il catalogo immagini
+        // non è stato ripulito e verificato manualmente.
+        'vendor_sync_enabled' => filter_var(
+            env('PRESTASHOP_VENDOR_SYNC_ENABLED', false),
+            FILTER_VALIDATE_BOOL
+        ),
         'endpoint' => env('PRESTASHOP_API_URL'),
         'key' => env('PRESTASHOP_API_KEY'),
         'outbound_key' => env('PRESTASHOP_OUTBOUND_KEY', env('PRESTASHOP_API_KEY')),

@@ -25,6 +25,7 @@ class PrestashopVendorSyncStateTest extends TestCase
         parent::setUp();
         Http::preventStrayRequests();
         Queue::fake();
+        config(['services.prestashop.vendor_sync_enabled' => true]);
         config(['services.prestashop.webhook_url' => 'https://prestashop.test/webhook']);
         config(['services.prestashop.endpoint' => 'https://prestashop.test/api']);
     }
@@ -166,6 +167,92 @@ class PrestashopVendorSyncStateTest extends TestCase
 
         // Http should not have been called because hash matches
         Http::assertNothingSent();
+    }
+
+    public function test_webhook_retry_does_not_repeat_product_sync(): void
+    {
+        $productCalls = 0;
+        $webhookCalls = 0;
+
+        Http::fake(function ($request) use (&$productCalls, &$webhookCalls) {
+            if (str_starts_with($request->url(), 'https://prestashop.test/api')) {
+                $productCalls++;
+
+                return Http::response(['product_id' => 123]);
+            }
+
+            $webhookCalls++;
+
+            return $webhookCalls === 1
+                ? Http::response(['error' => 'Temporary'], 500)
+                : Http::response(['success' => true]);
+        });
+
+        $category = Category::create(['name' => 'Test', 'slug' => 'retry-test', 'prestashop_category_id' => 1]);
+        $offering = Offering::create(['category_id' => $category->id, 'name' => 'Servizio', 'slug' => 'retry-service', 'is_active' => true]);
+        $vendor = VendorAccount::create([
+            'user_id' => User::factory()->create()->id,
+            'status' => 'ACTIVE',
+            'category_id' => $category->id,
+            'company_name' => 'Retry Vendor',
+        ]);
+        $vendor->vendorOfferingProfiles()->create([
+            'offering_id' => $offering->id,
+            'title' => 'Profilo',
+            'is_published' => true,
+            'is_approved' => true,
+        ]);
+
+        $job = new PushVendorToPrestashopJob($vendor);
+        try {
+            $job->handle(
+                app(PrestashopWebhookService::class),
+                app(PrestashopProductSyncService::class),
+                app(PrestashopVendorPayloadFactory::class)
+            );
+        } catch (\Throwable) {
+        }
+
+        $job->handle(
+            app(PrestashopWebhookService::class),
+            app(PrestashopProductSyncService::class),
+            app(PrestashopVendorPayloadFactory::class)
+        );
+
+        $this->assertSame(1, $productCalls);
+        $this->assertSame(2, $webhookCalls);
+        $this->assertNull($vendor->fresh()->prestashop_sync_error_code);
+    }
+
+    public function test_payload_contains_all_offering_images(): void
+    {
+        $category = Category::create(['name' => 'Test', 'slug' => 'gallery-test', 'prestashop_category_id' => 1]);
+        $offering = Offering::create(['category_id' => $category->id, 'name' => 'Servizio', 'slug' => 'gallery-service', 'is_active' => true]);
+        $vendor = VendorAccount::create([
+            'user_id' => User::factory()->create()->id,
+            'status' => 'ACTIVE',
+            'category_id' => $category->id,
+            'company_name' => 'Gallery Vendor',
+        ]);
+        $profile = $vendor->vendorOfferingProfiles()->create([
+            'offering_id' => $offering->id,
+            'title' => 'Profilo',
+            'cover_image_path' => 'vendor/cover.jpg',
+            'is_published' => true,
+            'is_approved' => true,
+        ]);
+        $profile->images()->createMany([
+            ['path' => 'vendor/gallery-1.jpg', 'sort_order' => 1],
+            ['path' => 'vendor/gallery-2.jpg', 'sort_order' => 2],
+        ]);
+
+        $payload = app(PrestashopVendorPayloadFactory::class)->buildPayload(
+            $vendor->fresh(['category', 'vendorOfferingProfiles.images']),
+            1
+        );
+
+        $this->assertCount(3, $payload['offerings'][0]['images']);
+        $this->assertStringContainsString('gallery-2.jpg', $payload['offerings'][0]['images'][2]);
     }
 
     public function test_active_vendor_with_published_service_requires_prestashop_category_mapping(): void

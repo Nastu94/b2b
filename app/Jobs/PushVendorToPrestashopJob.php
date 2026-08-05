@@ -7,8 +7,8 @@ use App\Services\PrestashopProductSyncService;
 use App\Services\PrestashopVendorPayloadFactory;
 use App\Services\PrestashopWebhookService;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
@@ -44,6 +44,10 @@ class PushVendorToPrestashopJob implements ShouldQueue, ShouldBeUniqueUntilProce
         PrestashopProductSyncService $productSync,
         PrestashopVendorPayloadFactory $payloadFactory
     ): void {
+        if (! config('services.prestashop.vendor_sync_enabled', false)) {
+            return;
+        }
+
         $vendor = VendorAccount::withTrashed()
             ->with([
                 'category',
@@ -59,34 +63,49 @@ class PushVendorToPrestashopJob implements ShouldQueue, ShouldBeUniqueUntilProce
 
         $syncVersion = ((int) $vendor->prestashop_sync_version) + 1;
         $payload = $payloadFactory->buildPayload($vendor, $syncVersion);
-
-        // L'hash rappresenta solo i dati funzionali: versione, data di
-        // generazione e ID prodotto non devono rendere ogni payload diverso.
         $payloadHash = $payloadFactory->contentHash($payload);
+        $samePayload = is_string($vendor->prestashop_payload_hash)
+            && $vendor->prestashop_payload_hash !== ''
+            && hash_equals($vendor->prestashop_payload_hash, $payloadHash);
 
-        if ($vendor->prestashop_payload_hash === $payloadHash && $vendor->prestashop_sync_error_code === null) {
+        if ($samePayload && $vendor->prestashop_sync_error_code === null) {
             return;
         }
 
-        try {
-            $productSyncResult = $productSync->sync($vendor, $payload);
+        // Un errore del webhook non deve ripetere la fase prodotto e
+        // reimportare nuovamente la copertina.
+        $productPhaseCompleted = $samePayload
+            && Str::startsWith((string) $vendor->prestashop_sync_error_code, '[webhook]');
+        $phase = 'product';
 
-            if ($productSyncResult === PrestashopProductSyncService::RESULT_CATEGORY_MAPPING_MISSING) {
+        try {
+            if (! $productPhaseCompleted) {
+                $productSyncResult = $productSync->sync($vendor, $payload);
+
+                if ($productSyncResult === PrestashopProductSyncService::RESULT_CATEGORY_MAPPING_MISSING) {
+                    $vendor->forceFill([
+                        'prestashop_sync_version' => $syncVersion,
+                        'prestashop_sync_error_code' => "[product] Categoria PrestaShop mancante per vendor {$vendor->id}.",
+                        'prestashop_sync_error_at' => now(),
+                    ])->saveQuietly();
+
+                    return;
+                }
+
+                // Salviamo il completamento della fase prodotto prima del
+                // webhook, così anche un crash non può duplicare immagini.
                 $vendor->forceFill([
                     'prestashop_sync_version' => $syncVersion,
                     'prestashop_payload_hash' => $payloadHash,
-                    'prestashop_sync_error_code' => "Categoria PrestaShop mancante per vendor {$vendor->id}.",
+                    'prestashop_sync_error_code' => '[webhook] Invio dati strutturati in attesa.',
                     'prestashop_sync_error_at' => now(),
                 ])->saveQuietly();
-
-                return;
             }
 
-            // La creazione prodotto può aver assegnato l'ID PrestaShop.
-            // Ricostruiamo il payload senza cambiare la versione logica.
             $vendor->refresh()->loadMissing(['category', 'vendorOfferingProfiles.images']);
             $payload = $payloadFactory->buildPayload($vendor, $syncVersion);
 
+            $phase = 'webhook';
             $result = $webhookService->pushVendor($vendor, $payload);
 
             if ($result === PrestashopWebhookService::RESULT_ERROR) {
@@ -100,15 +119,28 @@ class PushVendorToPrestashopJob implements ShouldQueue, ShouldBeUniqueUntilProce
                 'prestashop_sync_error_code' => null,
                 'prestashop_sync_error_at' => null,
             ])->saveQuietly();
-        } catch (Throwable $e) {
-            $vendor->forceFill([
+        } catch (Throwable $exception) {
+            $state = [
                 'prestashop_sync_version' => $syncVersion,
-                'prestashop_payload_hash' => $payloadHash,
-                'prestashop_sync_error_code' => Str::limit($e->getMessage(), 250),
+                'prestashop_sync_error_code' => $this->syncErrorMessage($phase, $exception),
                 'prestashop_sync_error_at' => now(),
-            ])->saveQuietly();
+            ];
 
-            throw $e;
+            if ($phase === 'webhook') {
+                $state['prestashop_payload_hash'] = $payloadHash;
+            }
+
+            $vendor->forceFill($state)->saveQuietly();
+
+            throw $exception;
         }
+    }
+
+    private function syncErrorMessage(string $phase, Throwable $exception): string
+    {
+        $message = preg_replace('#https?://[^\s)]+#i', '[url]', $exception->getMessage())
+            ?: $exception->getMessage();
+
+        return Str::limit("[{$phase}] {$message}", 250);
     }
 }
